@@ -18,6 +18,8 @@ impl FromRequestParts<AppState> for AuthUser {
     ) -> Result<Self, Self::Rejection> {
         let token = bearer_token(parts).ok_or(orva_error::Error::Unauthorized)?;
         let (_session, user) = state.auth.authenticate_session(&token).await?;
+        // per-tenant rate limit (ADR 0012) — บังคับตรงนี้เพราะเพิ่งรู้ organization
+        state.tenant_limiter.check(user.organization_id).await?;
         Ok(AuthUser(user))
     }
 }
@@ -66,10 +68,9 @@ where
 
 /// ORVA Agent API (M8) — auth ด้วย `X-Orva-Service-Key` แทน session token ของ user
 ///
-/// "Scoped" ใน v0.1 หมายถึง **tenant-scoped เท่านั้น** — service identity ผูกกับ
-/// `organization_id` เดียวตั้งแต่ตอนออก key (M2) ทำอะไรข้ามองค์กรไม่ได้เลย ยังไม่มี
-/// fine-grained action scope ต่อ key (เช่น "key นี้สร้าง workflow ได้อย่างเดียว อ่านอย่างเดียว
-/// ทำไม่ได้") — เก็บเป็นงานต่อยอดตอนมี ORVA Worker จริงมาใช้งาน (ดู MILESTONES.md M8)
+/// identity ผูกกับ `organization_id` เดียวตั้งแต่ตอนออก key (tenant-scoped) และตั้งแต่
+/// ADR 0011 แต่ละ key มี **fine-grained scope** กำกับด้วยว่าทำอะไรใน Agent API ได้บ้าง
+/// (บังคับที่ route แต่ละตัว — ดู `routes_agent.rs`)
 pub struct ServiceIdentityAuth(pub orva_data::ServiceIdentity);
 
 impl FromRequestParts<AppState> for ServiceIdentityAuth {
@@ -85,6 +86,8 @@ impl FromRequestParts<AppState> for ServiceIdentityAuth {
             .and_then(|v| v.to_str().ok())
             .ok_or(orva_error::Error::Unauthorized)?;
         let identity = state.auth.authenticate_service_key(key).await?;
+        // per-tenant rate limit (ADR 0012) — agent ก็นับรวมใน quota ขององค์กรเดียวกัน
+        state.tenant_limiter.check(identity.organization_id).await?;
         Ok(ServiceIdentityAuth(identity))
     }
 }

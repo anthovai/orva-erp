@@ -11,4 +11,6 @@ pub struct Organization {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,
+    /// request/นาที ของทั้งองค์กร (ADR 0012) — `None` = ใช้ default ของระบบ
+    pub rate_limit_per_minute: Option<i32>,
 }

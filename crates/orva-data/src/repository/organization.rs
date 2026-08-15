@@ -52,6 +52,20 @@ impl OrganizationRepository {
         .map_err(|e| Error::Internal(format!("list organizations failed: {e}")))
     }
 
+    /// ตั้ง rate limit ต่อนาทีขององค์กร (ADR 0012) — `None` = กลับไปใช้ default ของระบบ
+    pub async fn set_rate_limit(&self, id: Uuid, per_minute: Option<i32>) -> Result<()> {
+        sqlx::query(
+            "update organizations set rate_limit_per_minute = $1, updated_at = now()
+             where id = $2",
+        )
+        .bind(per_minute)
+        .bind(id)
+        .execute(&self.pool)
+        .await
+        .map_err(|e| Error::Internal(format!("set organization rate limit failed: {e}")))?;
+        Ok(())
+    }
+
     pub async fn soft_delete(&self, id: Uuid) -> Result<()> {
         sqlx::query("update organizations set deleted_at = now() where id = $1")
             .bind(id)

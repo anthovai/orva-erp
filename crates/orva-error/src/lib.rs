@@ -20,6 +20,9 @@ pub enum Error {
     #[error("validation error: {0}")]
     Validation(String),
 
+    #[error("rate limit exceeded")]
+    RateLimited,
+
     #[error("internal error: {0}")]
     Internal(String),
 }

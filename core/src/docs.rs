@@ -37,6 +37,7 @@ impl Modify for BearerAuth {
         routes::jwks,
         routes::provision_organization,
         routes::suspend_current_organization,
+        routes::set_rate_limit,
         routes::register,
         routes::login,
         routes::logout,
@@ -81,6 +82,7 @@ impl Modify for BearerAuth {
     components(schemas(
         routes::TokenResponse,
         routes::ProvisionOrganizationRequest,
+        routes::SetRateLimitRequest,
         routes::RegisterRequest,
         routes::UserResponse,
         routes::LoginRequest,

@@ -24,6 +24,10 @@ impl IntoResponse for ModuleApiError {
             Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized".to_string()),
             Forbidden(m) => (StatusCode::FORBIDDEN, m.clone()),
             Validation(m) => (StatusCode::BAD_REQUEST, m.clone()),
+            RateLimited => (
+                StatusCode::TOO_MANY_REQUESTS,
+                "rate limit exceeded".to_string(),
+            ),
             Config(m) => (StatusCode::INTERNAL_SERVER_ERROR, m.clone()),
             Internal(m) => (StatusCode::INTERNAL_SERVER_ERROR, m.clone()),
         };

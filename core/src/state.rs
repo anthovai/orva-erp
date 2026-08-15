@@ -10,7 +10,7 @@ use orva_module_sdk::{ModuleContext, ModuleRegistry};
 use orva_notifications::{subscribe_workflow_approval_requests, Mailer, NotificationService};
 use orva_workflow::WorkflowService;
 
-use crate::rate_limit::{self, KeyedLimiter};
+use crate::rate_limit::{self, KeyedLimiter, TenantRateLimiter};
 
 pub const DEFAULT_REQUESTS_PER_MINUTE: u32 = 100;
 
@@ -23,6 +23,8 @@ pub struct AppState {
     /// JWKS document (`{"keys": [...]}`) — เสิร์ฟตรง ๆ ที่ `/.well-known/jwks.json` (ADR 0006)
     pub jwks: serde_json::Value,
     pub rate_limiter: Arc<KeyedLimiter>,
+    /// rate limit ระดับองค์กร (ADR 0012) — บังคับใน auth extractor หลังรู้ tenant แล้ว
+    pub tenant_limiter: Arc<TenantRateLimiter>,
     /// query ย้อนหลังโดยตรง (ไม่ผ่าน pub/sub) — ใช้โดย `GET /api/v1/events`
     pub events: EventRepository,
     /// เก็บไว้ให้ business module ในอนาคตมา `subscribe`/`subscribe_all` ทีหลังได้
@@ -101,6 +103,10 @@ impl AppState {
             issuer: issuer.to_string(),
             jwks,
             rate_limiter: rate_limit::new_limiter(requests_per_minute),
+            tenant_limiter: Arc::new(TenantRateLimiter::new(
+                pool.clone(),
+                rate_limit::DEFAULT_TENANT_REQUESTS_PER_MINUTE,
+            )),
             events: EventRepository::new(pool.clone()),
             event_bus,
             modules: Arc::new(registry),

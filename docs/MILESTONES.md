@@ -117,7 +117,7 @@ Rust  Layer  +SSO    Tenant Gateway Bus  +Audit   System  Foundation
 >
 > **ขอบเขตที่ตัดออกอย่างตั้งใจ:**
 > - CORS ใช้ `CorsLayer::permissive()` (ทุก origin) เพราะยังไม่มี Unified UI จริงให้ล็อก origin ที่แน่นอน — **ต้องจำกัด origin ก่อนขึ้น production**
-> - Rate limit key เป็น bearer token/IP ระดับ "proxy ของ user" ไม่ใช่ organization_id จริง (เพราะต้องแลก DB lookup ทุก request ถ้าจะ key ด้วย org — ไม่คุ้มกับ middleware ที่ต้องรันก่อน auth) — เพียงพอสำหรับ v0.1 กัน abuse เบื้องต้น ยังไม่ใช่ quota per-tenant ที่ enforce จริงจัง
+> - ~~Rate limit key เป็น bearer token/IP ระดับ "proxy ของ user" ไม่ใช่ organization_id จริง~~ → **per-tenant enforce จริงแล้ว 2026-08-15** — ชั้นที่สองบังคับใน auth extractor (หลังรู้ tenant), quota ต่อองค์กร configurable ผ่าน API + cache 60 วิ — ดู [ADR 0012](adr/0012-tenant-rate-limit.md) (per-key limiter เดิมยังคงอยู่เป็นชั้นแรกก่อน auth)
 > - ไม่มี CSP (Content-Security-Policy) header — ยังไม่มีหน้า HTML ให้ป้องกัน (ยังไม่มี Unified UI)
 > - Rate limiter เป็น in-memory ต่อ process — ถ้า scale เป็นหลาย instance ต้องย้ายไป shared store (Redis) ทีหลัง
 
@@ -240,7 +240,7 @@ Notification:
 
 ครบทั้ง 9 milestones (M0–M8) — **Rust Core Platform พร้อมสำหรับ Phase ถัดไป** (เลือก OSS ประกอบเป็น Business Modules ตาม [OSS-STRATEGY.md](OSS-STRATEGY.md))
 
-สิ่งที่ยังไม่ทำเป็น **known gap ที่บันทึกไว้ครบทุกจุด** ไม่ใช่สิ่งที่ถูกลืม: ~~RLS ระดับ DB (M3)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0005](adr/0005-row-level-security.md)), ~~RS256/JWKS~~ (**ปิดแล้ว 2026-08-15** — [ADR 0006](adr/0006-rs256-jwks.md)), ~~MFA TOTP~~ (**ปิดแล้ว 2026-08-15** — [ADR 0007](adr/0007-mfa-totp.md)), ~~email ไม่ส่งจริง (M6)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0008](adr/0008-smtp-email.md)) เหลือ full OIDC redirect flow (M2), rate limit ต่อ tenant จริง (M4), ~~workflow definition แบบ reusable (M6)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0009](adr/0009-workflow-definitions.md)), dynamic module loading (M7), ~~Recommendation~~ (**ปิดแล้ว 2026-08-15** — [ADR 0010](adr/0010-recommendations.md)) + ~~fine-grained agent scope~~ (**ปิดแล้ว 2026-08-15** — [ADR 0011](adr/0011-agent-scopes.md)) (M8) — ทั้งหมดมี ADR หรือหมายเหตุอ้างอิงให้ตามไปอ่านตอนถึงเวลาต้องแก้จริง
+สิ่งที่ยังไม่ทำเป็น **known gap ที่บันทึกไว้ครบทุกจุด** ไม่ใช่สิ่งที่ถูกลืม: ~~RLS ระดับ DB (M3)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0005](adr/0005-row-level-security.md)), ~~RS256/JWKS~~ (**ปิดแล้ว 2026-08-15** — [ADR 0006](adr/0006-rs256-jwks.md)), ~~MFA TOTP~~ (**ปิดแล้ว 2026-08-15** — [ADR 0007](adr/0007-mfa-totp.md)), ~~email ไม่ส่งจริง (M6)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0008](adr/0008-smtp-email.md)) เหลือ full OIDC redirect flow (M2), ~~rate limit ต่อ tenant จริง (M4)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0012](adr/0012-tenant-rate-limit.md)), ~~workflow definition แบบ reusable (M6)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0009](adr/0009-workflow-definitions.md)), dynamic module loading (M7), ~~Recommendation~~ (**ปิดแล้ว 2026-08-15** — [ADR 0010](adr/0010-recommendations.md)) + ~~fine-grained agent scope~~ (**ปิดแล้ว 2026-08-15** — [ADR 0011](adr/0011-agent-scopes.md)) (M8) — ทั้งหมดมี ADR หรือหมายเหตุอ้างอิงให้ตามไปอ่านตอนถึงเวลาต้องแก้จริง
 
 ---
 

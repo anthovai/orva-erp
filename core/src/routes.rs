@@ -11,7 +11,7 @@ use validator::Validate;
 
 use crate::{
     error::ApiError,
-    extractor::{AuthUser, RequirePermission},
+    extractor::{AuthUser, PermissionKey, RequirePermission},
     permissions::{EventRead, OrganizationManage, RoleManage, ServiceIdentityManage},
     state::AppState,
     validation::ValidatedJson,
@@ -29,6 +29,10 @@ pub(crate) fn router() -> Router<AppState> {
         .route(
             "/api/v1/organizations/current/suspend",
             post(suspend_current_organization),
+        )
+        .route(
+            "/api/v1/organizations/current/rate-limit",
+            post(set_rate_limit),
         )
         .route("/api/v1/auth/register", post(register))
         .route("/api/v1/auth/login", post(login))
@@ -148,6 +152,49 @@ pub(crate) async fn suspend_current_organization(
         .auth
         .suspend_organization(user.organization_id)
         .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Deserialize, Validate, ToSchema)]
+pub(crate) struct SetRateLimitRequest {
+    /// request/นาที ของทั้งองค์กร — `null` = กลับไปใช้ default ของระบบ (ADR 0012)
+    #[validate(range(min = 1, max = 100000))]
+    requests_per_minute: Option<i32>,
+}
+
+/// ตั้ง rate limit ต่อนาทีขององค์กรตัวเอง (ADR 0012) — มีผลทันที (cache ถูก invalidate)
+///
+/// endpoint นี้**ยกเว้นจาก tenant limiter เอง** (auth มือแทน extractor ปกติ) — ไม่งั้น
+/// องค์กรที่ตั้ง quota ต่ำเกินจะโดน 429 จนแก้ quota ตัวเองไม่ได้ (ล็อกตัวเองถาวรในนาทีนั้น)
+#[utoipa::path(post, path = "/api/v1/organizations/current/rate-limit", tag = "tenant",
+    security(("bearer" = [])), request_body = SetRateLimitRequest,
+    responses((status = 204, description = "Rate limit updated"),
+               (status = 403, description = "Missing core.organization.manage")))]
+pub(crate) async fn set_rate_limit(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    ValidatedJson(body): ValidatedJson<SetRateLimitRequest>,
+) -> Result<StatusCode, ApiError> {
+    let token = headers
+        .get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .ok_or(orva_error::Error::Unauthorized)?;
+    let (_session, user) = state.auth.authenticate_session(token).await?;
+    state
+        .auth
+        .require_permission(
+            user.organization_id,
+            user.id,
+            crate::permissions::OrganizationManage::KEY,
+        )
+        .await?;
+
+    state
+        .auth
+        .set_organization_rate_limit(user.organization_id, body.requests_per_minute)
+        .await?;
+    state.tenant_limiter.invalidate(user.organization_id);
     Ok(StatusCode::NO_CONTENT)
 }
 

@@ -112,6 +112,29 @@ impl AuthService {
         self.issue_tokens(&user).await
     }
 
+    /// ตั้ง rate limit ต่อนาทีขององค์กร (ADR 0012) — `None` = กลับไปใช้ default ของระบบ
+    pub async fn set_organization_rate_limit(
+        &self,
+        organization_id: Uuid,
+        per_minute: Option<i32>,
+    ) -> Result<()> {
+        self.organizations
+            .set_rate_limit(organization_id, per_minute)
+            .await?;
+        self.events
+            .publish(
+                organization_id,
+                catalog::ORGANIZATION_RATE_LIMIT_CHANGED,
+                json!({ "organization_id": organization_id, "requests_per_minute": per_minute }),
+                PublishOptions {
+                    resource: Some(("organization".to_string(), organization_id)),
+                    ..Default::default()
+                },
+            )
+            .await?;
+        Ok(())
+    }
+
     pub async fn suspend_organization(&self, organization_id: Uuid) -> Result<()> {
         self.organizations.soft_delete(organization_id).await?;
         self.events
