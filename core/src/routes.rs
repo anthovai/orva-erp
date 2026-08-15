@@ -19,6 +19,8 @@ use crate::{
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
+        .route("/", get(ui_redirect))
+        .route("/ui", get(ui_index))
         .route("/health", get(health))
         .route(
             "/.well-known/openid-configuration",
@@ -51,6 +53,16 @@ pub(crate) fn router() -> Router<AppState> {
         )
         .route("/api/v1/roles/{role_id}/assign", post(assign_role))
         .route("/api/v1/events", get(list_events))
+}
+
+/// Unified UI shell (ADR 0015) — self-contained, embed ใน binary ตอน compile
+/// (ไม่มี build step / ไม่มี Node toolchain — ดู ADR สำหรับเหตุผลและแผนยกระดับ)
+pub(crate) async fn ui_index() -> axum::response::Html<&'static str> {
+    axum::response::Html(include_str!("../ui/index.html"))
+}
+
+pub(crate) async fn ui_redirect() -> axum::response::Redirect {
+    axum::response::Redirect::temporary("/ui")
 }
 
 #[utoipa::path(get, path = "/health", tag = "system",

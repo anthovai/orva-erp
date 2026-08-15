@@ -54,8 +54,9 @@ cargo run -p orva-core
 
 ตั้งค่าใน [config/default.toml](config/default.toml) — override ด้วย env `ORVA_SERVER_HOST`, `ORVA_SERVER_PORT`, `ORVA_DATABASE_URL`, `ORVA_JWT_RSA_KEY_PATH`, `ORVA_SMTP_*` (ดู ADR 0008)
 
-## API
+## UI & API
 
+- **Unified UI**: `http://127.0.0.1:8080/ui` (embed ใน binary — ดู ADR 0015)
 - Swagger UI: `http://127.0.0.1:8080/docs`
 - OpenAPI spec: `http://127.0.0.1:8080/api-docs/openapi.json`
 

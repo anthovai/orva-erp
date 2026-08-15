@@ -246,8 +246,8 @@ Notification:
 
 ## หลัง v0.1 (Phase ถัดไป — ไม่อยู่ใน scope นี้)
 
-- ORVA Worker integration (OpenWorker เต็มรูปแบบ)
+- ORVA Worker integration (OpenWorker เต็มรูปแบบ — connector ฝั่ง OpenWorker มีแล้ว)
 - ORVA Knowledge (สร้างเองตามแนวคิด linked notes / knowledge graph)
-- เลือก OSS สำหรับ Business Modules (HRM, Finance, Project, Support, Inventory)
-- Unified UI shell
+- เลือก OSS สำหรับ Business Modules (HRM, Finance, Project, Support, Inventory) — โครง adapter พร้อมแล้ว ([ADR 0014](adr/0014-external-module-adapter.md))
+- ~~Unified UI shell~~ → **v0.1 เสร็จ 2026-08-15** — `/ui` embed ใน binary ([ADR 0015](adr/0015-unified-ui-shell.md))
 - AI ใน Intelligence Engine (จาก rules → analytics → AI)
