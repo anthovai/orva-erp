@@ -26,9 +26,14 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     env:
-      ORVA_TEST_DATABASE_URL: postgres://orva:orva@localhost:5432/orva_test
+      ORVA_TEST_DATABASE_URL: postgres://orva_app:orva@localhost:5432/orva_test
     steps:
       - uses: actions/checkout@v4
+      # RLS ต้องการ role ที่ไม่ใช่ superuser (superuser ข้าม policy หมด) — ดู ADR 0005
+      - name: Create non-superuser app role
+        run: |
+          PGPASSWORD=orva psql -h localhost -U orva -d orva_test \
+            -c "CREATE ROLE orva_app LOGIN PASSWORD 'orva' NOSUPERUSER NOBYPASSRLS IN ROLE orva;"
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy

@@ -1,7 +1,10 @@
 use orva_error::{Error, Result};
 use uuid::Uuid;
 
-use crate::{entity::ModuleInstallation, pool::Pool};
+use crate::{
+    entity::ModuleInstallation,
+    pool::{begin_tenant, Pool},
+};
 
 #[derive(Clone)]
 pub struct ModuleInstallationRepository {
@@ -20,7 +23,8 @@ impl ModuleInstallationRepository {
         version: &str,
         installed_by: Uuid,
     ) -> Result<ModuleInstallation> {
-        sqlx::query_as::<_, ModuleInstallation>(
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        let installation = sqlx::query_as::<_, ModuleInstallation>(
             "insert into module_installations (organization_id, module_name, version, installed_by)
              values ($1, $2, $3, $4)
              on conflict (organization_id, module_name)
@@ -31,9 +35,11 @@ impl ModuleInstallationRepository {
         .bind(module_name)
         .bind(version)
         .bind(installed_by)
-        .fetch_one(&self.pool)
+        .fetch_one(ttx.as_executor())
         .await
-        .map_err(|e| Error::Internal(format!("install module failed: {e}")))
+        .map_err(|e| Error::Internal(format!("install module failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(installation)
     }
 
     pub async fn find(
@@ -41,24 +47,30 @@ impl ModuleInstallationRepository {
         organization_id: Uuid,
         module_name: &str,
     ) -> Result<Option<ModuleInstallation>> {
-        sqlx::query_as::<_, ModuleInstallation>(
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        let installation = sqlx::query_as::<_, ModuleInstallation>(
             "select * from module_installations where organization_id = $1 and module_name = $2",
         )
         .bind(organization_id)
         .bind(module_name)
-        .fetch_optional(&self.pool)
+        .fetch_optional(ttx.as_executor())
         .await
-        .map_err(|e| Error::Internal(format!("find module installation failed: {e}")))
+        .map_err(|e| Error::Internal(format!("find module installation failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(installation)
     }
 
     pub async fn list(&self, organization_id: Uuid) -> Result<Vec<ModuleInstallation>> {
-        sqlx::query_as::<_, ModuleInstallation>(
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        let installations = sqlx::query_as::<_, ModuleInstallation>(
             "select * from module_installations where organization_id = $1 order by installed_at",
         )
         .bind(organization_id)
-        .fetch_all(&self.pool)
+        .fetch_all(ttx.as_executor())
         .await
-        .map_err(|e| Error::Internal(format!("list module installations failed: {e}")))
+        .map_err(|e| Error::Internal(format!("list module installations failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(installations)
     }
 
     pub async fn set_enabled(
@@ -67,6 +79,7 @@ impl ModuleInstallationRepository {
         module_name: &str,
         enabled: bool,
     ) -> Result<()> {
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
         sqlx::query(
             "update module_installations set enabled = $1
              where organization_id = $2 and module_name = $3",
@@ -74,9 +87,10 @@ impl ModuleInstallationRepository {
         .bind(enabled)
         .bind(organization_id)
         .bind(module_name)
-        .execute(&self.pool)
+        .execute(ttx.as_executor())
         .await
         .map_err(|e| Error::Internal(format!("set module enabled failed: {e}")))?;
+        ttx.commit().await?;
         Ok(())
     }
 

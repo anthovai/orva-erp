@@ -40,6 +40,10 @@ orva-erp/
 # database สำหรับ dev
 docker compose up -d
 
+# ถ้า volume เดิมสร้างก่อนมี RLS (ADR 0005) ต้องสร้าง role แอปเองครั้งเดียว:
+# docker exec orva-postgres psql -U orva -d postgres -c \
+#   "create role orva_app login password 'orva' nosuperuser nobypassrls in role orva;"
+
 # build + test
 cargo build --workspace
 cargo test --workspace

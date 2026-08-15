@@ -3,9 +3,10 @@ use uuid::Uuid;
 
 use crate::{
     entity::{Permission, Role},
-    pool::Pool,
+    pool::{begin_tenant, Pool},
 };
 
+/// Catalog กลาง — ตาราง `permissions` ไม่มีข้อมูล tenant จึง**ไม่อยู่ใต้ RLS** (ดู ADR 0005)
 pub struct PermissionRepository {
     pool: Pool,
 }
@@ -61,59 +62,78 @@ impl RoleRepository {
         name: &str,
         created_by: Option<Uuid>,
     ) -> Result<Role> {
-        sqlx::query_as::<_, Role>(
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        let role = sqlx::query_as::<_, Role>(
             "insert into roles (organization_id, name, created_by) values ($1, $2, $3) returning *",
         )
         .bind(organization_id)
         .bind(name)
         .bind(created_by)
-        .fetch_one(&self.pool)
+        .fetch_one(ttx.as_executor())
         .await
-        .map_err(|e| Error::Internal(format!("create role failed: {e}")))
+        .map_err(|e| Error::Internal(format!("create role failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(role)
     }
 
     pub async fn find_by_id(&self, organization_id: Uuid, id: Uuid) -> Result<Option<Role>> {
-        sqlx::query_as::<_, Role>(
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        let role = sqlx::query_as::<_, Role>(
             "select * from roles where organization_id = $1 and id = $2 and deleted_at is null",
         )
         .bind(organization_id)
         .bind(id)
-        .fetch_optional(&self.pool)
+        .fetch_optional(ttx.as_executor())
         .await
-        .map_err(|e| Error::Internal(format!("find role failed: {e}")))
+        .map_err(|e| Error::Internal(format!("find role failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(role)
     }
 
     pub async fn list(&self, organization_id: Uuid) -> Result<Vec<Role>> {
-        sqlx::query_as::<_, Role>(
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        let roles = sqlx::query_as::<_, Role>(
             "select * from roles where organization_id = $1 and deleted_at is null order by created_at",
         )
         .bind(organization_id)
-        .fetch_all(&self.pool)
+        .fetch_all(ttx.as_executor())
         .await
-        .map_err(|e| Error::Internal(format!("list roles failed: {e}")))
+        .map_err(|e| Error::Internal(format!("list roles failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(roles)
     }
 
     pub async fn soft_delete(&self, organization_id: Uuid, id: Uuid) -> Result<()> {
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
         sqlx::query("update roles set deleted_at = now() where organization_id = $1 and id = $2")
             .bind(organization_id)
             .bind(id)
-            .execute(&self.pool)
+            .execute(ttx.as_executor())
             .await
             .map_err(|e| Error::Internal(format!("soft delete role failed: {e}")))?;
+        ttx.commit().await?;
         Ok(())
     }
 
     /// ให้ permission กับ role — permission_id ต้องมีอยู่ใน catalog กลางแล้ว (ดู [`PermissionRepository`])
-    pub async fn grant_permission(&self, role_id: Uuid, permission_id: Uuid) -> Result<()> {
+    /// RLS ของ `role_permissions` scope ผ่าน parent role → ต้องรู้ organization ของ role นั้น
+    pub async fn grant_permission(
+        &self,
+        organization_id: Uuid,
+        role_id: Uuid,
+        permission_id: Uuid,
+    ) -> Result<()> {
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
         sqlx::query(
             "insert into role_permissions (role_id, permission_id) values ($1, $2)
              on conflict (role_id, permission_id) do nothing",
         )
         .bind(role_id)
         .bind(permission_id)
-        .execute(&self.pool)
+        .execute(ttx.as_executor())
         .await
         .map_err(|e| Error::Internal(format!("grant permission failed: {e}")))?;
+        ttx.commit().await?;
         Ok(())
     }
 
@@ -123,6 +143,7 @@ impl RoleRepository {
         role_id: Uuid,
         user_id: Uuid,
     ) -> Result<()> {
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
         sqlx::query(
             "insert into user_roles (user_id, role_id, organization_id) values ($1, $2, $3)
              on conflict (user_id, role_id) do nothing",
@@ -130,9 +151,10 @@ impl RoleRepository {
         .bind(user_id)
         .bind(role_id)
         .bind(organization_id)
-        .execute(&self.pool)
+        .execute(ttx.as_executor())
         .await
         .map_err(|e| Error::Internal(format!("assign role failed: {e}")))?;
+        ttx.commit().await?;
         Ok(())
     }
 
@@ -142,7 +164,8 @@ impl RoleRepository {
         organization_id: Uuid,
         user_id: Uuid,
     ) -> Result<Vec<String>> {
-        sqlx::query_scalar::<_, String>(
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        let keys = sqlx::query_scalar::<_, String>(
             "select distinct p.key
              from user_roles ur
              join roles r on r.id = ur.role_id and r.deleted_at is null
@@ -152,8 +175,10 @@ impl RoleRepository {
         )
         .bind(organization_id)
         .bind(user_id)
-        .fetch_all(&self.pool)
+        .fetch_all(ttx.as_executor())
         .await
-        .map_err(|e| Error::Internal(format!("load permissions for user failed: {e}")))
+        .map_err(|e| Error::Internal(format!("load permissions for user failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(keys)
     }
 }

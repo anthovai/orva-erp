@@ -11,7 +11,7 @@ use tower::util::ServiceExt;
 
 fn test_database_url() -> String {
     std::env::var("ORVA_TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://orva:orva@localhost:5432/orva_test".to_string())
+        .unwrap_or_else(|_| "postgres://orva_app:orva@localhost:5432/orva_test".to_string())
 }
 
 async fn json_body(response: axum::response::Response) -> Value {
@@ -129,10 +129,13 @@ async fn notes_module_full_lifecycle_with_install_gate_and_permissions() {
         .unwrap()
         .unwrap();
     roles
-        .grant_permission(role.id, manage_perm.id)
+        .grant_permission(org.id, role.id, manage_perm.id)
         .await
         .unwrap();
-    roles.grant_permission(role.id, read_perm.id).await.unwrap();
+    roles
+        .grant_permission(org.id, role.id, read_perm.id)
+        .await
+        .unwrap();
     roles
         .assign_to_user(org.id, role.id, user.id)
         .await

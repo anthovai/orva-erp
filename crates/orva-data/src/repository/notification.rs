@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::{
     entity::{Notification, NotificationPreference},
-    pool::Pool,
+    pool::{begin_tenant, Pool},
 };
 
 #[derive(Clone)]
@@ -25,7 +25,8 @@ impl NotificationRepository {
         title: &str,
         body: &str,
     ) -> Result<Notification> {
-        sqlx::query_as::<_, Notification>(
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        let notification = sqlx::query_as::<_, Notification>(
             "insert into notifications (organization_id, user_id, channel, title, body)
              values ($1, $2, $3, $4, $5) returning *",
         )
@@ -34,9 +35,11 @@ impl NotificationRepository {
         .bind(channel)
         .bind(title)
         .bind(body)
-        .fetch_one(&self.pool)
+        .fetch_one(ttx.as_executor())
         .await
-        .map_err(|e| Error::Internal(format!("create notification failed: {e}")))
+        .map_err(|e| Error::Internal(format!("create notification failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(notification)
     }
 
     pub async fn list_for_user(
@@ -45,33 +48,29 @@ impl NotificationRepository {
         user_id: Uuid,
         unread_only: bool,
     ) -> Result<Vec<Notification>> {
-        if unread_only {
-            sqlx::query_as::<_, Notification>(
-                "select * from notifications
-                 where organization_id = $1 and user_id = $2 and read_at is null
-                 order by created_at desc",
-            )
-            .bind(organization_id)
-            .bind(user_id)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| Error::Internal(format!("list notifications failed: {e}")))
+        let sql = if unread_only {
+            "select * from notifications
+             where organization_id = $1 and user_id = $2 and read_at is null
+             order by created_at desc"
         } else {
-            sqlx::query_as::<_, Notification>(
-                "select * from notifications
-                 where organization_id = $1 and user_id = $2
-                 order by created_at desc",
-            )
+            "select * from notifications
+             where organization_id = $1 and user_id = $2
+             order by created_at desc"
+        };
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        let notifications = sqlx::query_as::<_, Notification>(sql)
             .bind(organization_id)
             .bind(user_id)
-            .fetch_all(&self.pool)
+            .fetch_all(ttx.as_executor())
             .await
-            .map_err(|e| Error::Internal(format!("list notifications failed: {e}")))
-        }
+            .map_err(|e| Error::Internal(format!("list notifications failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(notifications)
     }
 
-    /// mark-read เฉพาะของ user คนนั้นเอง (`user_id = $3`) — กันคนอื่นมา mark ของคนอื่น
+    /// mark-read เฉพาะของ user คนนั้นเอง (`user_id = $4`) — กันคนอื่นมา mark ของคนอื่น
     pub async fn mark_read(&self, organization_id: Uuid, id: Uuid, user_id: Uuid) -> Result<()> {
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
         sqlx::query(
             "update notifications set read_at = $1
              where organization_id = $2 and id = $3 and user_id = $4",
@@ -80,9 +79,10 @@ impl NotificationRepository {
         .bind(organization_id)
         .bind(id)
         .bind(user_id)
-        .execute(&self.pool)
+        .execute(ttx.as_executor())
         .await
         .map_err(|e| Error::Internal(format!("mark notification read failed: {e}")))?;
+        ttx.commit().await?;
         Ok(())
     }
 }
@@ -104,6 +104,7 @@ impl NotificationPreferenceRepository {
         user_id: Uuid,
         channel: &str,
     ) -> Result<bool> {
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
         let pref = sqlx::query_as::<_, NotificationPreference>(
             "select * from notification_preferences
              where organization_id = $1 and user_id = $2 and channel = $3",
@@ -111,9 +112,10 @@ impl NotificationPreferenceRepository {
         .bind(organization_id)
         .bind(user_id)
         .bind(channel)
-        .fetch_optional(&self.pool)
+        .fetch_optional(ttx.as_executor())
         .await
         .map_err(|e| Error::Internal(format!("read notification preference failed: {e}")))?;
+        ttx.commit().await?;
 
         Ok(pref.map(|p| p.enabled).unwrap_or(true))
     }
@@ -125,7 +127,8 @@ impl NotificationPreferenceRepository {
         channel: &str,
         enabled: bool,
     ) -> Result<NotificationPreference> {
-        sqlx::query_as::<_, NotificationPreference>(
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        let pref = sqlx::query_as::<_, NotificationPreference>(
             "insert into notification_preferences (organization_id, user_id, channel, enabled)
              values ($1, $2, $3, $4)
              on conflict (user_id, channel) do update set enabled = excluded.enabled, updated_at = now()
@@ -135,8 +138,10 @@ impl NotificationPreferenceRepository {
         .bind(user_id)
         .bind(channel)
         .bind(enabled)
-        .fetch_one(&self.pool)
+        .fetch_one(ttx.as_executor())
         .await
-        .map_err(|e| Error::Internal(format!("set notification preference failed: {e}")))
+        .map_err(|e| Error::Internal(format!("set notification preference failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(pref)
     }
 }

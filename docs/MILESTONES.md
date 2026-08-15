@@ -93,7 +93,7 @@ Rust  Layer  +SSO    Tenant Gateway Bus  +Audit   System  Foundation
 >
 > **ขอบเขตที่ตัดออกอย่างตั้งใจ:**
 > - `provision_organization` ไม่ได้ wrap เป็น DB transaction เดียว (สร้าง org → user → role → grant → assign เป็นหลายคำสั่งแยก) — ถ้า fail กลางทางจะเหลือข้อมูลค้าง เป็น known gap รอ hardening pass ทีหลัง (ไม่กระทบ correctness ของ test เพราะ path สำเร็จเท่านั้นที่ทดสอบ)
-> - **DB-level tenant isolation (Postgres Row-Level Security) ยังไม่ทำ** — กลไกที่ใช้จริงคือ application-layer: ทุก query ผ่าน repository ที่บังคับรับ `organization_id` เท่านั้น (พิสูจน์แล้วว่าใช้งานได้จริงและปลอดภัยพอสำหรับ v0.1) พิจารณา RLS เป็น defense-in-depth เพิ่มเติมทีหลัง — **ต้องเพิ่ม `SET LOCAL` per-transaction ให้ครบทุก call site ก่อนเปิด RLS ไม่งั้นทุก query จะเห็นเป็น 0 แถวทันที (GUC ว่าง = policy ปฏิเสธหมด)**
+> - ~~**DB-level tenant isolation (Postgres Row-Level Security) ยังไม่ทำ**~~ → **ทำแล้ว 2026-08-15** (post-v0.1 hardening) — migration `row_level_security` เปิด `ENABLE`+`FORCE` RLS + policy ทุกตาราง tenant-scoped, ทุก repository query ผ่าน `begin_tenant` (ตั้ง GUC per-transaction), เชื่อมต่อด้วย role `orva_app` ที่ไม่ใช่ superuser, พิสูจน์ใน `crates/orva-data/tests/rls.rs` — ดู [ADR 0005](adr/0005-row-level-security.md)
 > - `/api/v1/auth/register` ยังเป็น route สาธารณะที่ไม่ต้อง invite — ใครก็ตามที่รู้ organization slug สมัครเข้าองค์กรนั้นได้เอง (ไม่มี role ติดตัว) เป็นการตัดสินใจ v0.1 ไม่ใช่บั๊ก — invite-only flow เก็บไว้พิจารณาทีหลัง
 > - Permission middleware ไม่ได้ครอบ "ทุก" route ตามตัวอักษร — route สาธารณะ (`/health`, `/.well-known/...`, `/register`, `/login`, `/organizations` สำหรับ signup) และ route แบบ "อ่านข้อมูลตัวเอง" (`/me`, `/userinfo`, `/me/permissions`) ตั้งใจไม่ผูก permission เพราะไม่มีอะไรให้ authorize เกินกว่า "login แล้วหรือยัง"
 
@@ -240,7 +240,7 @@ Notification:
 
 ครบทั้ง 9 milestones (M0–M8) — **Rust Core Platform พร้อมสำหรับ Phase ถัดไป** (เลือก OSS ประกอบเป็น Business Modules ตาม [OSS-STRATEGY.md](OSS-STRATEGY.md))
 
-สิ่งที่ยังไม่ทำเป็น **known gap ที่บันทึกไว้ครบทุกจุด** ไม่ใช่สิ่งที่ถูกลืม: RLS ระดับ DB (M3), full OIDC redirect flow + RS256 (M2), rate limit ต่อ tenant จริง (M4), workflow definition แบบ reusable (M6), dynamic module loading (M7), Recommendation + fine-grained agent scope (M8) — ทั้งหมดมี ADR หรือหมายเหตุอ้างอิงให้ตามไปอ่านตอนถึงเวลาต้องแก้จริง
+สิ่งที่ยังไม่ทำเป็น **known gap ที่บันทึกไว้ครบทุกจุด** ไม่ใช่สิ่งที่ถูกลืม: ~~RLS ระดับ DB (M3)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0005](adr/0005-row-level-security.md)), full OIDC redirect flow + RS256 (M2), rate limit ต่อ tenant จริง (M4), workflow definition แบบ reusable (M6), dynamic module loading (M7), Recommendation + fine-grained agent scope (M8) — ทั้งหมดมี ADR หรือหมายเหตุอ้างอิงให้ตามไปอ่านตอนถึงเวลาต้องแก้จริง
 
 ---
 

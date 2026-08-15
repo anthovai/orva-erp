@@ -65,7 +65,7 @@ fn default_port() -> u16 {
 }
 
 fn default_database_url() -> String {
-    "postgres://orva:orva@localhost:5432/orva".to_string()
+    "postgres://orva_app:orva@localhost:5432/orva".to_string()
 }
 
 impl Default for ServerConfig {

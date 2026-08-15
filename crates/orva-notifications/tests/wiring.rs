@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 fn test_database_url() -> String {
     std::env::var("ORVA_TEST_DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://orva:orva@localhost:5432/orva_test".to_string())
+        .unwrap_or_else(|_| "postgres://orva_app:orva@localhost:5432/orva_test".to_string())
 }
 
 /// DoD M6: "มี notification แจ้งผู้อนุมัติ" — เมื่อ workflow เข้าสถานะ pending approval

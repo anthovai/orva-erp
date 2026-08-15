@@ -19,7 +19,7 @@ pub use entity::{
     NotificationPreference, Organization, Permission, Role, ServiceIdentity, Session, Task,
     TaskStatus, Team, TeamMember, User, WorkflowInstance,
 };
-pub use pool::{connect, migrate, Pool};
+pub use pool::{begin_rls_bypass, begin_tenant, connect, migrate, Pool, TenantTx};
 pub use repository::{
     AppendOptions, ApprovalTaskRepository, CreateInsightParams, CreateRuleParams,
     DocumentRepository, EventFilter, EventRepository, InsightRepository,

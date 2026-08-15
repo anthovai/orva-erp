@@ -88,7 +88,7 @@ impl AuthService {
             .await?;
         for permission in self.permissions.list().await? {
             self.roles
-                .grant_permission(owner_role.id, permission.id)
+                .grant_permission(org.id, owner_role.id, permission.id)
                 .await?;
         }
         self.roles
@@ -169,7 +169,9 @@ impl AuthService {
             .await?
             .ok_or_else(|| Error::Validation(format!("unknown permission '{permission_key}'")))?;
 
-        self.roles.grant_permission(role_id, permission.id).await
+        self.roles
+            .grant_permission(organization_id, role_id, permission.id)
+            .await
     }
 
     /// มอบ role ให้ user — ทั้ง role และ user ต้องอยู่ใน organization เดียวกับผู้เรียก
@@ -363,7 +365,9 @@ impl AuthService {
             .find_by_token_hash(&token::hash(raw_token))
             .await?
         {
-            self.sessions.revoke(session.id).await?;
+            self.sessions
+                .revoke(session.organization_id, session.id)
+                .await?;
         }
         Ok(())
     }

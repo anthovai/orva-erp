@@ -7,4 +7,4 @@ host = "127.0.0.1"
 port = 8080
 
 [database]
-url = "postgres://orva:orva@localhost:5432/orva"
+url = "postgres://orva_app:orva@localhost:5432/orva"
