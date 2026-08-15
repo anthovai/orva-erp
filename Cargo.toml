@@ -78,6 +78,7 @@ orva-notifications = { path = "crates/orva-notifications" }
 orva-module-sdk = { path = "crates/orva-module-sdk" }
 orva-module-notes = { path = "crates/orva-module-notes" }
 orva-intelligence = { path = "crates/orva-intelligence" }
+orva-sync = { path = "crates/orva-sync" }
 
 # RSA keygen (pure Rust) ช้ามากใน debug build — optimize เฉพาะ crate คณิตศาสตร์
 # ไม่งั้น test ที่ generate key ใช้เวลาหลายสิบวินาที

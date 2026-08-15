@@ -1,4 +1,5 @@
 mod document;
+mod employee;
 mod event;
 mod external_module;
 mod intelligence;
@@ -14,6 +15,7 @@ mod user;
 mod workflow;
 
 pub use document::DocumentRepository;
+pub use employee::{EmployeeFields, EmployeeRepository};
 pub use event::{AppendOptions, EventFilter, EventRepository};
 pub use external_module::ExternalModuleRepository;
 pub use intelligence::{

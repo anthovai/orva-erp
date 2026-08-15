@@ -15,6 +15,7 @@ orva-notifications.workspace = true
 orva-module-sdk.workspace = true
 orva-module-notes.workspace = true
 orva-intelligence.workspace = true
+orva-sync.workspace = true
 
 axum.workspace = true
 tokio.workspace = true

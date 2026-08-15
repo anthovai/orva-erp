@@ -307,3 +307,139 @@ async fn external_module_publishes_event_with_scope() {
     let events = json_body(response).await;
     assert_eq!(events.as_array().unwrap().len(), 1);
 }
+
+/// ADR 0016: canonical Employee projection — event `<module>.employee.*` จาก Agent API
+/// ถูก project ลงตาราง employees อัตโนมัติ (upsert idempotent + soft delete)
+#[tokio::test]
+async fn employee_events_project_into_canonical_table() {
+    let state = support::test_state().await;
+    let app = orva_core::app(state);
+
+    let suffix = uuid::Uuid::new_v4();
+    let slug = format!("emp-sync-{suffix}");
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/organizations")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "name": "EmpSync Co",
+                        "slug": slug,
+                        "owner_email": format!("owner-{suffix}@test.local"),
+                        "owner_display_name": "Owner",
+                        "owner_password": "correct-horse-battery",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let token = json_body(response).await["access_token"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    // service key สำหรับ "Horilla" publish event
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/service-identities")
+                .header("content-type", "application/json")
+                .header(AUTHORIZATION, format!("Bearer {token}"))
+                .body(Body::from(
+                    json!({ "name": "horilla-events", "scopes": ["agent:event:publish"] })
+                        .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let key = json_body(response).await["api_key"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let publish = |event_type: &str, payload: Value, key: &str| {
+        Request::builder()
+            .method("POST")
+            .uri("/api/v1/agent/events")
+            .header("content-type", "application/json")
+            .header("X-Orva-Service-Key", key)
+            .body(Body::from(
+                json!({ "event_type": event_type, "payload": payload }).to_string(),
+            ))
+            .unwrap()
+    };
+
+    // created → มีแถว canonical
+    let response = app
+        .clone()
+        .oneshot(publish(
+            "horilla.employee.created",
+            json!({"source_id": "11", "email": "somchai@empsync.test", "first_name": "Somchai", "last_name": "D", "is_active": true}),
+            &key,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    let list_employees = || {
+        Request::builder()
+            .uri("/api/v1/employees")
+            .header(AUTHORIZATION, format!("Bearer {token}"))
+            .body(Body::empty())
+            .unwrap()
+    };
+    let employees = json_body(app.clone().oneshot(list_employees()).await.unwrap()).await;
+    assert_eq!(employees.as_array().unwrap().len(), 1);
+    assert_eq!(employees[0]["email"], "somchai@empsync.test");
+    assert_eq!(employees[0]["source_module"], "horilla");
+    assert_eq!(employees[0]["source_id"], "11");
+
+    // updated ที่ source_id เดิม → upsert ไม่เพิ่มแถว แต่ค่าใหม่
+    let response = app
+        .clone()
+        .oneshot(publish(
+            "horilla.employee.updated",
+            json!({"source_id": "11", "email": "somchai@empsync.test", "first_name": "Somchai", "last_name": "Deelert", "is_active": false}),
+            &key,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let employees = json_body(app.clone().oneshot(list_employees()).await.unwrap()).await;
+    assert_eq!(employees.as_array().unwrap().len(), 1);
+    assert_eq!(employees[0]["last_name"], "Deelert");
+    assert_eq!(employees[0]["is_active"], false);
+
+    // deleted → หายจาก list (soft delete)
+    let response = app
+        .clone()
+        .oneshot(publish(
+            "horilla.employee.deleted",
+            json!({"source_id": "11"}),
+            &key,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let employees = json_body(app.clone().oneshot(list_employees()).await.unwrap()).await;
+    assert_eq!(employees.as_array().unwrap().len(), 0);
+
+    // event ที่ไม่เข้า contract (ไม่มี source id) — ห้ามทำอะไรพัง แค่ถูกข้าม
+    let response = app
+        .oneshot(publish(
+            "horilla.employee.created",
+            json!({"email": "no-id@empsync.test"}),
+            &key,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+}

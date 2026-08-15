@@ -61,6 +61,8 @@ def employee_saved(sender, instance, created, **kwargs):
     _publish(
         "horilla.employee.created" if created else "horilla.employee.updated",
         {
+            # `source_id` = contract กลางของ canonical projection (orva-sync)
+            "source_id": str(instance.pk),
             "horilla_employee_id": instance.pk,
             "email": getattr(instance, "email", "") or "",
             "first_name": getattr(instance, "employee_first_name", "") or "",
@@ -74,7 +76,11 @@ def employee_saved(sender, instance, created, **kwargs):
 def employee_deleted(sender, instance, **kwargs):
     _publish(
         "horilla.employee.deleted",
-        {"horilla_employee_id": instance.pk, "email": getattr(instance, "email", "") or ""},
+        {
+            "source_id": str(instance.pk),
+            "horilla_employee_id": instance.pk,
+            "email": getattr(instance, "email", "") or "",
+        },
     )
 
 

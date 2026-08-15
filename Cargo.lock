@@ -1453,6 +1453,7 @@ dependencies = [
  "orva-module-notes",
  "orva-module-sdk",
  "orva-notifications",
+ "orva-sync",
  "orva-workflow",
  "reqwest",
  "serde",
@@ -1560,6 +1561,19 @@ name = "orva-notifications"
 version = "0.1.0"
 dependencies = [
  "lettre",
+ "orva-data",
+ "orva-error",
+ "orva-events",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "orva-sync"
+version = "0.1.0"
+dependencies = [
  "orva-data",
  "orva-error",
  "orva-events",

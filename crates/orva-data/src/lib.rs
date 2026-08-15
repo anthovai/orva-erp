@@ -15,18 +15,18 @@ mod pool;
 mod repository;
 
 pub use entity::{
-    ApprovalTask, Document, Event, ExternalModule, Insight, IntelligenceRule, ModuleInstallation,
-    Notification, NotificationPreference, Organization, Permission, Recommendation, Role,
-    ServiceIdentity, Session, Task, TaskStatus, Team, TeamMember, User, WorkflowDefinition,
-    WorkflowInstance,
+    ApprovalTask, Document, Employee, Event, ExternalModule, Insight, IntelligenceRule,
+    ModuleInstallation, Notification, NotificationPreference, Organization, Permission,
+    Recommendation, Role, ServiceIdentity, Session, Task, TaskStatus, Team, TeamMember, User,
+    WorkflowDefinition, WorkflowInstance,
 };
 pub use pool::{begin_rls_bypass, begin_tenant, connect, migrate, Pool, TenantTx};
 pub use repository::{
     AppendOptions, ApprovalTaskRepository, CreateInsightParams, CreateInstanceParams,
-    CreateRecommendationParams, CreateRuleParams, DocumentRepository, EventFilter, EventRepository,
-    ExternalModuleRepository, InsightRepository, IntelligenceRuleRepository,
-    ModuleInstallationRepository, NotificationPreferenceRepository, NotificationRepository,
-    OrganizationRepository, PermissionRepository, RecommendationRepository, RoleRepository,
-    ServiceIdentityRepository, SessionRepository, TaskRepository, TeamRepository, UserRepository,
-    WorkflowDefinitionRepository, WorkflowInstanceRepository,
+    CreateRecommendationParams, CreateRuleParams, DocumentRepository, EmployeeFields,
+    EmployeeRepository, EventFilter, EventRepository, ExternalModuleRepository, InsightRepository,
+    IntelligenceRuleRepository, ModuleInstallationRepository, NotificationPreferenceRepository,
+    NotificationRepository, OrganizationRepository, PermissionRepository, RecommendationRepository,
+    RoleRepository, ServiceIdentityRepository, SessionRepository, TaskRepository, TeamRepository,
+    UserRepository, WorkflowDefinitionRepository, WorkflowInstanceRepository,
 };

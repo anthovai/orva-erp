@@ -120,6 +120,8 @@ hook ยิง → `GET /api/v1/events?event_type=horilla.employee.created` เ�
 
 - proxy buffer body สูงสุด 10MB (อัปโหลดเอกสาร HR ไฟล์ใหญ่ให้เรียก Horilla ตรง)
 - dev image รันด้วย Django devserver — production ต้องใช้ gunicorn + DEBUG=False
-- ~~event ขากลับยังไม่ได้ฝัง hook~~ → **ทำแล้ว (Phase 3 ด้านบน)** — เหลือ model
-  อื่น ๆ (payroll, recruitment ฯลฯ) ที่ยังไม่ได้ hook และ canonical Employee sync
-  (ORVA `Employee` entity ↔ Horilla) เป็นงานถัดไป
+- ~~event ขากลับยังไม่ได้ฝัง hook~~ → **ทำแล้ว (Phase 3)** และ ~~canonical Employee
+  sync~~ → **ทำแล้ว (Phase 4 — [ADR 0016](../adr/0016-canonical-projection.md))**:
+  event `horilla.employee.*` ถูก project ลง canonical `employees` อัตโนมัติ
+  ดูได้ที่ `GET /api/v1/employees` (permission `core.employee.read`) — เหลือ model
+  อื่น ๆ (payroll, recruitment ฯลฯ) ที่ยังไม่ได้ hook

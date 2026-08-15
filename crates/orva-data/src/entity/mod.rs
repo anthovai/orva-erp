@@ -1,4 +1,5 @@
 mod document;
+mod employee;
 mod event;
 mod external_module;
 mod intelligence;
@@ -14,6 +15,7 @@ mod user;
 mod workflow;
 
 pub use document::Document;
+pub use employee::Employee;
 pub use event::Event;
 pub use external_module::ExternalModule;
 pub use intelligence::{Insight, IntelligenceRule, Recommendation};

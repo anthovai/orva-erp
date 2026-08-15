@@ -42,3 +42,9 @@ pub struct InsightRead;
 impl PermissionKey for InsightRead {
     const KEY: &'static str = "core.insight.read";
 }
+
+/// ADR 0016 — อ่าน canonical Employee ขององค์กร
+pub struct EmployeeRead;
+impl PermissionKey for EmployeeRead {
+    const KEY: &'static str = "core.employee.read";
+}

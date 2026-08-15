@@ -53,6 +53,7 @@ pub(crate) fn router() -> Router<AppState> {
         )
         .route("/api/v1/roles/{role_id}/assign", post(assign_role))
         .route("/api/v1/events", get(list_events))
+        .route("/api/v1/employees", get(list_employees))
 }
 
 /// Unified UI shell (ADR 0015) — self-contained, embed ใน binary ตอน compile
@@ -620,4 +621,45 @@ pub(crate) async fn list_events(
         )
         .await?;
     Ok(Json(events.into_iter().map(EventResponse::from).collect()))
+}
+
+#[derive(Serialize, ToSchema)]
+pub(crate) struct EmployeeResponse {
+    id: Uuid,
+    email: String,
+    first_name: String,
+    last_name: String,
+    is_active: bool,
+    source_module: String,
+    source_id: String,
+}
+
+impl From<orva_data::Employee> for EmployeeResponse {
+    fn from(e: orva_data::Employee) -> Self {
+        Self {
+            id: e.id,
+            email: e.email,
+            first_name: e.first_name,
+            last_name: e.last_name,
+            is_active: e.is_active,
+            source_module: e.source_module,
+            source_id: e.source_id,
+        }
+    }
+}
+
+/// Canonical Employee (ADR 0016) — projection จาก event ของ external module
+/// (เช่น Horilla) — ทุก module/intelligence เห็นพนักงานรูปแบบเดียวกันที่นี่
+#[utoipa::path(get, path = "/api/v1/employees", tag = "canonical",
+    security(("bearer" = [])),
+    responses((status = 200, description = "Canonical employees ขององค์กร", body = [EmployeeResponse]),
+               (status = 403, description = "Missing core.employee.read")))]
+pub(crate) async fn list_employees(
+    State(state): State<AppState>,
+    RequirePermission(user, ..): RequirePermission<crate::permissions::EmployeeRead>,
+) -> Result<Json<Vec<EmployeeResponse>>, ApiError> {
+    let employees = state.employees.list(user.organization_id).await?;
+    Ok(Json(
+        employees.into_iter().map(EmployeeResponse::from).collect(),
+    ))
 }

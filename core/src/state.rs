@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use orva_auth::{AuthConfig, AuthService, JwtKeys};
 use orva_data::{
-    EventRepository, ExternalModuleRepository, InsightRepository, IntelligenceRuleRepository, Pool,
-    RecommendationRepository,
+    EmployeeRepository, EventRepository, ExternalModuleRepository, InsightRepository,
+    IntelligenceRuleRepository, Pool, RecommendationRepository,
 };
 use orva_events::EventBus;
 use orva_intelligence::IntelligenceEngine;
@@ -45,6 +45,8 @@ pub struct AppState {
     pub notification_hub: NotificationHub,
     /// ADR 0014 — OSS module ที่รันแยก process (proxy ผ่าน `/api/v1/ext/{name}/...`)
     pub external_modules: ExternalModuleRepository,
+    /// ADR 0016 — canonical Employee (projection จาก event ของ external module)
+    pub employees: EmployeeRepository,
     /// HTTP client สำหรับ proxy ไป external module (connection pool ใช้ร่วมทุก request)
     pub http_client: reqwest::Client,
 }
@@ -93,6 +95,10 @@ impl AppState {
         // M6 DoD: "มี notification แจ้งผู้อนุมัติ" — ผูกตอนสร้าง AppState ครั้งเดียว
         subscribe_workflow_approval_requests(&event_bus, notifications.clone());
 
+        // ADR 0016 — canonical projection: event `<module>.employee.*` จาก external
+        // module ถูก project ลงตาราง employees อัตโนมัติ
+        orva_sync::subscribe_employee_projection(&event_bus, EmployeeRepository::new(pool.clone()));
+
         // M8 — Intelligence Engine subscribe ทุก event เพื่อประเมิน rule แบบ real-time
         // (ไม่มี scheduler — evaluate ทันทีที่ event ที่เกี่ยวข้องเกิดขึ้น)
         let intelligence_engine =
@@ -129,7 +135,8 @@ impl AppState {
             insights: InsightRepository::new(pool.clone()),
             recommendations: RecommendationRepository::new(pool.clone()),
             notification_hub,
-            external_modules: ExternalModuleRepository::new(pool),
+            external_modules: ExternalModuleRepository::new(pool.clone()),
+            employees: EmployeeRepository::new(pool),
             http_client: reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(30))
                 .build()
