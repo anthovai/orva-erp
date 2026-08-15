@@ -3,7 +3,11 @@
 # Distributed under LGPL-2.1 to match Horilla's license.
 from horilla.settings import *  # noqa: F401,F403
 
+from horilla.settings import INSTALLED_APPS as _BASE_APPS
 from horilla.settings import MIDDLEWARE as _BASE_MIDDLEWARE
 
 # ต้องอยู่หลัง AuthenticationMiddleware (ต้องมี request.user/session ก่อน)
 MIDDLEWARE = list(_BASE_MIDDLEWARE) + ["orva_sso.middleware.OrvaSSOMiddleware"]
+
+# ลง app เพื่อให้ AppConfig.ready() ลงทะเบียน event hooks (Horilla -> ORVA Event Bus)
+INSTALLED_APPS = list(_BASE_APPS) + ["orva_sso"]

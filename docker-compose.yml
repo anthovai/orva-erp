@@ -51,6 +51,11 @@ services:
       # X-Orva-Identity ผ่าน JWKS ของ ORVA แล้ว auto-login โดยไม่แตะ source ของ Horilla
       DJANGO_SETTINGS_MODULE: "orva_sso.settings"
       ORVA_JWKS_URL: "http://host.docker.internal:8080/.well-known/jwks.json"
+      # event hooks (Horilla -> ORVA Event Bus): ออก service key ที่มี scope
+      # agent:event:publish แล้วตั้ง HORILLA_ORVA_SERVICE_KEY ก่อน `docker compose up`
+      # (ว่าง = hook ปิดตัวเองเงียบ ๆ — ดู docs/modules/horilla.md)
+      ORVA_EVENTS_URL: "http://host.docker.internal:8080/api/v1/agent/events"
+      ORVA_SERVICE_KEY: "${HORILLA_ORVA_SERVICE_KEY:-}"
     volumes:
       - ./docker/horilla/orva_sso:/app/orva_sso:ro
     extra_hosts:
