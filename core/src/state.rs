@@ -1,0 +1,93 @@
+use std::sync::Arc;
+
+use orva_auth::{AuthConfig, AuthService};
+use orva_data::{EventRepository, InsightRepository, IntelligenceRuleRepository, Pool};
+use orva_events::EventBus;
+use orva_intelligence::IntelligenceEngine;
+use orva_module_sdk::{ModuleContext, ModuleRegistry};
+use orva_notifications::{subscribe_workflow_approval_requests, NotificationService};
+use orva_workflow::WorkflowService;
+
+use crate::rate_limit::{self, KeyedLimiter};
+
+const DEFAULT_REQUESTS_PER_MINUTE: u32 = 100;
+
+#[derive(Clone)]
+pub struct AppState {
+    pub auth: Arc<AuthService>,
+    pub workflow: Arc<WorkflowService>,
+    pub notifications: Arc<NotificationService>,
+    pub issuer: String,
+    pub rate_limiter: Arc<KeyedLimiter>,
+    /// query ย้อนหลังโดยตรง (ไม่ผ่าน pub/sub) — ใช้โดย `GET /api/v1/events`
+    pub events: EventRepository,
+    /// เก็บไว้ให้ business module ในอนาคตมา `subscribe`/`subscribe_all` ทีหลังได้
+    pub event_bus: EventBus,
+    /// module ที่ compile เข้า binary นี้ (M7) — "ติดตั้ง" = เพิ่มเข้านี่ตอน `AppState::new`
+    pub modules: Arc<ModuleRegistry>,
+    /// สิ่งที่ทุก module router ต้องใช้ (pool/auth/events) — ดู `orva_module_sdk::ModuleContext`
+    pub module_context: ModuleContext,
+    /// M8 — จัดการ intelligence rule (CRUD) และ query insight ย้อนหลัง
+    pub intelligence_rules: IntelligenceRuleRepository,
+    pub insights: InsightRepository,
+}
+
+impl AppState {
+    pub async fn new(pool: Pool, jwt_secret: &str, issuer: &str) -> Self {
+        Self::with_rate_limit(pool, jwt_secret, issuer, DEFAULT_REQUESTS_PER_MINUTE).await
+    }
+
+    /// ใช้ตอน test ที่ต้องการ quota ต่ำ ๆ เพื่อพิสูจน์ 429 ได้โดยไม่ต้องยิงร้อยครั้ง
+    pub async fn with_rate_limit(
+        pool: Pool,
+        jwt_secret: &str,
+        issuer: &str,
+        requests_per_minute: u32,
+    ) -> Self {
+        let event_bus = EventBus::new(pool.clone());
+        let auth = Arc::new(AuthService::new(
+            pool.clone(),
+            AuthConfig {
+                jwt_secret: jwt_secret.as_bytes().to_vec(),
+                issuer: issuer.to_string(),
+            },
+            event_bus.clone(),
+        ));
+        let workflow = WorkflowService::new(pool.clone(), event_bus.clone());
+        let notifications = Arc::new(NotificationService::new(pool.clone()));
+
+        // M6 DoD: "มี notification แจ้งผู้อนุมัติ" — ผูกตอนสร้าง AppState ครั้งเดียว
+        subscribe_workflow_approval_requests(&event_bus, notifications.clone());
+
+        // M8 — Intelligence Engine subscribe ทุก event เพื่อประเมิน rule แบบ real-time
+        // (ไม่มี scheduler — evaluate ทันทีที่ event ที่เกี่ยวข้องเกิดขึ้น)
+        let intelligence_engine =
+            Arc::new(IntelligenceEngine::new(pool.clone(), notifications.clone()));
+        orva_intelligence::subscribe(intelligence_engine, &event_bus);
+
+        // M7 — รายชื่อ module ที่ compile เข้า binary นี้ ("การติดตั้ง" ระดับ binary — ดู
+        // `orva_module_sdk::Module` doc comment) เพิ่ม module ใหม่แค่ `.register(...)` ตรงนี้
+        // จุดเดียว ไม่ต้องแตะ routes.rs/permissions.rs ของ Core เลย
+        let mut registry = ModuleRegistry::new();
+        registry.register(Arc::new(orva_module_notes::NotesModule));
+        registry
+            .initialize(&pool)
+            .await
+            .expect("module registry initialization failed");
+        let module_context = ModuleContext::new(pool.clone(), auth.clone(), event_bus.clone());
+
+        Self {
+            auth,
+            workflow: Arc::new(workflow),
+            notifications,
+            issuer: issuer.to_string(),
+            rate_limiter: rate_limit::new_limiter(requests_per_minute),
+            events: EventRepository::new(pool.clone()),
+            event_bus,
+            modules: Arc::new(registry),
+            module_context,
+            intelligence_rules: IntelligenceRuleRepository::new(pool.clone()),
+            insights: InsightRepository::new(pool),
+        }
+    }
+}

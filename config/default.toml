@@ -1,0 +1,10 @@
+# ORVA Core — default configuration
+# ทุกค่า override ได้ด้วย env: ORVA_SERVER_HOST, ORVA_SERVER_PORT, ORVA_DATABASE_URL
+# หรือชี้ไฟล์ config อื่นด้วย ORVA_CONFIG=<path>
+
+[server]
+host = "127.0.0.1"
+port = 8080
+
+[database]
+url = "postgres://orva:orva@localhost:5432/orva"

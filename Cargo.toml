@@ -1,0 +1,61 @@
+[workspace]
+resolver = "2"
+members = ["core", "crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace.dependencies]
+# async runtime + web
+tokio = { version = "1", features = ["full"] }
+axum = "0.8"
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["cors", "set-header", "trace"] }
+governor = "0.8"
+validator = { version = "0.19", features = ["derive"] }
+utoipa = { version = "5", features = ["axum_extras", "uuid", "chrono"] }
+utoipa-swagger-ui = { version = "9", features = ["axum"] }
+
+# data layer
+sqlx = { version = "0.9", features = [
+    "runtime-tokio",
+    "tls-rustls",
+    "postgres",
+    "uuid",
+    "chrono",
+    "migrate",
+    "json",
+] }
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+# auth
+argon2 = "0.5"
+rand = "0.9"
+sha2 = "0.10"
+jsonwebtoken = "9"
+base64 = "0.22"
+
+# serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.9"
+
+# errors + observability
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# internal crates
+orva-config = { path = "crates/orva-config" }
+orva-error = { path = "crates/orva-error" }
+orva-data = { path = "crates/orva-data" }
+orva-auth = { path = "crates/orva-auth" }
+orva-events = { path = "crates/orva-events" }
+orva-workflow = { path = "crates/orva-workflow" }
+orva-notifications = { path = "crates/orva-notifications" }
+orva-module-sdk = { path = "crates/orva-module-sdk" }
+orva-module-notes = { path = "crates/orva-module-notes" }
+orva-intelligence = { path = "crates/orva-intelligence" }

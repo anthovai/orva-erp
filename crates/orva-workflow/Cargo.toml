@@ -1,0 +1,19 @@
+[package]
+name = "orva-workflow"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+orva-error.workspace = true
+orva-data.workspace = true
+orva-events.workspace = true
+
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+utoipa.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true

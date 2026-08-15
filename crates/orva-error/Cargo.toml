@@ -1,0 +1,8 @@
+[package]
+name = "orva-error"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+
+[dependencies]
+thiserror.workspace = true

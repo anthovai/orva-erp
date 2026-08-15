@@ -1,0 +1,22 @@
+# ORVA — dev environment
+services:
+  postgres:
+    image: postgres:17
+    container_name: orva-postgres
+    environment:
+      POSTGRES_USER: orva
+      POSTGRES_PASSWORD: orva
+      POSTGRES_DB: orva
+    ports:
+      - "5432:5432"
+    volumes:
+      - orva-pgdata:/var/lib/postgresql/data
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orva"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  orva-pgdata:
