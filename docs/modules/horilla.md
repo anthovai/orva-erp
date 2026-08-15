@@ -1,8 +1,10 @@
 # Horilla HRM — External Module Integration
 
-สถานะ: **Phase 1 เชื่อมแล้ว (2026-08-15)** — Horilla จริงรันแยก process ต่อผ่าน
+สถานะ: **Phase 2 SSO ทำงานแล้ว (2026-08-15)** — Horilla จริงรันแยก process ต่อผ่าน
 HTTP adapter ([ADR 0014](../adr/0014-external-module-adapter.md)) ตาม LGPL boundary
-ที่กำหนดใน [OSS-STRATEGY.md](../OSS-STRATEGY.md)
+ที่กำหนดใน [OSS-STRATEGY.md](../OSS-STRATEGY.md) และ user ของ ORVA เข้าหน้า
+protected ของ Horilla ได้ทันทีโดยไม่ต้องมีรหัสผ่านใน Horilla (auto-provision + login
+ผ่าน identity assertion)
 
 ## สถาปัตยกรรม
 
@@ -45,33 +47,45 @@ curl -X POST http://127.0.0.1:8080/api/v1/external-modules \
 ตรวจ: `GET /api/v1/ext/horilla/login/` ด้วย session ปกติ → ได้หน้า Horilla กลับมา
 (ไม่มี token → 401 ก่อนถึง Horilla เสมอ)
 
-## Phase 2 — SSO middleware ฝั่ง Horilla (ยังไม่ทำ)
+## Phase 2 — SSO middleware (`orva_sso` overlay) ✅
 
-Horilla มี Django login ของตัวเอง — ให้ SSO ไร้รอยต่อต้องเพิ่ม middleware เล็ก ๆ
-ฝั่ง Horilla ที่:
+implement แล้วที่ [docker/horilla/orva_sso/](../../docker/horilla/orva_sso/) —
+**ไม่แตะ source ของ Horilla เลย**: mount โฟลเดอร์เข้า `/app/orva_sso` (read-only)
+แล้วชี้ `DJANGO_SETTINGS_MODULE=orva_sso.settings` ซึ่ง `from horilla.settings import *`
+แล้วต่อท้าย middleware ตัวเดียว (ไฟล์ distribute เป็น LGPL-2.1 ให้เข้ากับ Horilla)
 
-1. อ่าน header `X-Orva-Identity`
-2. verify RS256 กับ JWKS ของ ORVA (`aud` ต้องเป็น `orva-module:horilla`, TTL 60 วิ):
+การทำงานของ `OrvaSSOMiddleware` ต่อ request:
 
-```python
-# แนวทาง (PyJWT) — วางเป็น Django middleware ใน Horilla process (LGPL อนุญาต)
-import jwt
-from jwt import PyJWKClient
+1. อ่าน `X-Orva-Identity` — ไม่มี/user login อยู่แล้ว → ปล่อยผ่าน (login ปกติของ
+   Horilla ยังใช้ได้ตามเดิม)
+2. verify RS256 ผ่าน `PyJWKClient` กับ JWKS ของ ORVA (`ORVA_JWKS_URL`,
+   `aud = orva-module:horilla`, leeway 10 วิ) — **ของปลอมตกที่ signature เสมอ
+   แม้ยิงตรงเข้า Horilla port 8000** เพราะไม่มีใครมี private key ของ ORVA
+3. ผ่านแล้ว `get_or_create` Django user จาก claim `email` (ตั้ง unusable password
+   — เป็น SSO-only user, login ตรงกับ Horilla ไม่ได้) + สร้าง `Employee` record
+   ขั้นต่ำให้ UI ใช้งานได้ แล้ว `login()` ให้อัตโนมัติ
 
-jwks = PyJWKClient("http://orva-core:8080/.well-known/jwks.json")
+**พิสูจน์แล้ว E2E**: `GET /api/v1/ext/horilla/employee/employee-view/` ด้วย ORVA
+session → ได้หน้า Horilla จริง (176KB) ขณะที่ยิงตรง anonymous ได้ 302 ไป login
+และ `auth_user` ใน DB ของ Horilla มี user ถูก provision อัตโนมัติแบบไร้รหัสผ่าน
 
-def verify_orva_identity(token: str) -> dict:
-    key = jwks.get_signing_key_from_jwt(token)
-    return jwt.decode(token, key.key, algorithms=["RS256"],
-                      audience="orva-module:horilla")
-    # claims: sub (user id), org, email, name — ใช้ get_or_create Django user
+### Gotcha ตอน setup (image 1.4)
+
+Horilla patch field `is_new_employee` เข้า `auth.User` แต่ migration ไม่ได้ ship
+มากับ image — ครั้งแรกต้องรันเพิ่ม (ไม่งั้น SSO provision ล้มด้วย
+`column auth_user.is_new_employee does not exist`):
+
+```bash
+docker exec orva-horilla python manage.py makemigrations auth
+docker exec orva-horilla python manage.py migrate auth
 ```
 
-3. map claim `email` → Django user (`get_or_create`) แล้ว login session ให้อัตโนมัติ
+### ข้อจำกัดที่เหลือ
 
-ข้อควรระวัง phase 2: Horilla เสิร์ฟ static asset ด้วย absolute path (`/static/...`)
-— การใช้ Horilla UI เต็มหน้าผ่าน proxy ต้องเพิ่ม rewrite หรือชี้ static ตรง
-(adapter ปัจจุบันเหมาะกับ **API access** เป็นหลัก)
+- Horilla เสิร์ฟ static asset ด้วย absolute path (`/static/...`) — เปิด UI เต็มหน้า
+  ผ่าน proxy ได้ HTML แต่ asset ต้องชี้ตรงหรือเพิ่ม rewrite (adapter เหมาะกับ
+  **API/SSO access** เป็นหลัก; UI เต็มจอให้เข้า `:8000` ตรงซึ่ง login ด้วย SSO ไม่ได้)
+- session ของ Horilla เกิดใหม่ต่อ request ที่มากับ assertion (stateless ฝั่ง proxy)
 
 ## ขอบเขต/ข้อจำกัดปัจจุบัน
 

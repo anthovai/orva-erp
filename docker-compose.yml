@@ -47,6 +47,14 @@ services:
     container_name: orva-horilla
     environment:
       DATABASE_URL: "postgres://postgres:postgres@horilla-db:5432/horilla"
+      # ORVA SSO overlay (Phase 2 — docs/modules/horilla.md): middleware verify
+      # X-Orva-Identity ผ่าน JWKS ของ ORVA แล้ว auto-login โดยไม่แตะ source ของ Horilla
+      DJANGO_SETTINGS_MODULE: "orva_sso.settings"
+      ORVA_JWKS_URL: "http://host.docker.internal:8080/.well-known/jwks.json"
+    volumes:
+      - ./docker/horilla/orva_sso:/app/orva_sso:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # image default bind 127.0.0.1 — ต้อง 0.0.0.0 ให้ host (และ ORVA proxy) เข้าถึงได้
     command: python manage.py runserver 0.0.0.0:8000
     ports:
