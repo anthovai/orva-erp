@@ -14,3 +14,11 @@ url = "postgres://orva_app:orva@localhost:5432/orva"
 # production: provision key เองแล้วชี้ path นี้ หรือ env ORVA_JWT_RSA_KEY_PATH
 rsa_key_path = "config/keys/jwt_rsa.pem"
 issuer = "orva-core"
+
+# เปิดส่งอีเมลจริง: ใส่ section [email] หรือ env ORVA_SMTP_HOST + ORVA_SMTP_FROM
+# (dev: docker compose มี Mailpit — SMTP :1025, Web UI http://localhost:8025)
+# [email]
+# smtp_host = "localhost"
+# smtp_port = 1025
+# smtp_tls = false
+# from_address = "ORVA <no-reply@orva.local>"

@@ -5,12 +5,12 @@ use orva_data::{EventRepository, InsightRepository, IntelligenceRuleRepository, 
 use orva_events::EventBus;
 use orva_intelligence::IntelligenceEngine;
 use orva_module_sdk::{ModuleContext, ModuleRegistry};
-use orva_notifications::{subscribe_workflow_approval_requests, NotificationService};
+use orva_notifications::{subscribe_workflow_approval_requests, Mailer, NotificationService};
 use orva_workflow::WorkflowService;
 
 use crate::rate_limit::{self, KeyedLimiter};
 
-const DEFAULT_REQUESTS_PER_MINUTE: u32 = 100;
+pub const DEFAULT_REQUESTS_PER_MINUTE: u32 = 100;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -36,7 +36,7 @@ pub struct AppState {
 
 impl AppState {
     pub async fn new(pool: Pool, keys: JwtKeys, issuer: &str) -> Self {
-        Self::with_rate_limit(pool, keys, issuer, DEFAULT_REQUESTS_PER_MINUTE).await
+        Self::with_options(pool, keys, issuer, DEFAULT_REQUESTS_PER_MINUTE, None).await
     }
 
     /// ใช้ตอน test ที่ต้องการ quota ต่ำ ๆ เพื่อพิสูจน์ 429 ได้โดยไม่ต้องยิงร้อยครั้ง
@@ -45,6 +45,17 @@ impl AppState {
         keys: JwtKeys,
         issuer: &str,
         requests_per_minute: u32,
+    ) -> Self {
+        Self::with_options(pool, keys, issuer, requests_per_minute, None).await
+    }
+
+    /// จุดประกอบเต็มรูปแบบ — `mailer` = `None` คือไม่ส่งอีเมลจริง (ADR 0008)
+    pub async fn with_options(
+        pool: Pool,
+        keys: JwtKeys,
+        issuer: &str,
+        requests_per_minute: u32,
+        mailer: Option<Arc<dyn Mailer>>,
     ) -> Self {
         let jwks = serde_json::json!({ "keys": [keys.public_jwk.clone()] });
         let event_bus = EventBus::new(pool.clone());
@@ -57,7 +68,7 @@ impl AppState {
             event_bus.clone(),
         ));
         let workflow = WorkflowService::new(pool.clone(), event_bus.clone());
-        let notifications = Arc::new(NotificationService::new(pool.clone()));
+        let notifications = Arc::new(NotificationService::with_mailer(pool.clone(), mailer));
 
         // M6 DoD: "มี notification แจ้งผู้อนุมัติ" — ผูกตอนสร้าง AppState ครั้งเดียว
         subscribe_workflow_approval_requests(&event_bus, notifications.clone());

@@ -2,4 +2,4 @@
 .env
 *.local.toml
 # กุญแจเซ็น JWT ที่ generate ตอน dev — ห้าม commit
-config/keys/
+**/config/keys/

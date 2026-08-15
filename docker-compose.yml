@@ -18,5 +18,13 @@ services:
       timeout: 3s
       retries: 10
 
+  # SMTP จำลองสำหรับ dev (ADR 0008) — SMTP :1025, Web UI/REST :8025
+  mailpit:
+    image: axllent/mailpit
+    container_name: orva-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
 volumes:
   orva-pgdata:

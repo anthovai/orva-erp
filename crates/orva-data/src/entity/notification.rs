@@ -12,6 +12,10 @@ pub struct Notification {
     pub body: String,
     pub read_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
+    /// `created` | `sent` | `failed` — ดู migration `notification_delivery`
+    pub delivery_status: String,
+    pub delivered_at: Option<DateTime<Utc>>,
+    pub delivery_error: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, sqlx::FromRow)]

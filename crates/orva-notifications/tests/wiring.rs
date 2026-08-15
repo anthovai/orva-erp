@@ -1,9 +1,38 @@
-use std::sync::Arc;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
 
 use orva_events::{catalog, EventBus, PublishOptions};
-use orva_notifications::{subscribe_workflow_approval_requests, NotificationService};
+use orva_notifications::{
+    subscribe_workflow_approval_requests, EmailMessage, Mailer, NotificationService,
+};
 use serde_json::json;
 use uuid::Uuid;
+
+/// Mailer จำลอง — บันทึกทุกอีเมลที่ถูกส่ง (หรือ fail ตามสั่ง) ให้ test ตรวจได้
+#[derive(Default)]
+struct RecordingMailer {
+    sent: Mutex<Vec<(String, String, String)>>,
+    fail: bool,
+}
+
+impl Mailer for RecordingMailer {
+    fn send(
+        &self,
+        message: EmailMessage,
+    ) -> Pin<Box<dyn Future<Output = orva_error::Result<()>> + Send + '_>> {
+        Box::pin(async move {
+            if self.fail {
+                return Err(orva_error::Error::Internal("smtp down".to_string()));
+            }
+            self.sent
+                .lock()
+                .unwrap()
+                .push((message.to, message.subject, message.body));
+            Ok(())
+        })
+    }
+}
 
 fn test_database_url() -> String {
     std::env::var("ORVA_TEST_DATABASE_URL")
@@ -103,4 +132,89 @@ async fn disabled_channel_is_skipped() {
     let all = service.list_for_user(org.id, user.id, false).await.unwrap();
     assert_eq!(all.len(), 1);
     assert_eq!(all[0].channel, orva_notifications::CHANNEL_IN_APP);
+}
+
+/// ADR 0008: mailer ที่ config ไว้ต้องถูกเรียกส่งจริงไปยัง email ของ user
+/// และแถว notification ต้องถูก mark `delivery_status = 'sent'`
+#[tokio::test]
+async fn configured_mailer_sends_email_and_marks_delivery() {
+    let pool = orva_data::connect(&test_database_url())
+        .await
+        .expect("connect");
+    orva_data::migrate(&pool).await.expect("migrate");
+
+    let orgs = orva_data::OrganizationRepository::new(pool.clone());
+    let users = orva_data::UserRepository::new(pool.clone());
+    let slug = format!("notif-smtp-{}", Uuid::new_v4());
+    let org = orgs.create("Smtp Org", &slug).await.unwrap();
+    let user = users
+        .create(org.id, "recipient@smtp.test", "Recipient", "hash", None)
+        .await
+        .unwrap();
+
+    let mailer = Arc::new(RecordingMailer::default());
+    let service = NotificationService::with_mailer(pool, Some(mailer.clone()));
+
+    service
+        .notify(
+            org.id,
+            user.id,
+            "Approval needed",
+            "workflow #42 is waiting",
+        )
+        .await
+        .unwrap();
+
+    // ส่งถึง email ของ user จริง หัวข้อ = title
+    let sent = mailer.sent.lock().unwrap().clone();
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0].0, "recipient@smtp.test");
+    assert_eq!(sent[0].1, "Approval needed");
+
+    let all = service.list_for_user(org.id, user.id, false).await.unwrap();
+    let email_row = all.iter().find(|n| n.channel == "email").unwrap();
+    assert_eq!(email_row.delivery_status, "sent");
+    assert!(email_row.delivered_at.is_some());
+    let in_app_row = all.iter().find(|n| n.channel == "in_app").unwrap();
+    assert_eq!(in_app_row.delivery_status, "created");
+}
+
+/// การส่งล้มเหลวต้องไม่ทำให้ notify ล้มเหลว — แถวถูก mark `failed` พร้อมเหตุผล
+#[tokio::test]
+async fn smtp_failure_marks_row_failed_but_notify_succeeds() {
+    let pool = orva_data::connect(&test_database_url())
+        .await
+        .expect("connect");
+    orva_data::migrate(&pool).await.expect("migrate");
+
+    let orgs = orva_data::OrganizationRepository::new(pool.clone());
+    let users = orva_data::UserRepository::new(pool.clone());
+    let slug = format!("notif-smtpfail-{}", Uuid::new_v4());
+    let org = orgs.create("SmtpFail Org", &slug).await.unwrap();
+    let user = users
+        .create(org.id, "victim@smtp.test", "Victim", "hash", None)
+        .await
+        .unwrap();
+
+    let mailer = Arc::new(RecordingMailer {
+        fail: true,
+        ..Default::default()
+    });
+    let service = NotificationService::with_mailer(pool, Some(mailer));
+
+    // ไม่ panic/ไม่ error แม้ SMTP ล่ม
+    service
+        .notify(org.id, user.id, "Title", "Body")
+        .await
+        .expect("notify must not fail when smtp is down");
+
+    let all = service.list_for_user(org.id, user.id, false).await.unwrap();
+    let email_row = all.iter().find(|n| n.channel == "email").unwrap();
+    assert_eq!(email_row.delivery_status, "failed");
+    assert!(email_row
+        .delivery_error
+        .as_deref()
+        .unwrap()
+        .contains("smtp down"));
+    assert!(email_row.delivered_at.is_none());
 }

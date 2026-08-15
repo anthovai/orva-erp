@@ -14,7 +14,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("database connected and migrated");
 
     let keys = load_or_generate_keys(&config.auth.rsa_key_path)?;
-    let state = orva_core::AppState::new(pool, keys, &config.auth.issuer).await;
+
+    // SMTP mailer — ไม่ config = email notification บันทึกแถวไว้เฉย ๆ (ADR 0008)
+    let mailer: Option<std::sync::Arc<dyn orva_notifications::Mailer>> = match &config.email {
+        Some(email) => {
+            tracing::info!(
+                host = %email.smtp_host,
+                port = email.smtp_port,
+                tls = email.smtp_tls,
+                "SMTP mailer configured — email notifications will be sent"
+            );
+            Some(std::sync::Arc::new(orva_notifications::SmtpMailer::new(
+                orva_notifications::SmtpConfig {
+                    host: email.smtp_host.clone(),
+                    port: email.smtp_port,
+                    username: email.smtp_username.clone(),
+                    password: email.smtp_password.clone(),
+                    from: email.from_address.clone(),
+                    tls: email.smtp_tls,
+                },
+            )?))
+        }
+        None => {
+            tracing::info!("no SMTP configured — email notifications recorded but not sent");
+            None
+        }
+    };
+
+    let state = orva_core::AppState::with_options(
+        pool,
+        keys,
+        &config.auth.issuer,
+        orva_core::state::DEFAULT_REQUESTS_PER_MINUTE,
+        mailer,
+    )
+    .await;
 
     let addr = format!("{}:{}", config.server.host, config.server.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;

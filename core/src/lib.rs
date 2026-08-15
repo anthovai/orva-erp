@@ -14,7 +14,7 @@ mod routes_intelligence;
 mod routes_modules;
 mod routes_notifications;
 mod routes_workflow;
-mod state;
+pub mod state;
 mod validation;
 
 use axum::middleware::from_fn_with_state;

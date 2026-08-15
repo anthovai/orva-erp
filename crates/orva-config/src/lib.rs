@@ -14,6 +14,33 @@ pub struct Config {
     pub database: DatabaseConfig,
     #[serde(default)]
     pub auth: AuthConfig,
+    /// ไม่ใส่ section `[email]` = ไม่ส่งอีเมลจริง (email notification บันทึกแถวไว้เฉย ๆ)
+    #[serde(default)]
+    pub email: Option<EmailConfig>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct EmailConfig {
+    pub smtp_host: String,
+    #[serde(default = "default_smtp_port")]
+    pub smtp_port: u16,
+    #[serde(default)]
+    pub smtp_username: Option<String>,
+    #[serde(default)]
+    pub smtp_password: Option<String>,
+    /// ที่อยู่ผู้ส่ง เช่น `ORVA <no-reply@example.com>`
+    pub from_address: String,
+    /// STARTTLS — ปิดได้เฉพาะ dev (เช่น Mailpit) เท่านั้น
+    #[serde(default = "default_smtp_tls")]
+    pub smtp_tls: bool,
+}
+
+fn default_smtp_port() -> u16 {
+    587
+}
+
+fn default_smtp_tls() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -112,6 +139,30 @@ impl Config {
         }
         if let Ok(path) = std::env::var("ORVA_JWT_RSA_KEY_PATH") {
             config.auth.rsa_key_path = path;
+        }
+
+        // env override สำหรับ SMTP — ตั้ง ORVA_SMTP_HOST อย่างเดียวก็เปิดการส่งจริงได้
+        // (from address ต้องมาด้วย ไม่งั้นถือว่า config ไม่ครบ)
+        if let Ok(host) = std::env::var("ORVA_SMTP_HOST") {
+            let from_address = std::env::var("ORVA_SMTP_FROM").map_err(|_| {
+                Error::Config("ORVA_SMTP_HOST is set but ORVA_SMTP_FROM is missing".to_string())
+            })?;
+            config.email = Some(EmailConfig {
+                smtp_host: host,
+                smtp_port: match std::env::var("ORVA_SMTP_PORT") {
+                    Ok(p) => p
+                        .parse()
+                        .map_err(|e| Error::Config(format!("invalid ORVA_SMTP_PORT: {e}")))?,
+                    Err(_) => default_smtp_port(),
+                },
+                smtp_username: std::env::var("ORVA_SMTP_USERNAME").ok(),
+                smtp_password: std::env::var("ORVA_SMTP_PASSWORD").ok(),
+                from_address,
+                smtp_tls: match std::env::var("ORVA_SMTP_TLS") {
+                    Ok(v) => v != "false" && v != "0",
+                    Err(_) => default_smtp_tls(),
+                },
+            });
         }
 
         Ok(config)

@@ -68,6 +68,33 @@ impl NotificationRepository {
         Ok(notifications)
     }
 
+    /// บันทึกผลการส่งจริง (email channel) — `sent` ตั้ง delivered_at, `failed` เก็บ error
+    pub async fn set_delivery_status(
+        &self,
+        organization_id: Uuid,
+        id: Uuid,
+        status: &str,
+        error: Option<&str>,
+    ) -> Result<()> {
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        sqlx::query(
+            "update notifications
+             set delivery_status = $1,
+                 delivered_at = case when $1 = 'sent' then now() end,
+                 delivery_error = $2
+             where organization_id = $3 and id = $4",
+        )
+        .bind(status)
+        .bind(error)
+        .bind(organization_id)
+        .bind(id)
+        .execute(ttx.as_executor())
+        .await
+        .map_err(|e| Error::Internal(format!("set delivery status failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(())
+    }
+
     /// mark-read เฉพาะของ user คนนั้นเอง (`user_id = $4`) — กันคนอื่นมา mark ของคนอื่น
     pub async fn mark_read(&self, organization_id: Uuid, id: Uuid, user_id: Uuid) -> Result<()> {
         let mut ttx = begin_tenant(&self.pool, organization_id).await?;
