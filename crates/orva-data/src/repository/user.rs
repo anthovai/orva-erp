@@ -67,6 +67,54 @@ impl UserRepository {
         Ok(users)
     }
 
+    /// เก็บ secret ที่เพิ่ง setup (สถานะ pending — `mfa_enabled` ยังเป็น false จนกว่า
+    /// user จะยืนยัน code แรกผ่าน activate)
+    pub async fn set_mfa_secret(
+        &self,
+        organization_id: Uuid,
+        id: Uuid,
+        secret: &str,
+    ) -> Result<()> {
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        sqlx::query(
+            "update users set mfa_secret = $1, mfa_enabled = false, updated_at = now()
+             where organization_id = $2 and id = $3",
+        )
+        .bind(secret)
+        .bind(organization_id)
+        .bind(id)
+        .execute(ttx.as_executor())
+        .await
+        .map_err(|e| Error::Internal(format!("set mfa secret failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(())
+    }
+
+    pub async fn set_mfa_enabled(
+        &self,
+        organization_id: Uuid,
+        id: Uuid,
+        enabled: bool,
+    ) -> Result<()> {
+        // ปิด MFA = ล้าง secret ทิ้งด้วย — เปิดใหม่ต้อง setup secret ใหม่เสมอ
+        let sql = if enabled {
+            "update users set mfa_enabled = true, updated_at = now()
+             where organization_id = $1 and id = $2"
+        } else {
+            "update users set mfa_enabled = false, mfa_secret = null, updated_at = now()
+             where organization_id = $1 and id = $2"
+        };
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        sqlx::query(sql)
+            .bind(organization_id)
+            .bind(id)
+            .execute(ttx.as_executor())
+            .await
+            .map_err(|e| Error::Internal(format!("set mfa enabled failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(())
+    }
+
     pub async fn soft_delete(&self, organization_id: Uuid, id: Uuid) -> Result<()> {
         let mut ttx = begin_tenant(&self.pool, organization_id).await?;
         sqlx::query("update users set deleted_at = now() where organization_id = $1 and id = $2")

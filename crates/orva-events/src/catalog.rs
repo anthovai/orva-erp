@@ -6,6 +6,8 @@
 pub const ORGANIZATION_PROVISIONED: &str = "organization.provisioned";
 pub const ORGANIZATION_SUSPENDED: &str = "organization.suspended";
 pub const USER_REGISTERED: &str = "user.registered";
+pub const USER_MFA_ENABLED: &str = "user.mfa_enabled";
+pub const USER_MFA_DISABLED: &str = "user.mfa_disabled";
 pub const SERVICE_IDENTITY_ISSUED: &str = "service_identity.issued";
 pub const ROLE_CREATED: &str = "role.created";
 pub const ROLE_ASSIGNED: &str = "role.assigned";

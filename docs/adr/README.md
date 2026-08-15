@@ -12,3 +12,4 @@
 | [0004](0004-module-system-compiled-not-dynamic.md) | Module System: Compile-in ก่อน ไม่ Dynamic-load ใน v0.1 | Accepted |
 | [0005](0005-row-level-security.md) | Row-Level Security เป็น defense-in-depth ชั้นที่สอง | Accepted |
 | [0006](0006-rs256-jwks.md) | ID token ย้ายเป็น RS256 + JWKS สาธารณะ | Accepted |
+| [0007](0007-mfa-totp.md) | MFA ด้วย TOTP แบบ inline ใน login | Accepted |

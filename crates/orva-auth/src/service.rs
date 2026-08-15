@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     authz::{Authorizer, PermissionSet},
-    jwt, password, token,
+    jwt, password, token, totp,
 };
 
 /// role เริ่มต้นที่ผู้ก่อตั้งองค์กรได้รับตอน provisioning — ถือ permission ทุกตัวใน catalog
@@ -279,6 +279,7 @@ impl AuthService {
         organization_slug: &str,
         email: &str,
         plain_password: &str,
+        totp_code: Option<&str>,
     ) -> Result<AuthResult> {
         let org = self
             .organizations
@@ -295,7 +296,125 @@ impl AuthService {
             return Err(Error::Unauthorized);
         }
 
+        // MFA: เช็คหลังรหัสผ่านถูกเท่านั้น — ไม่ leak ว่า user ไหนเปิด MFA ให้คนเดารหัส
+        if user.mfa_enabled {
+            let secret = user
+                .mfa_secret
+                .as_deref()
+                .ok_or_else(|| Error::Internal("mfa enabled but no secret stored".to_string()))?;
+            match totp_code {
+                // แยก error ให้ client รู้ว่าต้องถาม code (รหัสผ่านผ่านแล้ว) — ดู ADR 0007
+                None => return Err(Error::Validation("totp_code required".to_string())),
+                Some(code) => {
+                    if !totp::verify(secret, code)? {
+                        return Err(Error::Unauthorized);
+                    }
+                }
+            }
+        }
+
         self.issue_tokens(&user).await
+    }
+
+    /// เริ่ม setup MFA: สร้าง secret ใหม่เก็บแบบ pending (ยังไม่บังคับตอน login)
+    /// จนกว่าจะยืนยัน code แรกผ่าน [`Self::mfa_activate`] — กัน user ล็อกตัวเอง
+    /// ออกจากระบบเพราะยังไม่ทันสแกน QR
+    pub async fn mfa_setup(
+        &self,
+        organization_id: Uuid,
+        user_id: Uuid,
+    ) -> Result<(String, String)> {
+        let user = self
+            .users
+            .find_by_id(organization_id, user_id)
+            .await?
+            .ok_or_else(|| Error::NotFound(format!("user '{user_id}'")))?;
+
+        let (secret, otpauth_uri) = totp::generate(&self.config.issuer, &user.email)?;
+        self.users
+            .set_mfa_secret(organization_id, user_id, &secret)
+            .await?;
+        Ok((secret, otpauth_uri))
+    }
+
+    /// ยืนยัน code แรกจาก authenticator app → เปิดบังคับ MFA ตอน login จริง
+    pub async fn mfa_activate(
+        &self,
+        organization_id: Uuid,
+        user_id: Uuid,
+        code: &str,
+    ) -> Result<()> {
+        let user = self
+            .users
+            .find_by_id(organization_id, user_id)
+            .await?
+            .ok_or_else(|| Error::NotFound(format!("user '{user_id}'")))?;
+        let secret = user.mfa_secret.as_deref().ok_or_else(|| {
+            Error::Validation("no pending mfa setup — call setup first".to_string())
+        })?;
+
+        if !totp::verify(secret, code)? {
+            return Err(Error::Unauthorized);
+        }
+
+        self.users
+            .set_mfa_enabled(organization_id, user_id, true)
+            .await?;
+        self.events
+            .publish(
+                organization_id,
+                catalog::USER_MFA_ENABLED,
+                json!({ "user_id": user_id }),
+                PublishOptions {
+                    actor_user_id: Some(user_id),
+                    resource: Some(("user".to_string(), user_id)),
+                    ..Default::default()
+                },
+            )
+            .await?;
+        Ok(())
+    }
+
+    /// ปิด MFA — ต้องยืนยัน code ปัจจุบันก่อน (session ที่ถูกขโมยจะปิด MFA เองไม่ได้)
+    pub async fn mfa_disable(
+        &self,
+        organization_id: Uuid,
+        user_id: Uuid,
+        code: &str,
+    ) -> Result<()> {
+        let user = self
+            .users
+            .find_by_id(organization_id, user_id)
+            .await?
+            .ok_or_else(|| Error::NotFound(format!("user '{user_id}'")))?;
+        if !user.mfa_enabled {
+            return Err(Error::Validation("mfa is not enabled".to_string()));
+        }
+        let secret = user
+            .mfa_secret
+            .as_deref()
+            .ok_or_else(|| Error::Internal("mfa enabled but no secret stored".to_string()))?;
+
+        if !totp::verify(secret, code)? {
+            return Err(Error::Unauthorized);
+        }
+
+        self.users
+            .set_mfa_enabled(organization_id, user_id, false)
+            .await?;
+        self.events
+            .publish(
+                organization_id,
+                catalog::USER_MFA_DISABLED,
+                json!({ "user_id": user_id }),
+                PublishOptions {
+                    actor_user_id: Some(user_id),
+                    resource: Some(("user".to_string(), user_id)),
+                    ..Default::default()
+                },
+            )
+            .await?;
+        Ok(())
     }
 
     async fn find_user_by_email(&self, organization_id: Uuid, email: &str) -> Result<Option<User>> {

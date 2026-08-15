@@ -56,7 +56,12 @@ async fn notes_module_full_lifecycle_with_install_gate_and_permissions() {
         .await
         .unwrap();
     let login = auth
-        .login(&slug, "user@notes-module.test", "correct-horse-battery")
+        .login(
+            &slug,
+            "user@notes-module.test",
+            "correct-horse-battery",
+            None,
+        )
         .await
         .unwrap();
     let token = login.session_token;

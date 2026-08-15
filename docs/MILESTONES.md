@@ -57,7 +57,7 @@ Rust  Layer  +SSO    Tenant Gateway Bus  +Audit   System  Foundation
 - [x] Organization + Team model — schema + repository พร้อม (`teams`, `team_members`) ยังไม่มี HTTP API เพราะไม่อยู่ใน DoD ของ M2
 - [x] Service Identity (สำหรับ module/worker เรียก API) — endpoint ออก API key ได้ ยังไม่มี middleware ฝั่ง verify แบบ end-to-end (มีแค่ `authenticate_service_key` ใน `AuthService` รอ M7 ต่อเข้าจริง)
 - [x] OIDC provider foundation — discovery document + userinfo endpoint + JWT ID token (ดูข้อจำกัดด้านล่าง)
-- [x] โครงรองรับ MFA — column `mfa_enabled`/`mfa_secret` บน `users` เท่านั้น ยังไม่มี TOTP logic ตามที่ตั้งใจ
+- [x] โครงรองรับ MFA — column `mfa_enabled`/`mfa_secret` บน `users` เท่านั้น ~~ยังไม่มี TOTP logic ตามที่ตั้งใจ~~ → **TOTP logic เสร็จ 2026-08-15** (setup/activate/disable + บังคับตอน login — ดู [ADR 0007](adr/0007-mfa-totp.md), `core/tests/mfa_flow.rs`)
 
 **Definition of Done:** login → ได้ session/token → เรียก API ที่ต้อง auth ได้; OSS ตัวทดสอบหนึ่งตัว SSO ผ่าน ORVA ได้
 
@@ -240,7 +240,7 @@ Notification:
 
 ครบทั้ง 9 milestones (M0–M8) — **Rust Core Platform พร้อมสำหรับ Phase ถัดไป** (เลือก OSS ประกอบเป็น Business Modules ตาม [OSS-STRATEGY.md](OSS-STRATEGY.md))
 
-สิ่งที่ยังไม่ทำเป็น **known gap ที่บันทึกไว้ครบทุกจุด** ไม่ใช่สิ่งที่ถูกลืม: ~~RLS ระดับ DB (M3)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0005](adr/0005-row-level-security.md)), ~~RS256/JWKS~~ (**ปิดแล้ว 2026-08-15** — [ADR 0006](adr/0006-rs256-jwks.md)) เหลือ full OIDC redirect flow (M2), rate limit ต่อ tenant จริง (M4), workflow definition แบบ reusable (M6), dynamic module loading (M7), Recommendation + fine-grained agent scope (M8) — ทั้งหมดมี ADR หรือหมายเหตุอ้างอิงให้ตามไปอ่านตอนถึงเวลาต้องแก้จริง
+สิ่งที่ยังไม่ทำเป็น **known gap ที่บันทึกไว้ครบทุกจุด** ไม่ใช่สิ่งที่ถูกลืม: ~~RLS ระดับ DB (M3)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0005](adr/0005-row-level-security.md)), ~~RS256/JWKS~~ (**ปิดแล้ว 2026-08-15** — [ADR 0006](adr/0006-rs256-jwks.md)), ~~MFA TOTP~~ (**ปิดแล้ว 2026-08-15** — [ADR 0007](adr/0007-mfa-totp.md)) เหลือ full OIDC redirect flow (M2), rate limit ต่อ tenant จริง (M4), workflow definition แบบ reusable (M6), dynamic module loading (M7), Recommendation + fine-grained agent scope (M8) — ทั้งหมดมี ADR หรือหมายเหตุอ้างอิงให้ตามไปอ่านตอนถึงเวลาต้องแก้จริง
 
 ---
 

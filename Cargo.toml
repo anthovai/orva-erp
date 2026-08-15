@@ -38,6 +38,7 @@ sha2 = "0.10"
 jsonwebtoken = "9"
 base64 = "0.22"
 rsa = "0.9"
+totp-rs = { version = "5", features = ["gen_secret", "otpauth"] }
 
 # serialization
 serde = { version = "1", features = ["derive"] }

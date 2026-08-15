@@ -14,6 +14,7 @@ pub mod keys;
 pub mod password;
 mod service;
 pub mod token;
+pub mod totp;
 
 pub use authz::{Authorizer, PermissionSet, Policy, PolicyContext};
 pub use keys::JwtKeys;

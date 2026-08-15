@@ -33,6 +33,9 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/v1/auth/register", post(register))
         .route("/api/v1/auth/login", post(login))
         .route("/api/v1/auth/logout", post(logout))
+        .route("/api/v1/auth/mfa/setup", post(mfa_setup))
+        .route("/api/v1/auth/mfa/activate", post(mfa_activate))
+        .route("/api/v1/auth/mfa/disable", post(mfa_disable))
         .route("/api/v1/auth/me", get(me))
         .route("/api/v1/auth/me/permissions", get(my_permissions))
         .route("/api/v1/auth/userinfo", get(userinfo))
@@ -208,21 +211,92 @@ pub(crate) struct LoginRequest {
     email: String,
     #[validate(length(min = 1))]
     password: String,
+    /// จำเป็นเมื่อ user เปิด MFA — ไม่ส่งมาจะได้ 400 `totp_code required` (ADR 0007)
+    totp_code: Option<String>,
 }
 
 #[utoipa::path(post, path = "/api/v1/auth/login", tag = "auth",
     request_body = LoginRequest,
     responses((status = 200, description = "Session + ID token issued", body = TokenResponse),
-               (status = 401, description = "Invalid credentials")))]
+               (status = 400, description = "MFA enabled but totp_code missing"),
+               (status = 401, description = "Invalid credentials or wrong TOTP code")))]
 pub(crate) async fn login(
     State(state): State<AppState>,
     ValidatedJson(body): ValidatedJson<LoginRequest>,
 ) -> Result<Json<TokenResponse>, ApiError> {
     let result = state
         .auth
-        .login(&body.organization_slug, &body.email, &body.password)
+        .login(
+            &body.organization_slug,
+            &body.email,
+            &body.password,
+            body.totp_code.as_deref(),
+        )
         .await?;
     Ok(Json(result.into()))
+}
+
+#[derive(Serialize, ToSchema)]
+pub(crate) struct MfaSetupResponse {
+    /// secret แบบ base32 — โชว์ครั้งเดียวตอน setup ให้ user กรอกมือได้ถ้าสแกน QR ไม่ได้
+    secret: String,
+    /// เนื้อหาสำหรับทำ QR code ให้ authenticator app สแกน
+    otpauth_uri: String,
+}
+
+/// เริ่ม setup MFA (pending จนกว่าจะ activate) — เรียกซ้ำ = ออก secret ใหม่แทนอันเดิม
+#[utoipa::path(post, path = "/api/v1/auth/mfa/setup", tag = "auth",
+    security(("bearer" = [])),
+    responses((status = 200, description = "TOTP secret issued (pending activation)", body = MfaSetupResponse)))]
+pub(crate) async fn mfa_setup(
+    State(state): State<AppState>,
+    AuthUser(user): AuthUser,
+) -> Result<Json<MfaSetupResponse>, ApiError> {
+    let (secret, otpauth_uri) = state.auth.mfa_setup(user.organization_id, user.id).await?;
+    Ok(Json(MfaSetupResponse {
+        secret,
+        otpauth_uri,
+    }))
+}
+
+#[derive(Deserialize, Validate, ToSchema)]
+pub(crate) struct MfaCodeRequest {
+    #[validate(length(min = 6, max = 6))]
+    code: String,
+}
+
+/// ยืนยัน code แรกจาก authenticator app → MFA ถูกบังคับตอน login นับจากนี้
+#[utoipa::path(post, path = "/api/v1/auth/mfa/activate", tag = "auth",
+    security(("bearer" = [])), request_body = MfaCodeRequest,
+    responses((status = 204, description = "MFA activated"),
+               (status = 401, description = "Wrong TOTP code")))]
+pub(crate) async fn mfa_activate(
+    State(state): State<AppState>,
+    AuthUser(user): AuthUser,
+    ValidatedJson(body): ValidatedJson<MfaCodeRequest>,
+) -> Result<StatusCode, ApiError> {
+    state
+        .auth
+        .mfa_activate(user.organization_id, user.id, &body.code)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// ปิด MFA — ต้องยืนยัน code ปัจจุบัน (session ที่ถูกขโมยปิด MFA เองไม่ได้)
+#[utoipa::path(post, path = "/api/v1/auth/mfa/disable", tag = "auth",
+    security(("bearer" = [])), request_body = MfaCodeRequest,
+    responses((status = 204, description = "MFA disabled"),
+               (status = 401, description = "Wrong TOTP code")))]
+pub(crate) async fn mfa_disable(
+    State(state): State<AppState>,
+    AuthUser(user): AuthUser,
+    ValidatedJson(body): ValidatedJson<MfaCodeRequest>,
+) -> Result<StatusCode, ApiError> {
+    state
+        .auth
+        .mfa_disable(user.organization_id, user.id, &body.code)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[utoipa::path(post, path = "/api/v1/auth/logout", tag = "auth",
