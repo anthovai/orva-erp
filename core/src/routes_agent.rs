@@ -13,6 +13,7 @@ use crate::{
 
 /// ORVA Agent API (M8) — จุดเชื่อมสำหรับ ORVA Worker (OpenWorker) ใน Phase ถัดไป
 /// (ARCHITECTURE.md §12) auth ด้วย service identity (`X-Orva-Service-Key`) ไม่ใช่ user session
+/// ทุก endpoint บังคับ scope ของ identity นั้น (ADR 0011) — key ถูกต้องอย่างเดียวไม่พอ
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/api/v1/agent/context", get(context))
@@ -20,25 +21,39 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/v1/agent/workflows/{id}", get(get_workflow))
 }
 
+/// scope ไม่พอ → 403 พร้อมบอกชัดว่าขาด scope ไหน (คนตั้ง integration จะได้แก้ถูก)
+fn require_scope(identity: &orva_data::ServiceIdentity, scope: &str) -> Result<(), ApiError> {
+    if identity.has_scope(scope) {
+        Ok(())
+    } else {
+        Err(orva_error::Error::Forbidden(format!("missing agent scope '{scope}'")).into())
+    }
+}
+
 #[derive(Serialize, ToSchema)]
 pub(crate) struct AgentContextResponse {
     service_identity_id: Uuid,
     name: String,
     organization_id: Uuid,
+    /// สิ่งที่ identity นี้ได้รับอนุญาตให้ทำ (ADR 0011)
+    scopes: Vec<String>,
 }
 
 /// agent เช็คตัวเอง — เทียบเท่า `/me` ของ user
 #[utoipa::path(get, path = "/api/v1/agent/context", tag = "agent",
     security(("service_key" = [])),
-    responses((status = 200, description = "Service identity ของ agent เอง", body = AgentContextResponse)))]
+    responses((status = 200, description = "Service identity ของ agent เอง", body = AgentContextResponse),
+               (status = 403, description = "Missing scope agent:context:read")))]
 pub(crate) async fn context(
     ServiceIdentityAuth(identity): ServiceIdentityAuth,
-) -> Json<AgentContextResponse> {
-    Json(AgentContextResponse {
+) -> Result<Json<AgentContextResponse>, ApiError> {
+    require_scope(&identity, "agent:context:read")?;
+    Ok(Json(AgentContextResponse {
         service_identity_id: identity.id,
         name: identity.name,
         organization_id: identity.organization_id,
-    })
+        scopes: identity.scopes,
+    }))
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -69,6 +84,14 @@ pub(crate) async fn propose_workflow(
     ServiceIdentityAuth(identity): ServiceIdentityAuth,
     Json(body): Json<ProposeWorkflowRequest>,
 ) -> Result<(axum::http::StatusCode, Json<WorkflowResponse>), ApiError> {
+    // scope แบบเจาะจง resource_type ก็ผ่านได้ (agent:workflow:propose:<type>) — ADR 0011
+    if !identity.may_propose(&body.resource_type) {
+        return Err(orva_error::Error::Forbidden(format!(
+            "missing agent scope 'agent:workflow:propose' (or ':{}')",
+            body.resource_type
+        ))
+        .into());
+    }
     let instance = state
         .workflow
         .create(
@@ -101,6 +124,7 @@ pub(crate) async fn get_workflow(
     ServiceIdentityAuth(identity): ServiceIdentityAuth,
     Path(id): Path<Uuid>,
 ) -> Result<Json<WorkflowResponse>, ApiError> {
+    require_scope(&identity, "agent:workflow:read")?;
     let instance = state.workflow.get(identity.organization_id, id).await?;
     Ok(Json(instance.into()))
 }

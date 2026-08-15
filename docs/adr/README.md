@@ -16,3 +16,4 @@
 | [0008](0008-smtp-email.md) | ส่งอีเมลจริงทาง SMTP (lettre + rustls) | Accepted |
 | [0009](0009-workflow-definitions.md) | Reusable Workflow Definitions (copy-on-create) | Accepted |
 | [0010](0010-recommendations.md) | Recommendation: ข้อเสนอที่มนุษย์ตัดสิน ไม่ใช่ action อัตโนมัติ | Accepted |
+| [0011](0011-agent-scopes.md) | Fine-grained Agent Scopes บน Service Identity | Accepted |

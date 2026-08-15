@@ -229,7 +229,7 @@ Notification:
 >
 > **ขอบเขตที่ตัดออกอย่างตั้งใจ:**
 > - ~~**`Recommendation` entity ไม่ implement**~~ → **ทำแล้ว 2026-08-15** — action ที่ผูกได้เกิดขึ้นจริงแล้วผ่าน Workflow Definitions (ADR 0009): rule ประกาศ `recommended_action` → trigger สร้าง Recommendation → มนุษย์ accept แล้วได้ workflow instance ที่ยังผ่าน approval ปกติ — ดู [ADR 0010](adr/0010-recommendations.md)
-> - **Agent scoped permissions เป็น tenant-scope เท่านั้น** ไม่ใช่ fine-grained action-scope — key หนึ่งใช้ทำอะไรก็ได้ในองค์กรของตัวเอง (เท่ากับ user ที่ไม่มี role ใด ๆ) ยังไม่มีกลไก "key นี้สร้าง workflow ได้อย่างเดียว ห้ามอ่านอย่างอื่น" — ต้องออกแบบเพิ่มตอนมี ORVA Worker จริงมาใช้งาน
+> - ~~**Agent scoped permissions เป็น tenant-scope เท่านั้น**~~ → **fine-grained แล้ว 2026-08-15** — `service_identities.scopes` (fail-closed, validate ตอนออก key, propose จำกัดต่อ resource_type ได้) — ดู [ADR 0011](adr/0011-agent-scopes.md)
 > - **Context Engine อ่าน events table ทั้งหมดในช่วงเวลาทุกครั้งที่ประเมิน** ไม่มี pre-aggregation/materialized view — พอสำหรับ v0.1 แต่จะช้าลงเมื่อ event เยอะขึ้นมาก (ต้องปรับตอน scale จริง)
 > - **Metric รองรับแค่ตัวเลข** (count/sum) — ยังไม่มี pattern matching แบบซับซ้อนกว่านี้ (เช่น sequence detection, anomaly ทางสถิติ) ตรงตามคำว่า "Rules engine อย่างง่าย" ใน checklist
 > - **JWT ยังเป็น HS256** ตามที่ตัดสินใจไว้ใน [ADR 0002](adr/0002-oidc-hs256-foundation.md) — Agent API ใช้ opaque service key ไม่ใช่ JWT อยู่แล้ว จึงไม่กระทบ แต่ตอนที่ ORVA Worker ต้องการ verify token เองผ่าน JWKS (ไม่ผ่าน ORVA Core ตรง ๆ) ยังต้องย้ายเป็น RS256 ตามที่ ADR นั้นทิ้งไว้
@@ -240,7 +240,7 @@ Notification:
 
 ครบทั้ง 9 milestones (M0–M8) — **Rust Core Platform พร้อมสำหรับ Phase ถัดไป** (เลือก OSS ประกอบเป็น Business Modules ตาม [OSS-STRATEGY.md](OSS-STRATEGY.md))
 
-สิ่งที่ยังไม่ทำเป็น **known gap ที่บันทึกไว้ครบทุกจุด** ไม่ใช่สิ่งที่ถูกลืม: ~~RLS ระดับ DB (M3)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0005](adr/0005-row-level-security.md)), ~~RS256/JWKS~~ (**ปิดแล้ว 2026-08-15** — [ADR 0006](adr/0006-rs256-jwks.md)), ~~MFA TOTP~~ (**ปิดแล้ว 2026-08-15** — [ADR 0007](adr/0007-mfa-totp.md)), ~~email ไม่ส่งจริง (M6)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0008](adr/0008-smtp-email.md)) เหลือ full OIDC redirect flow (M2), rate limit ต่อ tenant จริง (M4), ~~workflow definition แบบ reusable (M6)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0009](adr/0009-workflow-definitions.md)), dynamic module loading (M7), ~~Recommendation~~ (**ปิดแล้ว 2026-08-15** — [ADR 0010](adr/0010-recommendations.md)) + fine-grained agent scope (M8) — ทั้งหมดมี ADR หรือหมายเหตุอ้างอิงให้ตามไปอ่านตอนถึงเวลาต้องแก้จริง
+สิ่งที่ยังไม่ทำเป็น **known gap ที่บันทึกไว้ครบทุกจุด** ไม่ใช่สิ่งที่ถูกลืม: ~~RLS ระดับ DB (M3)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0005](adr/0005-row-level-security.md)), ~~RS256/JWKS~~ (**ปิดแล้ว 2026-08-15** — [ADR 0006](adr/0006-rs256-jwks.md)), ~~MFA TOTP~~ (**ปิดแล้ว 2026-08-15** — [ADR 0007](adr/0007-mfa-totp.md)), ~~email ไม่ส่งจริง (M6)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0008](adr/0008-smtp-email.md)) เหลือ full OIDC redirect flow (M2), rate limit ต่อ tenant จริง (M4), ~~workflow definition แบบ reusable (M6)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0009](adr/0009-workflow-definitions.md)), dynamic module loading (M7), ~~Recommendation~~ (**ปิดแล้ว 2026-08-15** — [ADR 0010](adr/0010-recommendations.md)) + ~~fine-grained agent scope~~ (**ปิดแล้ว 2026-08-15** — [ADR 0011](adr/0011-agent-scopes.md)) (M8) — ทั้งหมดมี ADR หรือหมายเหตุอ้างอิงให้ตามไปอ่านตอนถึงเวลาต้องแก้จริง
 
 ---
 

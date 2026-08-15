@@ -74,7 +74,17 @@ async fn setup(app: &axum::Router, prefix: &str) -> Ctx {
                 .uri("/api/v1/service-identities")
                 .header("content-type", "application/json")
                 .header(AUTHORIZATION, format!("Bearer {owner_token}"))
-                .body(Body::from(json!({ "name": "worker-agent" }).to_string()))
+                .body(Body::from(
+                    json!({
+                        "name": "worker-agent",
+                        "scopes": [
+                            "agent:context:read",
+                            "agent:workflow:read",
+                            "agent:workflow:propose",
+                        ],
+                    })
+                    .to_string(),
+                ))
                 .unwrap(),
         )
         .await
@@ -267,4 +277,117 @@ async fn agent_proposed_action_without_rule_executes_immediately() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::CREATED);
     assert_eq!(json_body(response).await["status"], "executing");
+}
+
+/// ADR 0011: key ถูกต้องอย่างเดียวไม่พอ — ต้องมี scope ตรงกับสิ่งที่ทำด้วย
+/// (fail-closed: ไม่ระบุ scope = ทำอะไรไม่ได้เลย, propose จำกัดต่อ resource_type ได้)
+#[tokio::test]
+async fn agent_scopes_are_enforced_per_endpoint_and_resource_type() {
+    let state = support::test_state().await;
+    let app = orva_core::app(state);
+    let ctx = setup(&app, "agent-scopes").await;
+
+    let issue = |name: &str, scopes: serde_json::Value| {
+        Request::builder()
+            .method("POST")
+            .uri("/api/v1/service-identities")
+            .header("content-type", "application/json")
+            .header(AUTHORIZATION, format!("Bearer {}", ctx.owner_token))
+            .body(Body::from(
+                json!({ "name": name, "scopes": scopes }).to_string(),
+            ))
+            .unwrap()
+    };
+
+    // scope มั่ว → 400 ตั้งแต่ตอนออก key (กัน typo กลายเป็น key ใบ้)
+    let response = app
+        .clone()
+        .oneshot(issue("typo-agent", json!(["agent:workflw:propose"])))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+    // key ไม่มี scope เลย (fail-closed) — auth ผ่านแต่ทุก endpoint 403
+    let response = app
+        .clone()
+        .oneshot(issue("no-scope", json!([])))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let bare_key = json_body(response).await["api_key"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/agent/context")
+                .header("X-Orva-Service-Key", &bare_key)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+    // key จำกัด propose เฉพาะ resource_type "invoice"
+    let response = app
+        .clone()
+        .oneshot(issue(
+            "invoice-only",
+            json!(["agent:workflow:propose:invoice"]),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let invoice_key = json_body(response).await["api_key"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let propose = |key: &str, resource_type: &str| {
+        Request::builder()
+            .method("POST")
+            .uri("/api/v1/agent/workflows")
+            .header("content-type", "application/json")
+            .header("X-Orva-Service-Key", key)
+            .body(Body::from(
+                json!({
+                    "resource_type": resource_type,
+                    "resource_id": uuid::Uuid::new_v4(),
+                })
+                .to_string(),
+            ))
+            .unwrap()
+    };
+
+    // resource_type ตรง scope → ผ่าน
+    let response = app
+        .clone()
+        .oneshot(propose(&invoice_key, "invoice"))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    // resource_type อื่น → 403
+    let response = app
+        .clone()
+        .oneshot(propose(&invoice_key, "purchase"))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+
+    // และ key นี้ไม่มี scope read — poll สถานะไม่ได้ด้วย
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/agent/workflows/{}", uuid::Uuid::new_v4()))
+                .header("X-Orva-Service-Key", &invoice_key)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
 }

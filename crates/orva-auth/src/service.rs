@@ -492,14 +492,34 @@ impl AuthService {
         Ok(())
     }
 
-    /// ออก API key ให้ module/worker (ORVA Agent API ในอนาคต — ARCHITECTURE.md §12)
+    /// scope ที่ Agent API รู้จัก (ADR 0011) — แบบเจาะจง resource_type ใช้ prefix ด้านล่าง
+    pub const KNOWN_AGENT_SCOPES: [&'static str; 3] = [
+        "agent:context:read",
+        "agent:workflow:read",
+        "agent:workflow:propose",
+    ];
+    pub const PROPOSE_SCOPE_PREFIX: &'static str = "agent:workflow:propose:";
+
+    /// ออก API key ให้ module/worker (ORVA Agent API — ARCHITECTURE.md §12)
     /// คืน raw key ครั้งเดียวตอนสร้าง — หลังจากนี้เก็บได้แค่ hash เท่านั้น
+    /// `scopes` ต้องมาจาก catalog ที่รู้จักเท่านั้น (typo = ออก key ที่ใช้งานไม่ได้เงียบ ๆ)
+    /// และว่างได้ = key ที่ยังทำอะไรไม่ได้ (fail-closed)
     pub async fn issue_service_identity(
         &self,
         organization_id: Uuid,
         name: &str,
         created_by: Uuid,
+        scopes: &[String],
     ) -> Result<(orva_data::ServiceIdentity, String)> {
+        for scope in scopes {
+            let known = Self::KNOWN_AGENT_SCOPES.contains(&scope.as_str())
+                || (scope.starts_with(Self::PROPOSE_SCOPE_PREFIX)
+                    && scope.len() > Self::PROPOSE_SCOPE_PREFIX.len());
+            if !known {
+                return Err(Error::Validation(format!("unknown agent scope '{scope}'")));
+            }
+        }
+
         let raw_key = token::generate();
         let identity = self
             .service_identities
@@ -508,6 +528,7 @@ impl AuthService {
                 name,
                 &token::hash(&raw_key),
                 Some(created_by),
+                scopes,
             )
             .await?;
 
@@ -515,7 +536,11 @@ impl AuthService {
             .publish(
                 organization_id,
                 catalog::SERVICE_IDENTITY_ISSUED,
-                json!({ "service_identity_id": identity.id, "name": identity.name }),
+                json!({
+                    "service_identity_id": identity.id,
+                    "name": identity.name,
+                    "scopes": identity.scopes,
+                }),
                 PublishOptions {
                     actor_user_id: Some(created_by),
                     resource: Some(("service_identity".to_string(), identity.id)),

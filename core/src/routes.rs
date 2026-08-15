@@ -354,6 +354,11 @@ pub(crate) async fn userinfo(AuthUser(user): AuthUser) -> Json<serde_json::Value
 pub(crate) struct CreateServiceIdentityRequest {
     #[validate(length(min = 1))]
     name: String,
+    /// scope ของ Agent API (ADR 0011) เช่น `agent:context:read`,
+    /// `agent:workflow:read`, `agent:workflow:propose[:<resource_type>]`
+    /// — ไม่ระบุ = key ที่ยังทำอะไรใน Agent API ไม่ได้ (fail-closed)
+    #[serde(default)]
+    scopes: Vec<String>,
 }
 
 #[derive(Serialize, ToSchema)]
@@ -361,6 +366,7 @@ pub(crate) struct ServiceIdentityResponse {
     id: Uuid,
     name: String,
     api_key: String,
+    scopes: Vec<String>,
 }
 
 #[utoipa::path(post, path = "/api/v1/service-identities", tag = "identity",
@@ -375,7 +381,7 @@ pub(crate) async fn create_service_identity(
 ) -> Result<(StatusCode, Json<ServiceIdentityResponse>), ApiError> {
     let (identity, raw_key) = state
         .auth
-        .issue_service_identity(user.organization_id, &body.name, user.id)
+        .issue_service_identity(user.organization_id, &body.name, user.id, &body.scopes)
         .await?;
     Ok((
         StatusCode::CREATED,
@@ -383,6 +389,7 @@ pub(crate) async fn create_service_identity(
             id: identity.id,
             name: identity.name,
             api_key: raw_key,
+            scopes: identity.scopes,
         }),
     ))
 }

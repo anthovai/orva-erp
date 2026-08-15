@@ -21,16 +21,18 @@ impl ServiceIdentityRepository {
         name: &str,
         key_hash: &str,
         created_by: Option<Uuid>,
+        scopes: &[String],
     ) -> Result<ServiceIdentity> {
         let mut ttx = begin_tenant(&self.pool, organization_id).await?;
         let identity = sqlx::query_as::<_, ServiceIdentity>(
-            "insert into service_identities (organization_id, name, key_hash, created_by)
-             values ($1, $2, $3, $4) returning *",
+            "insert into service_identities (organization_id, name, key_hash, created_by, scopes)
+             values ($1, $2, $3, $4, $5) returning *",
         )
         .bind(organization_id)
         .bind(name)
         .bind(key_hash)
         .bind(created_by)
+        .bind(scopes)
         .fetch_one(ttx.as_executor())
         .await
         .map_err(|e| Error::Internal(format!("create service identity failed: {e}")))?;
