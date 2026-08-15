@@ -1,8 +1,19 @@
+use std::sync::OnceLock;
+
+use orva_auth::JwtKeys;
 use orva_core::AppState;
 
 pub fn test_database_url() -> String {
     std::env::var("ORVA_TEST_DATABASE_URL")
         .unwrap_or_else(|_| "postgres://orva_app:orva@localhost:5432/orva_test".to_string())
+}
+
+/// generate RSA key ครั้งเดียวต่อ test binary แล้ว clone แจก — keygen ไม่ถูกและ
+/// ทุก test ใน binary เดียวกันไม่จำเป็นต้องใช้ key คนละดอก
+pub fn test_keys() -> JwtKeys {
+    static KEYS: OnceLock<JwtKeys> = OnceLock::new();
+    KEYS.get_or_init(|| JwtKeys::generate().expect("generate test RSA keys").0)
+        .clone()
 }
 
 pub async fn test_state() -> AppState {
@@ -11,7 +22,7 @@ pub async fn test_state() -> AppState {
         .expect("connect to test database — is `docker compose up -d` running?");
     orva_data::migrate(&pool).await.expect("run migrations");
 
-    AppState::new(pool, "test-secret", "orva-core-test").await
+    AppState::new(pool, test_keys(), "orva-core-test").await
 }
 
 /// สร้าง organization ใหม่แบบ slug สุ่ม กันชนกับ run ก่อนหน้า (unique constraint)

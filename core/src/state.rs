@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use orva_auth::{AuthConfig, AuthService};
+use orva_auth::{AuthConfig, AuthService, JwtKeys};
 use orva_data::{EventRepository, InsightRepository, IntelligenceRuleRepository, Pool};
 use orva_events::EventBus;
 use orva_intelligence::IntelligenceEngine;
@@ -18,6 +18,8 @@ pub struct AppState {
     pub workflow: Arc<WorkflowService>,
     pub notifications: Arc<NotificationService>,
     pub issuer: String,
+    /// JWKS document (`{"keys": [...]}`) — เสิร์ฟตรง ๆ ที่ `/.well-known/jwks.json` (ADR 0006)
+    pub jwks: serde_json::Value,
     pub rate_limiter: Arc<KeyedLimiter>,
     /// query ย้อนหลังโดยตรง (ไม่ผ่าน pub/sub) — ใช้โดย `GET /api/v1/events`
     pub events: EventRepository,
@@ -33,22 +35,23 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub async fn new(pool: Pool, jwt_secret: &str, issuer: &str) -> Self {
-        Self::with_rate_limit(pool, jwt_secret, issuer, DEFAULT_REQUESTS_PER_MINUTE).await
+    pub async fn new(pool: Pool, keys: JwtKeys, issuer: &str) -> Self {
+        Self::with_rate_limit(pool, keys, issuer, DEFAULT_REQUESTS_PER_MINUTE).await
     }
 
     /// ใช้ตอน test ที่ต้องการ quota ต่ำ ๆ เพื่อพิสูจน์ 429 ได้โดยไม่ต้องยิงร้อยครั้ง
     pub async fn with_rate_limit(
         pool: Pool,
-        jwt_secret: &str,
+        keys: JwtKeys,
         issuer: &str,
         requests_per_minute: u32,
     ) -> Self {
+        let jwks = serde_json::json!({ "keys": [keys.public_jwk.clone()] });
         let event_bus = EventBus::new(pool.clone());
         let auth = Arc::new(AuthService::new(
             pool.clone(),
             AuthConfig {
-                jwt_secret: jwt_secret.as_bytes().to_vec(),
+                keys,
                 issuer: issuer.to_string(),
             },
             event_bus.clone(),
@@ -81,6 +84,7 @@ impl AppState {
             workflow: Arc::new(workflow),
             notifications,
             issuer: issuer.to_string(),
+            jwks,
             rate_limiter: rate_limit::new_limiter(requests_per_minute),
             events: EventRepository::new(pool.clone()),
             event_bus,

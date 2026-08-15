@@ -37,6 +37,7 @@ rand = "0.9"
 sha2 = "0.10"
 jsonwebtoken = "9"
 base64 = "0.22"
+rsa = "0.9"
 
 # serialization
 serde = { version = "1", features = ["derive"] }
@@ -59,3 +60,11 @@ orva-notifications = { path = "crates/orva-notifications" }
 orva-module-sdk = { path = "crates/orva-module-sdk" }
 orva-module-notes = { path = "crates/orva-module-notes" }
 orva-intelligence = { path = "crates/orva-intelligence" }
+
+# RSA keygen (pure Rust) ช้ามากใน debug build — optimize เฉพาะ crate คณิตศาสตร์
+# ไม่งั้น test ที่ generate key ใช้เวลาหลายสิบวินาที
+[profile.dev.package.rsa]
+opt-level = 2
+
+[profile.dev.package.num-bigint-dig]
+opt-level = 2

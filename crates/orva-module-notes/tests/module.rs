@@ -39,7 +39,7 @@ async fn notes_module_full_lifecycle_with_install_gate_and_permissions() {
     let auth = Arc::new(AuthService::new(
         pool.clone(),
         AuthConfig {
-            jwt_secret: b"test-secret".to_vec(),
+            keys: orva_auth::JwtKeys::generate().unwrap().0,
             issuer: "test".to_string(),
         },
         event_bus.clone(),

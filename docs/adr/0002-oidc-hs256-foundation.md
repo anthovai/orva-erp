@@ -1,6 +1,6 @@
 # ADR 0002 — OIDC Foundation ใช้ HS256 + Password Grant ใน v0.1
 
-- **Status:** Accepted
+- **Status:** Superseded บางส่วนโดย [ADR 0006](0006-rs256-jwks.md) (2026-08-15 — HS256 → RS256/JWKS; ส่วน Password Grant ยังมีผล)
 - **Date:** 2026-08-14
 
 ## Context

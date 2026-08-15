@@ -19,7 +19,8 @@ const OWNER_ROLE_NAME: &str = "owner";
 const SESSION_TTL_HOURS: i64 = 24;
 
 pub struct AuthConfig {
-    pub jwt_secret: Vec<u8>,
+    /// RSA key pair สำหรับเซ็น/verify ID token (RS256 — ADR 0006)
+    pub keys: crate::keys::JwtKeys,
     pub issuer: String,
 }
 
@@ -318,7 +319,7 @@ impl AuthService {
             .await?;
 
         let id_token = jwt::issue_id_token(
-            &self.config.jwt_secret,
+            &self.config.keys,
             &self.config.issuer,
             "orva-core",
             jwt::IdTokenSubject {

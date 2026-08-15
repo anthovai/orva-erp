@@ -34,6 +34,7 @@ impl Modify for BearerAuth {
     paths(
         routes::health,
         routes::openid_configuration,
+        routes::jwks,
         routes::provision_organization,
         routes::suspend_current_organization,
         routes::register,

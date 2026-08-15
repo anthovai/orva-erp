@@ -32,9 +32,11 @@ pub struct DatabaseConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct AuthConfig {
-    /// ⚠️ dev-only default — ต้อง override ด้วย `ORVA_JWT_SECRET` ก่อนขึ้น production จริง
-    #[serde(default = "default_jwt_secret")]
-    pub jwt_secret: String,
+    /// path ไปยัง RSA private key PEM (PKCS#8) สำหรับเซ็น ID token แบบ RS256 (ADR 0006)
+    /// ถ้าไฟล์ไม่มี server จะ generate ให้เองตอน start (dev bootstrap) —
+    /// production ต้อง provision key เองแล้วชี้ path นี้ (หรือ env `ORVA_JWT_RSA_KEY_PATH`)
+    #[serde(default = "default_rsa_key_path")]
+    pub rsa_key_path: String,
     #[serde(default = "default_issuer")]
     pub issuer: String,
 }
@@ -42,14 +44,14 @@ pub struct AuthConfig {
 impl Default for AuthConfig {
     fn default() -> Self {
         Self {
-            jwt_secret: default_jwt_secret(),
+            rsa_key_path: default_rsa_key_path(),
             issuer: default_issuer(),
         }
     }
 }
 
-fn default_jwt_secret() -> String {
-    "orva-dev-insecure-secret-change-me".to_string()
+fn default_rsa_key_path() -> String {
+    "config/keys/jwt_rsa.pem".to_string()
 }
 
 fn default_issuer() -> String {
@@ -108,8 +110,8 @@ impl Config {
         if let Ok(url) = std::env::var("ORVA_DATABASE_URL") {
             config.database.url = url;
         }
-        if let Ok(secret) = std::env::var("ORVA_JWT_SECRET") {
-            config.auth.jwt_secret = secret;
+        if let Ok(path) = std::env::var("ORVA_JWT_RSA_KEY_PATH") {
+            config.auth.rsa_key_path = path;
         }
 
         Ok(config)

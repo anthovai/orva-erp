@@ -24,6 +24,7 @@ pub(crate) fn router() -> Router<AppState> {
             "/.well-known/openid-configuration",
             get(openid_configuration),
         )
+        .route("/.well-known/jwks.json", get(jwks))
         .route("/api/v1/organizations", post(provision_organization))
         .route(
             "/api/v1/organizations/current/suspend",
@@ -65,8 +66,17 @@ pub(crate) async fn openid_configuration(State(state): State<AppState>) -> Json<
         "issuer": state.issuer,
         "token_endpoint": "/api/v1/auth/login",
         "userinfo_endpoint": "/api/v1/auth/userinfo",
-        "id_token_signing_alg_values_supported": ["HS256"],
+        "jwks_uri": "/.well-known/jwks.json",
+        "id_token_signing_alg_values_supported": ["RS256"],
     }))
+}
+
+/// JWKS สาธารณะ (ADR 0006) — relying party ภายนอกใช้ verify ลายเซ็น ID token
+/// โดยไม่ต้องแชร์ secret ใด ๆ กับ ORVA
+#[utoipa::path(get, path = "/.well-known/jwks.json", tag = "system",
+    responses((status = 200, description = "JSON Web Key Set (public signing keys)")))]
+pub(crate) async fn jwks(State(state): State<AppState>) -> Json<serde_json::Value> {
+    Json(state.jwks.clone())
 }
 
 #[derive(Serialize, ToSchema)]

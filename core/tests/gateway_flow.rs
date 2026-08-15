@@ -95,7 +95,7 @@ async fn rate_limit_returns_429_after_quota_exhausted() {
         .expect("connect");
     orva_data::migrate(&pool).await.expect("migrate");
     let state =
-        orva_core::AppState::with_rate_limit(pool, "test-secret", "orva-core-test", 2).await;
+        orva_core::AppState::with_rate_limit(pool, support::test_keys(), "orva-core-test", 2).await;
     let app = orva_core::app(state);
 
     let make_request = || {

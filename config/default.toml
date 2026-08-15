@@ -8,3 +8,9 @@ port = 8080
 
 [database]
 url = "postgres://orva_app:orva@localhost:5432/orva"
+
+[auth]
+# RSA private key (PKCS#8 PEM) สำหรับเซ็น ID token RS256 — ไม่มีไฟล์ = generate ให้ตอน start (dev)
+# production: provision key เองแล้วชี้ path นี้ หรือ env ORVA_JWT_RSA_KEY_PATH
+rsa_key_path = "config/keys/jwt_rsa.pem"
+issuer = "orva-core"

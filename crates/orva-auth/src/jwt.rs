@@ -1,11 +1,13 @@
 use chrono::{Duration, Utc};
-use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{decode, encode, Algorithm, Header, Validation};
 use orva_error::{Error, Result};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// ID token ตามแนวคิด OIDC — ยังใช้ HS256 (shared secret) ใน v0.1 เพราะยังไม่มี
-/// relying party ภายนอกที่ต้อง verify ผ่าน JWKS สาธารณะ — ดู ADR สำหรับแผนย้ายไป RS256
+use crate::keys::JwtKeys;
+
+/// ID token ตามแนวคิด OIDC — เซ็นด้วย RS256 (ADR 0006) relying party ภายนอก verify
+/// ผ่าน public key ใน `/.well-known/jwks.json` ได้โดยไม่ต้องแชร์ secret ใด ๆ
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdTokenClaims {
     pub sub: Uuid,
@@ -28,7 +30,7 @@ pub struct IdTokenSubject<'a> {
 }
 
 pub fn issue_id_token(
-    secret: &[u8],
+    keys: &JwtKeys,
     issuer: &str,
     audience: &str,
     subject: IdTokenSubject<'_>,
@@ -46,19 +48,53 @@ pub fn issue_id_token(
         exp: (now + ttl).timestamp(),
     };
 
-    encode(
-        &Header::default(),
-        &claims,
-        &EncodingKey::from_secret(secret),
-    )
-    .map_err(|e| Error::Internal(format!("issue id_token failed: {e}")))
+    let mut header = Header::new(Algorithm::RS256);
+    header.kid = Some(keys.kid.clone());
+
+    encode(&header, &claims, &keys.encoding)
+        .map_err(|e| Error::Internal(format!("issue id_token failed: {e}")))
 }
 
-pub fn verify_id_token(secret: &[u8], token: &str, audience: &str) -> Result<IdTokenClaims> {
-    let mut validation = Validation::default();
+pub fn verify_id_token(keys: &JwtKeys, token: &str, audience: &str) -> Result<IdTokenClaims> {
+    let mut validation = Validation::new(Algorithm::RS256);
     validation.set_audience(&[audience]);
 
-    decode::<IdTokenClaims>(token, &DecodingKey::from_secret(secret), &validation)
+    decode::<IdTokenClaims>(token, &keys.decoding, &validation)
         .map(|data| data.claims)
         .map_err(|_| Error::Unauthorized)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn issue_and_verify_round_trip_rs256() {
+        let (keys, _) = JwtKeys::generate().unwrap();
+        let token = issue_id_token(
+            &keys,
+            "orva-core",
+            "orva-core",
+            IdTokenSubject {
+                user_id: Uuid::new_v4(),
+                organization_id: Uuid::new_v4(),
+                email: "a@b.test",
+                display_name: "A",
+            },
+            Duration::hours(1),
+        )
+        .unwrap();
+
+        // header ต้องประกาศ RS256 + kid ตรงกับ JWKS
+        let header = jsonwebtoken::decode_header(&token).unwrap();
+        assert_eq!(header.alg, Algorithm::RS256);
+        assert_eq!(header.kid.as_deref(), Some(keys.kid.as_str()));
+
+        let claims = verify_id_token(&keys, &token, "orva-core").unwrap();
+        assert_eq!(claims.iss, "orva-core");
+
+        // key คนละคู่ต้อง verify ไม่ผ่าน
+        let (other, _) = JwtKeys::generate().unwrap();
+        assert!(verify_id_token(&other, &token, "orva-core").is_err());
+    }
 }

@@ -52,7 +52,7 @@ cargo test --workspace
 cargo run -p orva-core
 ```
 
-ตั้งค่าใน [config/default.toml](config/default.toml) — override ด้วย env `ORVA_SERVER_HOST`, `ORVA_SERVER_PORT`, `ORVA_DATABASE_URL`, `ORVA_JWT_SECRET`
+ตั้งค่าใน [config/default.toml](config/default.toml) — override ด้วย env `ORVA_SERVER_HOST`, `ORVA_SERVER_PORT`, `ORVA_DATABASE_URL`, `ORVA_JWT_RSA_KEY_PATH`
 
 ## API
 

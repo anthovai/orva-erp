@@ -32,3 +32,4 @@ utoipa-swagger-ui.workspace = true
 
 [dev-dependencies]
 tower.workspace = true
+jsonwebtoken.workspace = true
