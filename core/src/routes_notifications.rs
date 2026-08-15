@@ -1,9 +1,15 @@
+use std::convert::Infallible;
+use std::time::Duration;
+
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
+use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
+use futures_util::stream::{Stream, StreamExt};
 use serde::{Deserialize, Serialize};
+use tokio_stream::wrappers::BroadcastStream;
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 
@@ -12,8 +18,40 @@ use crate::{error::ApiError, extractor::AuthUser, state::AppState};
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
         .route("/api/v1/notifications", get(list_notifications))
+        .route("/api/v1/notifications/stream", get(stream_notifications))
         .route("/api/v1/notifications/{id}/read", post(mark_read))
         .route("/api/v1/notification-preferences", put(set_preference))
+}
+
+/// Real-time push (ADR 0013) — SSE stream ของ in-app notification ที่เกิด**หลัง** subscribe
+/// (ของเก่าอ่านจาก `GET /api/v1/notifications` — DB คือ source of truth, stream เป็น
+/// best-effort ต่อ connection) event ชื่อ `notification`, payload = JSON แบบเดียวกับ list
+#[utoipa::path(get, path = "/api/v1/notifications/stream", tag = "notification",
+    security(("bearer" = [])),
+    responses((status = 200, description = "text/event-stream ของ notification ใหม่ของผู้เรียกเอง")))]
+pub(crate) async fn stream_notifications(
+    State(state): State<AppState>,
+    AuthUser(user): AuthUser,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    let organization_id = user.organization_id;
+    let user_id = user.id;
+    let stream = BroadcastStream::new(state.notification_hub.subscribe()).filter_map(
+        move |item| async move {
+            match item {
+                // hub เป็น broadcast กลาง — กรองเฉพาะของ user คนนี้ (tenant + user ตรง)
+                Ok(n) if n.organization_id == organization_id && n.user_id == user_id => {
+                    let event = Event::default()
+                        .event("notification")
+                        .json_data(NotificationResponse::from(n))
+                        .ok()?;
+                    Some(Ok(event))
+                }
+                // ของคนอื่น หรือ subscriber ช้าจน lag — ข้าม (client sync ผ่าน list ได้เสมอ)
+                _ => None,
+            }
+        },
+    );
+    Sse::new(stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15)))
 }
 
 #[derive(Deserialize, IntoParams)]

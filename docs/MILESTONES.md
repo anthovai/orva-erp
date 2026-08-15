@@ -180,7 +180,7 @@ Notification:
 > - ~~Workflow ยัง**ไม่มี named/reusable definition**~~ → **ทำแล้ว 2026-08-15** — ตาราง `workflow_definitions` + `POST/GET /api/v1/workflow-definitions`, สร้าง instance อ้าง `definition_id` (copy-on-create), default approver fallback ตอน advance — ดู [ADR 0009](adr/0009-workflow-definitions.md)
 > - Rule evaluator เทียบได้แค่ตัวเลข (`as_f64`) — string/date comparison ยังไม่รองรับ
 > - `Rejected` เป็น terminal จริง ไม่มี "resubmit"/retry flow — ต้องสร้าง workflow instance ใหม่ถ้าจะลองใหม่
-> - Notification ยังไม่มี real-time push (WebSocket/SSE) — เป็น pull-based ผ่าน `GET /api/v1/notifications` เท่านั้น
+> - ~~Notification ยังไม่มี real-time push (WebSocket/SSE)~~ → **มีแล้ว 2026-08-15** — SSE ที่ `GET /api/v1/notifications/stream` (best-effort, DB ยังเป็น source of truth) — ดู [ADR 0013](adr/0013-sse-notification-push.md)
 
 ## M7 — Module System
 

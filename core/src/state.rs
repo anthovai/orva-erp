@@ -7,7 +7,9 @@ use orva_data::{
 use orva_events::EventBus;
 use orva_intelligence::IntelligenceEngine;
 use orva_module_sdk::{ModuleContext, ModuleRegistry};
-use orva_notifications::{subscribe_workflow_approval_requests, Mailer, NotificationService};
+use orva_notifications::{
+    subscribe_workflow_approval_requests, Mailer, NotificationHub, NotificationService,
+};
 use orva_workflow::WorkflowService;
 
 use crate::rate_limit::{self, KeyedLimiter, TenantRateLimiter};
@@ -38,6 +40,8 @@ pub struct AppState {
     pub insights: InsightRepository,
     /// ADR 0010 — recommendation ที่รอมนุษย์ accept/dismiss
     pub recommendations: RecommendationRepository,
+    /// ADR 0013 — broadcast hub ให้ SSE stream (`GET /api/v1/notifications/stream`)
+    pub notification_hub: NotificationHub,
 }
 
 impl AppState {
@@ -74,7 +78,12 @@ impl AppState {
             event_bus.clone(),
         ));
         let workflow = WorkflowService::new(pool.clone(), event_bus.clone());
-        let notifications = Arc::new(NotificationService::with_mailer(pool.clone(), mailer));
+        let notification_hub = NotificationHub::new();
+        let notifications = Arc::new(NotificationService::with_options(
+            pool.clone(),
+            mailer,
+            notification_hub.clone(),
+        ));
 
         // M6 DoD: "มี notification แจ้งผู้อนุมัติ" — ผูกตอนสร้าง AppState ครั้งเดียว
         subscribe_workflow_approval_requests(&event_bus, notifications.clone());
@@ -114,6 +123,7 @@ impl AppState {
             intelligence_rules: IntelligenceRuleRepository::new(pool.clone()),
             insights: InsightRepository::new(pool.clone()),
             recommendations: RecommendationRepository::new(pool),
+            notification_hub,
         }
     }
 }

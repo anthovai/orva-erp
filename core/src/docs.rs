@@ -63,6 +63,7 @@ impl Modify for BearerAuth {
         routes_workflow::approve_task,
         routes_workflow::reject_task,
         routes_notifications::list_notifications,
+        routes_notifications::stream_notifications,
         routes_notifications::mark_read,
         routes_notifications::set_preference,
         routes_modules::list_modules,

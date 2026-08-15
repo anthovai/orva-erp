@@ -6,6 +6,7 @@ use orva_data::{
 use orva_error::Result;
 use uuid::Uuid;
 
+use crate::hub::NotificationHub;
 use crate::mailer::{EmailMessage, Mailer};
 
 /// Channel แรกของ v0.1 (MILESTONES.md M6) — ช่องทางอื่นเป็น extension ในอนาคต
@@ -18,6 +19,8 @@ pub struct NotificationService {
     users: UserRepository,
     /// `None` = ไม่ได้ config SMTP — email channel บันทึกแถวไว้เฉย ๆ (พฤติกรรมเดิมของ v0.1)
     mailer: Option<Arc<dyn Mailer>>,
+    /// real-time push (ADR 0013) — in_app notification ถูก broadcast เข้านี่ให้ SSE stream
+    hub: NotificationHub,
 }
 
 impl NotificationService {
@@ -26,11 +29,17 @@ impl NotificationService {
     }
 
     pub fn with_mailer(pool: Pool, mailer: Option<Arc<dyn Mailer>>) -> Self {
+        Self::with_options(pool, mailer, NotificationHub::new())
+    }
+
+    /// จุดประกอบเต็มรูปแบบ — core ส่ง hub ตัวเดียวกับที่ SSE endpoint ใช้เข้ามา
+    pub fn with_options(pool: Pool, mailer: Option<Arc<dyn Mailer>>, hub: NotificationHub) -> Self {
         Self {
             notifications: NotificationRepository::new(pool.clone()),
             preferences: NotificationPreferenceRepository::new(pool.clone()),
             users: UserRepository::new(pool),
             mailer,
+            hub,
         }
     }
 
@@ -58,8 +67,12 @@ impl NotificationService {
                     .create(organization_id, user_id, channel, title, body)
                     .await?;
 
-                if channel == CHANNEL_EMAIL {
-                    self.deliver_email(&notification).await?;
+                match channel {
+                    // push แบบ real-time หลังบันทึกแถวแล้วเสมอ (DB = source of truth,
+                    // stream เป็น best-effort — ADR 0013)
+                    CHANNEL_IN_APP => self.hub.publish(notification),
+                    CHANNEL_EMAIL => self.deliver_email(&notification).await?,
+                    _ => {}
                 }
             }
         }

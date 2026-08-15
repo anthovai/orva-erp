@@ -18,3 +18,4 @@
 | [0010](0010-recommendations.md) | Recommendation: ข้อเสนอที่มนุษย์ตัดสิน ไม่ใช่ action อัตโนมัติ | Accepted |
 | [0011](0011-agent-scopes.md) | Fine-grained Agent Scopes บน Service Identity | Accepted |
 | [0012](0012-tenant-rate-limit.md) | Per-tenant Rate Limit (สองชั้นร่วมกับ per-key เดิม) | Accepted |
+| [0013](0013-sse-notification-push.md) | Real-time Notification Push ด้วย SSE | Accepted |
