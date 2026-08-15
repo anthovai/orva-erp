@@ -26,4 +26,7 @@ pub use session::SessionRepository;
 pub use task::TaskRepository;
 pub use team::TeamRepository;
 pub use user::UserRepository;
-pub use workflow::{ApprovalTaskRepository, WorkflowInstanceRepository};
+pub use workflow::{
+    ApprovalTaskRepository, CreateInstanceParams, WorkflowDefinitionRepository,
+    WorkflowInstanceRepository,
+};

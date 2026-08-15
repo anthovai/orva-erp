@@ -14,3 +14,4 @@
 | [0006](0006-rs256-jwks.md) | ID token ย้ายเป็น RS256 + JWKS สาธารณะ | Accepted |
 | [0007](0007-mfa-totp.md) | MFA ด้วย TOTP แบบ inline ใน login | Accepted |
 | [0008](0008-smtp-email.md) | ส่งอีเมลจริงทาง SMTP (lettre + rustls) | Accepted |
+| [0009](0009-workflow-definitions.md) | Reusable Workflow Definitions (copy-on-create) | Accepted |

@@ -8,7 +8,7 @@ mod rule;
 mod service;
 mod status;
 
-pub use orva_data::{ApprovalTask, WorkflowInstance};
+pub use orva_data::{ApprovalTask, WorkflowDefinition, WorkflowInstance};
 pub use rule::{Rule, RuleOperator};
 pub use service::WorkflowService;
 pub use status::WorkflowStatus;

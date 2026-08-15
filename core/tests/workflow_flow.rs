@@ -343,3 +343,165 @@ async fn invalid_workflow_transition_returns_400() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
+
+/// ADR 0009: definition ตั้งครั้งเดียว → instance อ้าง definition_id → rule/approver
+/// default ถูกใช้อัตโนมัติ (advance โดยไม่ระบุ approver_id ก็เข้า PendingApproval ได้)
+#[tokio::test]
+async fn definition_based_workflow_uses_stored_rule_and_default_approver() {
+    let state = support::test_state().await;
+    let app = orva_core::app(state);
+    let ctx = setup(&app, "wf-def").await;
+
+    // สร้าง definition: purchase เกิน 1000 ต้องให้ manager อนุมัติ
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/workflow-definitions")
+                .header("content-type", "application/json")
+                .header(AUTHORIZATION, format!("Bearer {}", ctx.owner_token))
+                .body(Body::from(
+                    json!({
+                        "name": "purchase-approval",
+                        "resource_type": "purchase",
+                        "rule": {"field": "amount", "operator": "gt", "value": 1000},
+                        "default_approver_id": ctx.manager_id,
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let definition = json_body(response).await;
+    let definition_id = definition["id"].as_str().unwrap().to_string();
+    assert_eq!(definition["resource_type"], "purchase");
+
+    // list เห็น definition ที่ตั้งไว้
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/workflow-definitions")
+                .header(AUTHORIZATION, format!("Bearer {}", ctx.owner_token))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(json_body(response).await.as_array().unwrap().len(), 1);
+
+    // สร้าง instance จาก definition — ห้ามส่ง rule inline พร้อมกัน
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/workflows")
+                .header("content-type", "application/json")
+                .header(AUTHORIZATION, format!("Bearer {}", ctx.owner_token))
+                .body(Body::from(
+                    json!({
+                        "definition_id": definition_id,
+                        "resource_id": uuid::Uuid::new_v4(),
+                        "context": {"amount": 5000},
+                        "rule": {"field": "amount", "operator": "gt", "value": 1},
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+    // แบบถูกต้อง: definition_id อย่างเดียว — resource_type มาจาก definition
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/workflows")
+                .header("content-type", "application/json")
+                .header(AUTHORIZATION, format!("Bearer {}", ctx.owner_token))
+                .body(Body::from(
+                    json!({
+                        "definition_id": definition_id,
+                        "resource_id": uuid::Uuid::new_v4(),
+                        "context": {"amount": 5000},
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let instance = json_body(response).await;
+    let instance_id = instance["id"].as_str().unwrap().to_string();
+    assert_eq!(instance["resource_type"], "purchase");
+
+    // start review → advance โดย**ไม่ระบุ approver_id** — ต้อง fallback ไป default ของ definition
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/workflows/{instance_id}/start-review"))
+                .header(AUTHORIZATION, format!("Bearer {}", ctx.owner_token))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/workflows/{instance_id}/advance"))
+                .header("content-type", "application/json")
+                .header(AUTHORIZATION, format!("Bearer {}", ctx.owner_token))
+                .body(Body::from(json!({}).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(json_body(response).await["status"], "pending_approval");
+
+    // manager (default approver) เห็น task ใน /approval-tasks/mine และอนุมัติได้
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/approval-tasks/mine")
+                .header(AUTHORIZATION, format!("Bearer {}", ctx.manager_token))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let tasks = json_body(response).await;
+    assert_eq!(tasks.as_array().unwrap().len(), 1);
+    let task_id = tasks[0]["id"].as_str().unwrap().to_string();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/approval-tasks/{task_id}/approve"))
+                .header(AUTHORIZATION, format!("Bearer {}", ctx.manager_token))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(json_body(response).await["status"], "executing");
+}

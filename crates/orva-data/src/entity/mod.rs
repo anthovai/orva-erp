@@ -24,4 +24,4 @@ pub use session::Session;
 pub use task::{Task, TaskStatus};
 pub use team::{Team, TeamMember};
 pub use user::User;
-pub use workflow::{ApprovalTask, WorkflowInstance};
+pub use workflow::{ApprovalTask, WorkflowDefinition, WorkflowInstance};

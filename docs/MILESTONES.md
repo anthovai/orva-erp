@@ -177,7 +177,7 @@ Notification:
 >
 > **ขอบเขตที่ตัดออกอย่างตั้งใจ:**
 > - ~~**Email channel ไม่ส่งจริง**~~ → **ส่งจริงแล้ว 2026-08-15** — SMTP ผ่าน lettre+rustls, opt-in ด้วย config `[email]`/env `ORVA_SMTP_*`, delivery status (`sent`/`failed`) บันทึกลงแถว notification, dev ใช้ Mailpit ใน docker-compose — ดู [ADR 0008](adr/0008-smtp-email.md)
-> - Workflow ยัง**ไม่มี named/reusable definition** ต่อ organization (ไม่มีตาราง `workflow_definitions`) — แต่ละ instance พก `rule`/`context` ของตัวเอง ณ ตอนสร้าง ยังไม่ใช่ template ที่กำหนดล่วงหน้าแล้วนำมาใช้ซ้ำได้ (ยังไม่จำเป็นเพราะไม่มี business module ที่ต้องใช้ workflow ซ้ำ ๆ กันหลายจุด)
+> - ~~Workflow ยัง**ไม่มี named/reusable definition**~~ → **ทำแล้ว 2026-08-15** — ตาราง `workflow_definitions` + `POST/GET /api/v1/workflow-definitions`, สร้าง instance อ้าง `definition_id` (copy-on-create), default approver fallback ตอน advance — ดู [ADR 0009](adr/0009-workflow-definitions.md)
 > - Rule evaluator เทียบได้แค่ตัวเลข (`as_f64`) — string/date comparison ยังไม่รองรับ
 > - `Rejected` เป็น terminal จริง ไม่มี "resubmit"/retry flow — ต้องสร้าง workflow instance ใหม่ถ้าจะลองใหม่
 > - Notification ยังไม่มี real-time push (WebSocket/SSE) — เป็น pull-based ผ่าน `GET /api/v1/notifications` เท่านั้น
@@ -240,7 +240,7 @@ Notification:
 
 ครบทั้ง 9 milestones (M0–M8) — **Rust Core Platform พร้อมสำหรับ Phase ถัดไป** (เลือก OSS ประกอบเป็น Business Modules ตาม [OSS-STRATEGY.md](OSS-STRATEGY.md))
 
-สิ่งที่ยังไม่ทำเป็น **known gap ที่บันทึกไว้ครบทุกจุด** ไม่ใช่สิ่งที่ถูกลืม: ~~RLS ระดับ DB (M3)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0005](adr/0005-row-level-security.md)), ~~RS256/JWKS~~ (**ปิดแล้ว 2026-08-15** — [ADR 0006](adr/0006-rs256-jwks.md)), ~~MFA TOTP~~ (**ปิดแล้ว 2026-08-15** — [ADR 0007](adr/0007-mfa-totp.md)), ~~email ไม่ส่งจริง (M6)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0008](adr/0008-smtp-email.md)) เหลือ full OIDC redirect flow (M2), rate limit ต่อ tenant จริง (M4), workflow definition แบบ reusable (M6), dynamic module loading (M7), Recommendation + fine-grained agent scope (M8) — ทั้งหมดมี ADR หรือหมายเหตุอ้างอิงให้ตามไปอ่านตอนถึงเวลาต้องแก้จริง
+สิ่งที่ยังไม่ทำเป็น **known gap ที่บันทึกไว้ครบทุกจุด** ไม่ใช่สิ่งที่ถูกลืม: ~~RLS ระดับ DB (M3)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0005](adr/0005-row-level-security.md)), ~~RS256/JWKS~~ (**ปิดแล้ว 2026-08-15** — [ADR 0006](adr/0006-rs256-jwks.md)), ~~MFA TOTP~~ (**ปิดแล้ว 2026-08-15** — [ADR 0007](adr/0007-mfa-totp.md)), ~~email ไม่ส่งจริง (M6)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0008](adr/0008-smtp-email.md)) เหลือ full OIDC redirect flow (M2), rate limit ต่อ tenant จริง (M4), ~~workflow definition แบบ reusable (M6)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0009](adr/0009-workflow-definitions.md)), dynamic module loading (M7), Recommendation + fine-grained agent scope (M8) — ทั้งหมดมี ADR หรือหมายเหตุอ้างอิงให้ตามไปอ่านตอนถึงเวลาต้องแก้จริง
 
 ---
 

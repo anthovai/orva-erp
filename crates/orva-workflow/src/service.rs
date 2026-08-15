@@ -1,5 +1,6 @@
 use orva_data::{
-    ApprovalTask, ApprovalTaskRepository, Pool, WorkflowInstance, WorkflowInstanceRepository,
+    ApprovalTask, ApprovalTaskRepository, Pool, WorkflowDefinition, WorkflowDefinitionRepository,
+    WorkflowInstance, WorkflowInstanceRepository,
 };
 use orva_error::{Error, Result};
 use orva_events::{catalog, EventBus, PublishOptions};
@@ -11,6 +12,7 @@ use crate::status::{validate_transition, WorkflowStatus};
 
 pub struct WorkflowService {
     instances: WorkflowInstanceRepository,
+    definitions: WorkflowDefinitionRepository,
     tasks: ApprovalTaskRepository,
     events: EventBus,
 }
@@ -19,9 +21,97 @@ impl WorkflowService {
     pub fn new(pool: Pool, events: EventBus) -> Self {
         Self {
             instances: WorkflowInstanceRepository::new(pool.clone()),
+            definitions: WorkflowDefinitionRepository::new(pool.clone()),
             tasks: ApprovalTaskRepository::new(pool),
             events,
         }
+    }
+
+    /// ตั้ง definition ใช้ซ้ำ (ADR 0009) — rule/approver ตั้งครั้งเดียว instance อ้างชื่อได้เรื่อย ๆ
+    pub async fn create_definition(
+        &self,
+        organization_id: Uuid,
+        name: &str,
+        resource_type: &str,
+        rule: Option<Rule>,
+        default_approver_id: Option<Uuid>,
+        created_by: Option<Uuid>,
+    ) -> Result<WorkflowDefinition> {
+        let rule_json = rule
+            .map(serde_json::to_value)
+            .transpose()
+            .map_err(|e| Error::Internal(format!("serialize rule failed: {e}")))?;
+        self.definitions
+            .create(
+                organization_id,
+                name,
+                resource_type,
+                rule_json,
+                default_approver_id,
+                created_by,
+            )
+            .await
+    }
+
+    pub async fn list_definitions(&self, organization_id: Uuid) -> Result<Vec<WorkflowDefinition>> {
+        self.definitions.list(organization_id).await
+    }
+
+    /// สร้าง instance จาก definition — resource_type/rule ถูก copy มาจาก definition
+    /// (copy ไม่ใช่ reference ตอน evaluate — แก้ definition ทีหลังไม่กระทบ instance ที่วิ่งอยู่)
+    pub async fn create_from_definition(
+        &self,
+        organization_id: Uuid,
+        definition_id: Uuid,
+        resource_id: Uuid,
+        context: Value,
+        created_by: Option<Uuid>,
+    ) -> Result<WorkflowInstance> {
+        let definition = self
+            .definitions
+            .find_by_id(organization_id, definition_id)
+            .await?
+            .ok_or_else(|| Error::NotFound(format!("workflow definition '{definition_id}'")))?;
+        if !definition.enabled {
+            return Err(Error::Validation(format!(
+                "workflow definition '{}' is disabled",
+                definition.name
+            )));
+        }
+
+        let instance = self
+            .instances
+            .create(
+                organization_id,
+                orva_data::CreateInstanceParams {
+                    resource_type: &definition.resource_type,
+                    resource_id,
+                    context,
+                    rule: definition.rule.clone(),
+                    created_by,
+                    definition_id: Some(definition.id),
+                },
+            )
+            .await?;
+
+        self.events
+            .publish(
+                organization_id,
+                catalog::WORKFLOW_CREATED,
+                json!({
+                    "workflow_instance_id": instance.id,
+                    "definition_id": definition.id,
+                    "definition_name": definition.name,
+                }),
+                PublishOptions {
+                    actor_user_id: created_by,
+                    resource: Some((definition.resource_type.clone(), resource_id)),
+                    ..Default::default()
+                },
+            )
+            .await?;
+
+        Ok(instance)
     }
 
     /// สร้าง workflow instance ผูกกับ resource ใด ๆ (opaque `resource_type`/`resource_id` —
@@ -48,11 +138,14 @@ impl WorkflowService {
             .instances
             .create(
                 organization_id,
-                resource_type,
-                resource_id,
-                context,
-                rule_json,
-                created_by,
+                orva_data::CreateInstanceParams {
+                    resource_type,
+                    resource_id,
+                    context,
+                    rule: rule_json,
+                    created_by,
+                    definition_id: None,
+                },
             )
             .await?;
 
@@ -109,11 +202,27 @@ impl WorkflowService {
 
         if needs_approval {
             validate_transition(current, WorkflowStatus::PendingApproval)?;
-            let approver_id = approver_id.ok_or_else(|| {
-                Error::Validation(
-                    "rule triggered approval requirement — approver_id is required".to_string(),
-                )
-            })?;
+            // ไม่ระบุ approver → fallback ไป default_approver_id ของ definition (ADR 0009)
+            let approver_id = match approver_id {
+                Some(id) => id,
+                None => {
+                    let from_definition = match instance.definition_id {
+                        Some(definition_id) => self
+                            .definitions
+                            .find_by_id(organization_id, definition_id)
+                            .await?
+                            .and_then(|d| d.default_approver_id),
+                        None => None,
+                    };
+                    from_definition.ok_or_else(|| {
+                        Error::Validation(
+                            "rule triggered approval requirement — approver_id is required \
+                             (no default approver on the workflow definition)"
+                                .to_string(),
+                        )
+                    })?
+                }
+            };
 
             self.tasks
                 .create(organization_id, instance_id, approver_id)

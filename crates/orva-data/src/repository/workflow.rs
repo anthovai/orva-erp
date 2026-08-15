@@ -4,9 +4,106 @@ use serde_json::Value;
 use uuid::Uuid;
 
 use crate::{
-    entity::{ApprovalTask, WorkflowInstance},
+    entity::{ApprovalTask, WorkflowDefinition, WorkflowInstance},
     pool::{begin_tenant, Pool},
 };
+
+#[derive(Clone)]
+pub struct WorkflowDefinitionRepository {
+    pool: Pool,
+}
+
+impl WorkflowDefinitionRepository {
+    pub fn new(pool: Pool) -> Self {
+        Self { pool }
+    }
+
+    pub async fn create(
+        &self,
+        organization_id: Uuid,
+        name: &str,
+        resource_type: &str,
+        rule: Option<Value>,
+        default_approver_id: Option<Uuid>,
+        created_by: Option<Uuid>,
+    ) -> Result<WorkflowDefinition> {
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        let definition = sqlx::query_as::<_, WorkflowDefinition>(
+            "insert into workflow_definitions
+                (organization_id, name, resource_type, rule, default_approver_id, created_by)
+             values ($1, $2, $3, $4, $5, $6) returning *",
+        )
+        .bind(organization_id)
+        .bind(name)
+        .bind(resource_type)
+        .bind(rule)
+        .bind(default_approver_id)
+        .bind(created_by)
+        .fetch_one(ttx.as_executor())
+        .await
+        .map_err(|e| Error::Internal(format!("create workflow definition failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(definition)
+    }
+
+    pub async fn find_by_id(
+        &self,
+        organization_id: Uuid,
+        id: Uuid,
+    ) -> Result<Option<WorkflowDefinition>> {
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        let definition = sqlx::query_as::<_, WorkflowDefinition>(
+            "select * from workflow_definitions where organization_id = $1 and id = $2",
+        )
+        .bind(organization_id)
+        .bind(id)
+        .fetch_optional(ttx.as_executor())
+        .await
+        .map_err(|e| Error::Internal(format!("find workflow definition failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(definition)
+    }
+
+    pub async fn list(&self, organization_id: Uuid) -> Result<Vec<WorkflowDefinition>> {
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        let definitions = sqlx::query_as::<_, WorkflowDefinition>(
+            "select * from workflow_definitions where organization_id = $1 order by created_at",
+        )
+        .bind(organization_id)
+        .fetch_all(ttx.as_executor())
+        .await
+        .map_err(|e| Error::Internal(format!("list workflow definitions failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(definitions)
+    }
+
+    pub async fn set_enabled(&self, organization_id: Uuid, id: Uuid, enabled: bool) -> Result<()> {
+        let mut ttx = begin_tenant(&self.pool, organization_id).await?;
+        sqlx::query(
+            "update workflow_definitions set enabled = $1, updated_at = now()
+             where organization_id = $2 and id = $3",
+        )
+        .bind(enabled)
+        .bind(organization_id)
+        .bind(id)
+        .execute(ttx.as_executor())
+        .await
+        .map_err(|e| Error::Internal(format!("set workflow definition enabled failed: {e}")))?;
+        ttx.commit().await?;
+        Ok(())
+    }
+}
+
+/// พารามิเตอร์สร้าง instance — รวมเป็น struct เดียว (clippy::too_many_arguments)
+/// pattern เดียวกับ `CreateRuleParams`/`AppendOptions`
+pub struct CreateInstanceParams<'a> {
+    pub resource_type: &'a str,
+    pub resource_id: Uuid,
+    pub context: Value,
+    pub rule: Option<Value>,
+    pub created_by: Option<Uuid>,
+    pub definition_id: Option<Uuid>,
+}
 
 #[derive(Clone)]
 pub struct WorkflowInstanceRepository {
@@ -21,23 +118,21 @@ impl WorkflowInstanceRepository {
     pub async fn create(
         &self,
         organization_id: Uuid,
-        resource_type: &str,
-        resource_id: Uuid,
-        context: Value,
-        rule: Option<Value>,
-        created_by: Option<Uuid>,
+        params: CreateInstanceParams<'_>,
     ) -> Result<WorkflowInstance> {
         let mut ttx = begin_tenant(&self.pool, organization_id).await?;
         let instance = sqlx::query_as::<_, WorkflowInstance>(
-            "insert into workflow_instances (organization_id, resource_type, resource_id, context, rule, created_by)
-             values ($1, $2, $3, $4, $5, $6) returning *",
+            "insert into workflow_instances
+                (organization_id, resource_type, resource_id, context, rule, created_by, definition_id)
+             values ($1, $2, $3, $4, $5, $6, $7) returning *",
         )
         .bind(organization_id)
-        .bind(resource_type)
-        .bind(resource_id)
-        .bind(context)
-        .bind(rule)
-        .bind(created_by)
+        .bind(params.resource_type)
+        .bind(params.resource_id)
+        .bind(params.context)
+        .bind(params.rule)
+        .bind(params.created_by)
+        .bind(params.definition_id)
         .fetch_one(ttx.as_executor())
         .await
         .map_err(|e| Error::Internal(format!("create workflow instance failed: {e}")))?;

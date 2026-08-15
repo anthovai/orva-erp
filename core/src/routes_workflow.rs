@@ -16,6 +16,10 @@ use crate::{
 
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
+        .route(
+            "/api/v1/workflow-definitions",
+            post(create_definition).get(list_definitions),
+        )
         .route("/api/v1/workflows", post(create_workflow))
         .route("/api/v1/workflows/{id}", get(get_workflow))
         .route("/api/v1/workflows/{id}/start-review", post(start_review))
@@ -27,8 +31,86 @@ pub(crate) fn router() -> Router<AppState> {
 }
 
 #[derive(Deserialize, ToSchema)]
-pub(crate) struct CreateWorkflowRequest {
+pub(crate) struct CreateDefinitionRequest {
+    name: String,
     resource_type: String,
+    rule: Option<orva_workflow::Rule>,
+    default_approver_id: Option<Uuid>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub(crate) struct WorkflowDefinitionResponse {
+    id: Uuid,
+    name: String,
+    resource_type: String,
+    rule: Option<Value>,
+    default_approver_id: Option<Uuid>,
+    enabled: bool,
+}
+
+impl From<orva_workflow::WorkflowDefinition> for WorkflowDefinitionResponse {
+    fn from(d: orva_workflow::WorkflowDefinition) -> Self {
+        Self {
+            id: d.id,
+            name: d.name,
+            resource_type: d.resource_type,
+            rule: d.rule,
+            default_approver_id: d.default_approver_id,
+            enabled: d.enabled,
+        }
+    }
+}
+
+/// ตั้ง workflow definition ใช้ซ้ำ (ADR 0009) — ตั้ง rule/ผู้อนุมัติ default ครั้งเดียว
+/// แล้วสร้าง instance อ้าง `definition_id` ได้เรื่อย ๆ
+#[utoipa::path(post, path = "/api/v1/workflow-definitions", tag = "workflow",
+    security(("bearer" = [])),
+    request_body = CreateDefinitionRequest,
+    responses((status = 201, description = "Workflow definition created", body = WorkflowDefinitionResponse)))]
+pub(crate) async fn create_definition(
+    State(state): State<AppState>,
+    RequirePermission(user, ..): RequirePermission<WorkflowManage>,
+    Json(body): Json<CreateDefinitionRequest>,
+) -> Result<(StatusCode, Json<WorkflowDefinitionResponse>), ApiError> {
+    let definition = state
+        .workflow
+        .create_definition(
+            user.organization_id,
+            &body.name,
+            &body.resource_type,
+            body.rule,
+            body.default_approver_id,
+            Some(user.id),
+        )
+        .await?;
+    Ok((StatusCode::CREATED, Json(definition.into())))
+}
+
+#[utoipa::path(get, path = "/api/v1/workflow-definitions", tag = "workflow",
+    security(("bearer" = [])),
+    responses((status = 200, description = "Workflow definitions of caller's organization", body = [WorkflowDefinitionResponse])))]
+pub(crate) async fn list_definitions(
+    State(state): State<AppState>,
+    RequirePermission(user, ..): RequirePermission<WorkflowManage>,
+) -> Result<Json<Vec<WorkflowDefinitionResponse>>, ApiError> {
+    let definitions = state
+        .workflow
+        .list_definitions(user.organization_id)
+        .await?;
+    Ok(Json(
+        definitions
+            .into_iter()
+            .map(WorkflowDefinitionResponse::from)
+            .collect(),
+    ))
+}
+
+#[derive(Deserialize, ToSchema)]
+pub(crate) struct CreateWorkflowRequest {
+    /// อ้าง definition ที่ตั้งไว้ (ADR 0009) — ใช้แทน `resource_type`+`rule`
+    definition_id: Option<Uuid>,
+    /// จำเป็นเมื่อไม่ใช้ `definition_id`
+    resource_type: Option<String>,
     resource_id: Uuid,
     #[serde(default = "default_context")]
     context: Value,
@@ -60,28 +142,58 @@ impl From<orva_workflow::WorkflowInstance> for WorkflowResponse {
     }
 }
 
-/// สร้าง workflow instance ผูกกับ resource ใด ๆ (module ในอนาคตส่ง resource_type ของตัวเอง
-/// มาได้ เช่น "invoice") — `rule` เป็นเงื่อนไข approval ตาม ARCHITECTURE.md §7 ถ้าไม่ระบุ = ไม่มีขั้นอนุมัติ
+/// สร้าง workflow instance — 2 ทาง: อ้าง `definition_id` (copy resource_type/rule จาก
+/// definition) หรือส่ง `resource_type`+`rule` inline แบบเดิม (ระบุพร้อมกันไม่ได้ — 400)
 #[utoipa::path(post, path = "/api/v1/workflows", tag = "workflow",
     security(("bearer" = [])),
     request_body = CreateWorkflowRequest,
-    responses((status = 201, description = "Workflow instance created", body = WorkflowResponse)))]
+    responses((status = 201, description = "Workflow instance created", body = WorkflowResponse),
+               (status = 400, description = "definition_id and inline resource_type/rule are mutually exclusive")))]
 pub(crate) async fn create_workflow(
     State(state): State<AppState>,
     RequirePermission(user, ..): RequirePermission<WorkflowManage>,
     Json(body): Json<CreateWorkflowRequest>,
 ) -> Result<(StatusCode, Json<WorkflowResponse>), ApiError> {
-    let instance = state
-        .workflow
-        .create(
-            user.organization_id,
-            &body.resource_type,
-            body.resource_id,
-            body.context,
-            body.rule,
-            Some(user.id),
-        )
-        .await?;
+    let instance = match (body.definition_id, body.resource_type) {
+        (Some(definition_id), None) => {
+            if body.rule.is_some() {
+                return Err(orva_error::Error::Validation(
+                    "rule cannot be combined with definition_id — the definition's rule is used"
+                        .to_string(),
+                )
+                .into());
+            }
+            state
+                .workflow
+                .create_from_definition(
+                    user.organization_id,
+                    definition_id,
+                    body.resource_id,
+                    body.context,
+                    Some(user.id),
+                )
+                .await?
+        }
+        (None, Some(resource_type)) => {
+            state
+                .workflow
+                .create(
+                    user.organization_id,
+                    &resource_type,
+                    body.resource_id,
+                    body.context,
+                    body.rule,
+                    Some(user.id),
+                )
+                .await?
+        }
+        _ => {
+            return Err(orva_error::Error::Validation(
+                "provide exactly one of definition_id or resource_type".to_string(),
+            )
+            .into())
+        }
+    };
     Ok((StatusCode::CREATED, Json(instance.into())))
 }
 
