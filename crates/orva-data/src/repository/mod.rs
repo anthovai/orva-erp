@@ -6,6 +6,7 @@ mod intelligence;
 mod module_installation;
 mod notification;
 mod organization;
+mod product;
 mod role;
 mod service_identity;
 mod session;
@@ -25,6 +26,7 @@ pub use intelligence::{
 pub use module_installation::ModuleInstallationRepository;
 pub use notification::{NotificationPreferenceRepository, NotificationRepository};
 pub use organization::OrganizationRepository;
+pub use product::{ProductFields, ProductRepository};
 pub use role::{PermissionRepository, RoleRepository};
 pub use service_identity::ServiceIdentityRepository;
 pub use session::SessionRepository;

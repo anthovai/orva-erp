@@ -54,6 +54,7 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/v1/roles/{role_id}/assign", post(assign_role))
         .route("/api/v1/events", get(list_events))
         .route("/api/v1/employees", get(list_employees))
+        .route("/api/v1/products", get(list_products))
 }
 
 /// Unified UI shell (ADR 0015) — self-contained, embed ใน binary ตอน compile
@@ -661,5 +662,45 @@ pub(crate) async fn list_employees(
     let employees = state.employees.list(user.organization_id).await?;
     Ok(Json(
         employees.into_iter().map(EmployeeResponse::from).collect(),
+    ))
+}
+
+#[derive(Serialize, ToSchema)]
+pub(crate) struct ProductResponse {
+    id: Uuid,
+    name: String,
+    sku: String,
+    description: String,
+    is_active: bool,
+    source_module: String,
+    source_id: String,
+}
+
+impl From<orva_data::Product> for ProductResponse {
+    fn from(p: orva_data::Product) -> Self {
+        Self {
+            id: p.id,
+            name: p.name,
+            sku: p.sku,
+            description: p.description,
+            is_active: p.is_active,
+            source_module: p.source_module,
+            source_id: p.source_id,
+        }
+    }
+}
+
+/// Canonical Product (ADR 0016) — projection จาก event ของ external module (เช่น InvenTree)
+#[utoipa::path(get, path = "/api/v1/products", tag = "canonical",
+    security(("bearer" = [])),
+    responses((status = 200, description = "Canonical products ขององค์กร", body = [ProductResponse]),
+               (status = 403, description = "Missing core.product.read")))]
+pub(crate) async fn list_products(
+    State(state): State<AppState>,
+    RequirePermission(user, ..): RequirePermission<crate::permissions::ProductRead>,
+) -> Result<Json<Vec<ProductResponse>>, ApiError> {
+    let products = state.products.list(user.organization_id).await?;
+    Ok(Json(
+        products.into_iter().map(ProductResponse::from).collect(),
     ))
 }

@@ -69,6 +69,51 @@ services:
       horilla-db:
         condition: service_healthy
 
+  # ---- InvenTree Inventory (external OSS module — ADR 0014, MIT; แยก process/DB) ----
+  inventree-db:
+    image: postgres:16-bullseye
+    container_name: orva-inventree-db
+    environment:
+      POSTGRES_DB: inventree
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - inventree-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  inventree:
+    image: inventree/inventree:stable
+    container_name: orva-inventree
+    environment:
+      INVENTREE_DB_ENGINE: postgresql
+      INVENTREE_DB_NAME: inventree
+      INVENTREE_DB_HOST: inventree-db
+      INVENTREE_DB_PORT: 5432
+      INVENTREE_DB_USER: postgres
+      INVENTREE_DB_PASSWORD: postgres
+      INVENTREE_SECRET_KEY: "orva-dev-inventree-secret"
+      INVENTREE_DEBUG: "false"
+      INVENTREE_AUTO_UPDATE: "true"
+      INVENTREE_SITE_URL: "http://localhost:8001"
+      INVENTREE_ADMIN_USER: "orva-admin"
+      INVENTREE_ADMIN_PASSWORD: "orva-admin-pass"
+      INVENTREE_ADMIN_EMAIL: "admin@orva.local"
+      # SSO ผ่าน ORVA proxy: เชื่อ header จาก proxy (remote-user auth ในตัวของ InvenTree)
+      # ⚠️ dev เท่านั้น — production ห้าม expose port 8001 ตรง (header ปลอมได้ถ้าเข้าถึงตรง)
+      INVENTREE_REMOTE_LOGIN: "true"
+      INVENTREE_REMOTE_LOGIN_HEADER: "HTTP_X_ORVA_USER_EMAIL"
+    ports:
+      - "8001:8000"
+    restart: unless-stopped
+    depends_on:
+      inventree-db:
+        condition: service_healthy
+
 volumes:
   orva-pgdata:
   horilla-pgdata:
+  inventree-pgdata:

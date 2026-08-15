@@ -13,7 +13,7 @@ macro_rules! not_yet_implemented_entity {
 // Employee implement จริงแล้ว (ADR 0016) — ดู orva_data::Employee
 not_yet_implemented_entity!(Customer);
 not_yet_implemented_entity!(Vendor);
-not_yet_implemented_entity!(Product);
+// Product implement จริงแล้ว (ADR 0016) — ดู orva_data::Product
 not_yet_implemented_entity!(Project);
 not_yet_implemented_entity!(Invoice);
 not_yet_implemented_entity!(Transaction);

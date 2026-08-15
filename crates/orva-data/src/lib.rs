@@ -16,7 +16,7 @@ mod repository;
 
 pub use entity::{
     ApprovalTask, Document, Employee, Event, ExternalModule, Insight, IntelligenceRule,
-    ModuleInstallation, Notification, NotificationPreference, Organization, Permission,
+    ModuleInstallation, Notification, NotificationPreference, Organization, Permission, Product,
     Recommendation, Role, ServiceIdentity, Session, Task, TaskStatus, Team, TeamMember, User,
     WorkflowDefinition, WorkflowInstance,
 };
@@ -26,7 +26,8 @@ pub use repository::{
     CreateRecommendationParams, CreateRuleParams, DocumentRepository, EmployeeFields,
     EmployeeRepository, EventFilter, EventRepository, ExternalModuleRepository, InsightRepository,
     IntelligenceRuleRepository, ModuleInstallationRepository, NotificationPreferenceRepository,
-    NotificationRepository, OrganizationRepository, PermissionRepository, RecommendationRepository,
-    RoleRepository, ServiceIdentityRepository, SessionRepository, TaskRepository, TeamRepository,
-    UserRepository, WorkflowDefinitionRepository, WorkflowInstanceRepository,
+    NotificationRepository, OrganizationRepository, PermissionRepository, ProductFields,
+    ProductRepository, RecommendationRepository, RoleRepository, ServiceIdentityRepository,
+    SessionRepository, TaskRepository, TeamRepository, UserRepository,
+    WorkflowDefinitionRepository, WorkflowInstanceRepository,
 };

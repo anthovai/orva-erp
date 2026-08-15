@@ -443,3 +443,100 @@ async fn employee_events_project_into_canonical_table() {
         .unwrap();
     assert_eq!(response.status(), StatusCode::CREATED);
 }
+
+/// ADR 0016: canonical Product projection — contract เดียวกับ Employee
+/// (`<module>.product.*`) ใช้ได้กับ module ใหม่โดยไม่แก้โค้ด ORVA
+#[tokio::test]
+async fn product_events_project_into_canonical_table() {
+    let state = support::test_state().await;
+    let app = orva_core::app(state);
+
+    let suffix = uuid::Uuid::new_v4();
+    let slug = format!("prod-sync-{suffix}");
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/organizations")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "name": "ProdSync Co",
+                        "slug": slug,
+                        "owner_email": format!("owner-{suffix}@test.local"),
+                        "owner_display_name": "Owner",
+                        "owner_password": "correct-horse-battery",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let token = json_body(response).await["access_token"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/service-identities")
+                .header("content-type", "application/json")
+                .header(AUTHORIZATION, format!("Bearer {token}"))
+                .body(Body::from(
+                    json!({ "name": "inventree-events", "scopes": ["agent:event:publish"] })
+                        .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let key = json_body(response).await["api_key"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    // created via "inventree" module
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/agent/events")
+                .header("content-type", "application/json")
+                .header("X-Orva-Service-Key", &key)
+                .body(Body::from(
+                    json!({
+                        "event_type": "inventree.product.created",
+                        "payload": {"source_id": "101", "name": "M3 Bolt", "sku": "BOLT-M3", "description": "Stainless", "is_active": true},
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/products")
+                .header(AUTHORIZATION, format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let products = json_body(response).await;
+    assert_eq!(products.as_array().unwrap().len(), 1);
+    assert_eq!(products[0]["name"], "M3 Bolt");
+    assert_eq!(products[0]["sku"], "BOLT-M3");
+    assert_eq!(products[0]["source_module"], "inventree");
+    assert_eq!(products[0]["source_id"], "101");
+}

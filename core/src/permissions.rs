@@ -48,3 +48,9 @@ pub struct EmployeeRead;
 impl PermissionKey for EmployeeRead {
     const KEY: &'static str = "core.employee.read";
 }
+
+/// ADR 0016 — อ่าน canonical Product ขององค์กร
+pub struct ProductRead;
+impl PermissionKey for ProductRead {
+    const KEY: &'static str = "core.product.read";
+}

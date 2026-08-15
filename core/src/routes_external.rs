@@ -141,12 +141,14 @@ pub(crate) async fn disable_module(
 }
 
 /// header ที่ห้าม copy ต่อ (hop-by-hop / ของที่ proxy เซ็ตเอง)
-const SKIP_REQUEST_HEADERS: [&str; 5] = [
+const SKIP_REQUEST_HEADERS: [&str; 6] = [
     "host",
     "authorization",
     "content-length",
     "connection",
     "x-orva-identity",
+    // proxy เซ็ตเองหลัง auth — ห้าม copy ของ client (กัน spoof identity ไปหา module)
+    "x-orva-user-email",
 ];
 const SKIP_RESPONSE_HEADERS: [&str; 3] = ["transfer-encoding", "connection", "content-length"];
 
@@ -195,7 +197,10 @@ pub(crate) async fn proxy(
     }
     outbound = outbound
         .header("x-orva-identity", &assertion)
-        .header("x-orva-organization-id", user.organization_id.to_string());
+        .header("x-orva-organization-id", user.organization_id.to_string())
+        // สำหรับ module ที่รองรับ remote-user auth ในตัว (เช่น InvenTree) —
+        // ปลอดภัยเฉพาะเมื่อ module รับ traffic จาก proxy นี้เท่านั้น (ดู docs/modules/)
+        .header("x-orva-user-email", &user.email);
 
     let body_bytes = axum::body::to_bytes(request.into_body(), 10 * 1024 * 1024)
         .await

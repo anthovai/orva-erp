@@ -1,35 +1,39 @@
 //! ORVA Sync — event-driven projection จาก external module เข้า canonical entities
 //! (ADR 0016)
 //!
-//! external module publish event ผ่าน Agent API (`<module>.employee.created` ฯลฯ —
-//! ดู docs/modules/horilla.md Phase 3) → subscriber ตรงนี้ project ลงตาราง canonical
-//! (`employees`) ให้ทุก module/intelligence เห็นข้อมูลรูปแบบเดียวกัน โดย **event log
+//! external module publish event ผ่าน Agent API (`<module>.employee.*`,
+//! `<module>.product.*` — ดู docs/modules/) → subscriber ตรงนี้ project ลงตาราง
+//! canonical ให้ทุก module/intelligence เห็นข้อมูลรูปแบบเดียวกัน โดย **event log
 //! ยังเป็น source of truth** — projection สร้างใหม่ได้เสมอจากการ replay event
 
 use std::sync::Arc;
 
-use orva_data::{Employee, EmployeeFields, EmployeeRepository};
+use orva_data::{
+    EmployeeFields, EmployeeRepository, Event, Pool, ProductFields, ProductRepository,
+};
 use orva_error::Result;
 use orva_events::EventBus;
 
-/// event_type ที่รู้จัก: `<module>.employee.<created|updated|deleted>` — module อื่น
-/// (InvenTree ฯลฯ) ใช้ contract เดียวกันได้ทันทีโดยไม่ต้องแก้โค้ดนี้
-fn parse_employee_event(event_type: &str) -> Option<(&str, &str)> {
+/// entity ที่ projection รู้จัก — เพิ่ม canonical ตัวใหม่ = เพิ่ม variant + handler ที่นี่
+const KNOWN_ENTITIES: [&str; 2] = ["employee", "product"];
+
+/// event_type ที่รู้จัก: `<module>.<entity>.<created|updated|deleted>` — module อื่น
+/// ใช้ contract เดียวกันได้ทันทีโดยไม่ต้องแก้โค้ดนี้
+fn parse_projection_event(event_type: &str) -> Option<(&str, &str, &str)> {
     let mut parts = event_type.splitn(3, '.');
     let module = parts.next()?;
-    if parts.next()? != "employee" {
-        return None;
-    }
+    let entity = parts.next()?;
     let action = parts.next()?;
-    matches!(action, "created" | "updated" | "deleted").then_some((module, action))
+    (KNOWN_ENTITIES.contains(&entity) && matches!(action, "created" | "updated" | "deleted"))
+        .then_some((module, entity, action))
 }
 
 /// หา id ของแถวในระบบต้นทาง — contract หลักคือ key `source_id`;
-/// fallback เป็น `<module>_employee_id` (รูปแบบที่ Horilla hooks รุ่นแรกส่ง)
-fn extract_source_id(module: &str, payload: &serde_json::Value) -> Option<String> {
+/// fallback เป็น `<module>_<entity>_id` (รูปแบบที่ hook รุ่นแรก ๆ ส่ง)
+fn extract_source_id(module: &str, entity: &str, payload: &serde_json::Value) -> Option<String> {
     let candidate = payload
         .get("source_id")
-        .or_else(|| payload.get(format!("{module}_employee_id").as_str()))?;
+        .or_else(|| payload.get(format!("{module}_{entity}_id").as_str()))?;
     match candidate {
         serde_json::Value::String(s) if !s.is_empty() => Some(s.clone()),
         serde_json::Value::Number(n) => Some(n.to_string()),
@@ -37,66 +41,102 @@ fn extract_source_id(module: &str, payload: &serde_json::Value) -> Option<String
     }
 }
 
-async fn project(
-    employees: &EmployeeRepository,
-    event: &orva_data::Event,
-) -> Result<Option<Employee>> {
-    let Some((module, action)) = parse_employee_event(&event.event_type) else {
-        return Ok(None);
-    };
-    let Some(source_id) = extract_source_id(module, &event.payload) else {
-        tracing::warn!(event_type = %event.event_type, "employee event without source id — skipped");
-        return Ok(None);
-    };
-
-    if action == "deleted" {
-        employees
-            .soft_delete_from_source(event.organization_id, module, &source_id)
-            .await?;
-        return Ok(None);
-    }
-
-    let str_field = |key: &str| {
-        event
-            .payload
-            .get(key)
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string()
-    };
-    let employee = employees
-        .upsert_from_source(
-            event.organization_id,
-            module,
-            &source_id,
-            EmployeeFields {
-                email: &str_field("email"),
-                first_name: &str_field("first_name"),
-                last_name: &str_field("last_name"),
-                is_active: event
-                    .payload
-                    .get("is_active")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(true),
-            },
-        )
-        .await?;
-    Ok(Some(employee))
+fn str_field(payload: &serde_json::Value, key: &str) -> String {
+    payload
+        .get(key)
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()
 }
 
-/// ผูก projection เข้ากับ Event Bus — เรียกครั้งเดียวตอนประกอบ AppState
-/// (pattern เดียวกับ `orva_notifications::subscribe_workflow_approval_requests`)
-pub fn subscribe_employee_projection(bus: &EventBus, employees: EmployeeRepository) {
-    let employees = Arc::new(employees);
-    bus.subscribe_all(Arc::new(move |event| {
-        let employees = employees.clone();
-        Box::pin(async move {
-            if let Some(employee) = project(&employees, &event).await? {
-                tracing::debug!(employee_id = %employee.id, source = %employee.source_module, "canonical employee projected");
+fn bool_field(payload: &serde_json::Value, key: &str, default: bool) -> bool {
+    payload
+        .get(key)
+        .and_then(|v| v.as_bool())
+        .unwrap_or(default)
+}
+
+struct Projector {
+    employees: EmployeeRepository,
+    products: ProductRepository,
+}
+
+impl Projector {
+    async fn project(&self, event: &Event) -> Result<()> {
+        let Some((module, entity, action)) = parse_projection_event(&event.event_type) else {
+            return Ok(());
+        };
+        let Some(source_id) = extract_source_id(module, entity, &event.payload) else {
+            tracing::warn!(event_type = %event.event_type, "projection event without source id — skipped");
+            return Ok(());
+        };
+
+        match (entity, action) {
+            ("employee", "deleted") => {
+                self.employees
+                    .soft_delete_from_source(event.organization_id, module, &source_id)
+                    .await?;
             }
-            Ok(())
-        })
+            ("employee", _) => {
+                self.employees
+                    .upsert_from_source(
+                        event.organization_id,
+                        module,
+                        &source_id,
+                        EmployeeFields {
+                            email: &str_field(&event.payload, "email"),
+                            first_name: &str_field(&event.payload, "first_name"),
+                            last_name: &str_field(&event.payload, "last_name"),
+                            is_active: bool_field(&event.payload, "is_active", true),
+                        },
+                    )
+                    .await?;
+            }
+            ("product", "deleted") => {
+                self.products
+                    .soft_delete_from_source(event.organization_id, module, &source_id)
+                    .await?;
+            }
+            ("product", _) => {
+                self.products
+                    .upsert_from_source(
+                        event.organization_id,
+                        module,
+                        &source_id,
+                        ProductFields {
+                            name: &str_field(&event.payload, "name"),
+                            sku: &str_field(&event.payload, "sku"),
+                            description: &str_field(&event.payload, "description"),
+                            is_active: bool_field(&event.payload, "is_active", true),
+                        },
+                    )
+                    .await?;
+            }
+            _ => {}
+        }
+        tracing::debug!(event_type = %event.event_type, %source_id, "canonical projection applied");
+        Ok(())
+    }
+}
+
+/// ผูก projection ทุก canonical entity เข้ากับ Event Bus — เรียกครั้งเดียวตอนประกอบ AppState
+pub fn subscribe_canonical_projection(bus: &EventBus, pool: Pool) {
+    let projector = Arc::new(Projector {
+        employees: EmployeeRepository::new(pool.clone()),
+        products: ProductRepository::new(pool),
+    });
+    bus.subscribe_all(Arc::new(move |event| {
+        let projector = projector.clone();
+        Box::pin(async move { projector.project(&event).await })
     }));
+}
+
+/// ชื่อเดิม (Employee อย่างเดียว) — คงไว้เพื่อ backward compat ของผู้เรียกภายนอก
+#[deprecated(note = "ใช้ subscribe_canonical_projection แทน (ครอบทุก canonical entity)")]
+pub fn subscribe_employee_projection(bus: &EventBus, employees: EmployeeRepository) {
+    let _ = employees;
+    let _ = bus;
+    unimplemented!("replaced by subscribe_canonical_projection");
 }
 
 #[cfg(test)]
@@ -104,32 +144,35 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_employee_event_types() {
+    fn parses_projection_event_types() {
         assert_eq!(
-            parse_employee_event("horilla.employee.created"),
-            Some(("horilla", "created"))
+            parse_projection_event("horilla.employee.created"),
+            Some(("horilla", "employee", "created"))
         );
         assert_eq!(
-            parse_employee_event("inventree.employee.deleted"),
-            Some(("inventree", "deleted"))
+            parse_projection_event("inventree.product.updated"),
+            Some(("inventree", "product", "updated"))
         );
-        assert_eq!(parse_employee_event("horilla.employee.promoted"), None);
-        assert_eq!(parse_employee_event("workflow.created"), None);
-        assert_eq!(parse_employee_event("employee.created"), None);
+        assert_eq!(parse_projection_event("inventree.part.created"), None);
+        assert_eq!(parse_projection_event("horilla.employee.promoted"), None);
+        assert_eq!(parse_projection_event("workflow.created"), None);
     }
 
     #[test]
     fn extracts_source_id_from_contract_or_fallback() {
         let with_source = serde_json::json!({"source_id": "42"});
         assert_eq!(
-            extract_source_id("horilla", &with_source),
+            extract_source_id("inventree", "product", &with_source),
             Some("42".to_string())
         );
-        let horilla_style = serde_json::json!({"horilla_employee_id": 7});
+        let fallback = serde_json::json!({"inventree_product_id": 7});
         assert_eq!(
-            extract_source_id("horilla", &horilla_style),
+            extract_source_id("inventree", "product", &fallback),
             Some("7".to_string())
         );
-        assert_eq!(extract_source_id("horilla", &serde_json::json!({})), None);
+        assert_eq!(
+            extract_source_id("inventree", "product", &serde_json::json!({})),
+            None
+        );
     }
 }
