@@ -1,6 +1,6 @@
 # InvenTree Inventory — External Module Integration
 
-สถานะ: **เชื่อมแล้ว + SSO ทำงาน (2026-08-15)** — InvenTree จริง (MIT, official image
+สถานะ: **ครบวงจรแล้ว (2026-08-15)** — proxy + SSO + Part events → canonical Product — InvenTree จริง (MIT, official image
 `inventree/inventree:stable`) รันแยก process/DB ต่อผ่าน HTTP adapter
 ([ADR 0014](../adr/0014-external-module-adapter.md)) ด้วย **pattern เดียวกับ
 [Horilla](horilla.md)** — และ canonical Product projection พร้อมแล้วฝั่ง ORVA
@@ -78,7 +78,33 @@ payload contract:
 }
 ```
 
-**งานถัดไป (ยังไม่ทำ)**: InvenTree plugin ฝั่งนั้นที่ยิง event Part created/updated
-เข้ามาอัตโนมัติ (InvenTree มี plugin system + event mixin ในตัว — เทียบเท่า
-`orva_sso/hooks.py` ของ Horilla) — ตอนนี้ contract ฝั่ง ORVA พิสูจน์แล้วด้วย
-integration test เต็มสาย
+### ORVA Event Bridge plugin ✅
+
+implement แล้วที่ [docker/inventree/plugins/orva_events.py](../../docker/inventree/plugins/orva_events.py)
+— **plugin ตามระบบ plugin ทางการของ InvenTree** (MIT, mount เข้า `data/plugins`)
+ต่อ Django signals บน `Part` ตรง ๆ ตอน plugin โหลด (ไม่พึ่ง background worker):
+created/updated/deleted → `inventree.product.*` best-effort (daemon thread,
+timeout 3 วิ, log-only — ORVA ล่มไม่ทำ InvenTree พัง)
+
+การเปิดใช้ (ครั้งเดียว):
+
+```bash
+# 1) ออก service key (scope agent:event:publish) แล้วตั้ง env
+export INVENTREE_ORVA_SERVICE_KEY=<api_key>
+docker compose up -d inventree
+# 2) plugin โผล่เป็น inactive — activate แล้ว restart
+docker exec orva-inventree sh -c 'cd /home/inventree/src/backend/InvenTree && python -c "
+import django, os
+os.environ.setdefault(\"DJANGO_SETTINGS_MODULE\",\"InvenTree.settings\")
+django.setup()
+from plugin.models import PluginConfig
+PluginConfig.objects.filter(key=\"orvaevents\").update(active=True)"'
+docker restart orva-inventree
+```
+
+**พิสูจน์แล้ว E2E**: `POST /api/part/` สร้าง Part จริงใน InvenTree →
+`GET /api/v1/products` ใน ORVA เห็น canonical row ทันที
+(`name/sku(IPN)/description/source_module=inventree/source_id=pk`)
+
+หมายเหตุ: องค์กรที่ provision ก่อน permission `core.product.read` เกิด ต้อง grant
+ให้ role เพิ่มเอง (พฤติกรรม M3 เดียวกับ `core.employee.read`)
