@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use orva_auth::{AuthConfig, AuthService, JwtKeys};
 use orva_data::{
-    EventRepository, InsightRepository, IntelligenceRuleRepository, Pool, RecommendationRepository,
+    EventRepository, ExternalModuleRepository, InsightRepository, IntelligenceRuleRepository, Pool,
+    RecommendationRepository,
 };
 use orva_events::EventBus;
 use orva_intelligence::IntelligenceEngine;
@@ -42,6 +43,10 @@ pub struct AppState {
     pub recommendations: RecommendationRepository,
     /// ADR 0013 — broadcast hub ให้ SSE stream (`GET /api/v1/notifications/stream`)
     pub notification_hub: NotificationHub,
+    /// ADR 0014 — OSS module ที่รันแยก process (proxy ผ่าน `/api/v1/ext/{name}/...`)
+    pub external_modules: ExternalModuleRepository,
+    /// HTTP client สำหรับ proxy ไป external module (connection pool ใช้ร่วมทุก request)
+    pub http_client: reqwest::Client,
 }
 
 impl AppState {
@@ -122,8 +127,13 @@ impl AppState {
             module_context,
             intelligence_rules: IntelligenceRuleRepository::new(pool.clone()),
             insights: InsightRepository::new(pool.clone()),
-            recommendations: RecommendationRepository::new(pool),
+            recommendations: RecommendationRepository::new(pool.clone()),
             notification_hub,
+            external_modules: ExternalModuleRepository::new(pool),
+            http_client: reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .build()
+                .expect("build http client"),
         }
     }
 }

@@ -1,5 +1,6 @@
 mod document;
 mod event;
+mod external_module;
 mod intelligence;
 mod module_installation;
 mod notification;
@@ -14,6 +15,7 @@ mod workflow;
 
 pub use document::DocumentRepository;
 pub use event::{AppendOptions, EventFilter, EventRepository};
+pub use external_module::ExternalModuleRepository;
 pub use intelligence::{
     CreateInsightParams, CreateRecommendationParams, CreateRuleParams, InsightRepository,
     IntelligenceRuleRepository, RecommendationRepository,

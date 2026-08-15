@@ -1,5 +1,6 @@
 mod document;
 mod event;
+mod external_module;
 mod intelligence;
 mod module_installation;
 mod notification;
@@ -14,6 +15,7 @@ mod workflow;
 
 pub use document::Document;
 pub use event::Event;
+pub use external_module::ExternalModule;
 pub use intelligence::{Insight, IntelligenceRule, Recommendation};
 pub use module_installation::ModuleInstallation;
 pub use notification::{Notification, NotificationPreference};

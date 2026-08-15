@@ -19,3 +19,4 @@
 | [0011](0011-agent-scopes.md) | Fine-grained Agent Scopes บน Service Identity | Accepted |
 | [0012](0012-tenant-rate-limit.md) | Per-tenant Rate Limit (สองชั้นร่วมกับ per-key เดิม) | Accepted |
 | [0013](0013-sse-notification-push.md) | Real-time Notification Push ด้วย SSE | Accepted |
+| [0014](0014-external-module-adapter.md) | HTTP Adapter สำหรับ OSS Module ที่รันแยก Process | Accepted |

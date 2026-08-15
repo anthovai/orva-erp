@@ -19,6 +19,7 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/v1/agent/context", get(context))
         .route("/api/v1/agent/workflows", post(propose_workflow))
         .route("/api/v1/agent/workflows/{id}", get(get_workflow))
+        .route("/api/v1/agent/events", post(publish_event))
 }
 
 /// scope ไม่พอ → 403 พร้อมบอกชัดว่าขาด scope ไหน (คนตั้ง integration จะได้แก้ถูก)
@@ -127,4 +128,62 @@ pub(crate) async fn get_workflow(
     require_scope(&identity, "agent:workflow:read")?;
     let instance = state.workflow.get(identity.organization_id, id).await?;
     Ok(Json(instance.into()))
+}
+
+#[derive(Deserialize, ToSchema)]
+pub(crate) struct PublishEventRequest {
+    /// เช่น `horilla.employee.created` — แนะนำ prefix ด้วยชื่อ module ของตัวเอง
+    event_type: String,
+    #[serde(default = "default_context")]
+    payload: Value,
+    resource_type: Option<String>,
+    resource_id: Option<Uuid>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub(crate) struct PublishEventResponse {
+    event_id: Uuid,
+    event_type: String,
+}
+
+/// External module/agent publish event เข้า ORVA Event Bus (ADR 0014) — เข้าทั้ง
+/// audit log และ Intelligence Engine (rule ที่เฝ้า event_type นี้ประเมินทันที)
+/// ต้องมี scope `agent:event:publish`
+#[utoipa::path(post, path = "/api/v1/agent/events", tag = "agent",
+    security(("service_key" = [])), request_body = PublishEventRequest,
+    responses((status = 201, description = "Event published", body = PublishEventResponse),
+               (status = 403, description = "Missing scope agent:event:publish")))]
+pub(crate) async fn publish_event(
+    State(state): State<AppState>,
+    ServiceIdentityAuth(identity): ServiceIdentityAuth,
+    Json(body): Json<PublishEventRequest>,
+) -> Result<(axum::http::StatusCode, Json<PublishEventResponse>), ApiError> {
+    require_scope(&identity, "agent:event:publish")?;
+    if body.event_type.trim().is_empty() || body.event_type.len() > 200 {
+        return Err(orva_error::Error::Validation(
+            "event_type must be 1-200 characters".to_string(),
+        )
+        .into());
+    }
+
+    let event = state
+        .event_bus
+        .publish(
+            identity.organization_id,
+            &body.event_type,
+            body.payload,
+            orva_events::PublishOptions {
+                resource: body.resource_type.zip(body.resource_id),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+    Ok((
+        axum::http::StatusCode::CREATED,
+        Json(PublishEventResponse {
+            event_id: event.id,
+            event_type: event.event_type,
+        }),
+    ))
 }

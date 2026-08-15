@@ -10,6 +10,7 @@ mod permissions;
 mod rate_limit;
 mod routes;
 mod routes_agent;
+mod routes_external;
 mod routes_intelligence;
 mod routes_modules;
 mod routes_notifications;
@@ -31,6 +32,7 @@ pub fn app(state: AppState) -> Router {
         .merge(routes_modules::router())
         .merge(routes_intelligence::router())
         .merge(routes_agent::router())
+        .merge(routes_external::router())
         .merge(docs::router())
         .with_state(state.clone())
         .merge(module_router)

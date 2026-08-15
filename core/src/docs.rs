@@ -4,8 +4,8 @@ use utoipa::{Modify, OpenApi};
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
-    routes, routes_agent, routes_intelligence, routes_modules, routes_notifications,
-    routes_workflow, state::AppState,
+    routes, routes_agent, routes_external, routes_intelligence, routes_modules,
+    routes_notifications, routes_workflow, state::AppState,
 };
 
 struct BearerAuth;
@@ -70,6 +70,12 @@ impl Modify for BearerAuth {
         routes_modules::install_module,
         routes_modules::enable_module,
         routes_modules::disable_module,
+        routes_external::register_module,
+        routes_external::list_modules,
+        routes_external::enable_module,
+        routes_external::disable_module,
+        routes_external::proxy,
+        routes_agent::publish_event,
         routes_intelligence::list_recommendations,
         routes_intelligence::accept_recommendation,
         routes_intelligence::dismiss_recommendation,
@@ -113,6 +119,10 @@ impl Modify for BearerAuth {
         routes_intelligence::RuleResponse,
         routes_intelligence::InsightResponse,
         routes_intelligence::RecommendationResponse,
+        routes_external::RegisterExternalModuleRequest,
+        routes_external::ExternalModuleResponse,
+        routes_agent::PublishEventRequest,
+        routes_agent::PublishEventResponse,
         routes_agent::AgentContextResponse,
         routes_agent::ProposeWorkflowRequest,
     )),

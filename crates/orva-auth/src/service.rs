@@ -516,10 +516,11 @@ impl AuthService {
     }
 
     /// scope ที่ Agent API รู้จัก (ADR 0011) — แบบเจาะจง resource_type ใช้ prefix ด้านล่าง
-    pub const KNOWN_AGENT_SCOPES: [&'static str; 3] = [
+    pub const KNOWN_AGENT_SCOPES: [&'static str; 4] = [
         "agent:context:read",
         "agent:workflow:read",
         "agent:workflow:propose",
+        "agent:event:publish",
     ];
     pub const PROPOSE_SCOPE_PREFIX: &'static str = "agent:workflow:propose:";
 
@@ -573,6 +574,24 @@ impl AuthService {
             .await?;
 
         Ok((identity, raw_key))
+    }
+
+    /// ออก identity assertion อายุสั้นให้ external module (ADR 0014) — JWT RS256
+    /// เดียวกับ ID token แต่ `aud` = `orva-module:<name>` และ TTL 60 วินาที
+    /// module ภายนอก verify ผ่าน `/.well-known/jwks.json` โดยไม่ต้องแชร์ secret (ADR 0006)
+    pub fn issue_identity_assertion(&self, user: &User, module_name: &str) -> Result<String> {
+        jwt::issue_id_token(
+            &self.config.keys,
+            &self.config.issuer,
+            &format!("orva-module:{module_name}"),
+            jwt::IdTokenSubject {
+                user_id: user.id,
+                organization_id: user.organization_id,
+                email: &user.email,
+                display_name: &user.display_name,
+            },
+            Duration::seconds(60),
+        )
     }
 
     /// ตรวจ service identity key ที่ module/worker ส่งมาใน `X-Orva-Service-Key`
