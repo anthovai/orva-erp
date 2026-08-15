@@ -14,7 +14,7 @@ mod workflow;
 
 pub use document::Document;
 pub use event::Event;
-pub use intelligence::{Insight, IntelligenceRule};
+pub use intelligence::{Insight, IntelligenceRule, Recommendation};
 pub use module_installation::ModuleInstallation;
 pub use notification::{Notification, NotificationPreference};
 pub use organization::Organization;

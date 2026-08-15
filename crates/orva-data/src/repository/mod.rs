@@ -15,7 +15,8 @@ mod workflow;
 pub use document::DocumentRepository;
 pub use event::{AppendOptions, EventFilter, EventRepository};
 pub use intelligence::{
-    CreateInsightParams, CreateRuleParams, InsightRepository, IntelligenceRuleRepository,
+    CreateInsightParams, CreateRecommendationParams, CreateRuleParams, InsightRepository,
+    IntelligenceRuleRepository, RecommendationRepository,
 };
 pub use module_installation::ModuleInstallationRepository;
 pub use notification::{NotificationPreferenceRepository, NotificationRepository};

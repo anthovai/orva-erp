@@ -214,7 +214,7 @@ Notification:
 
 - [x] Context Engine: รวบรวม context จาก events + data ต่อ tenant — `orva_intelligence::ContextEngine` อ่านจาก `events` table (M5) ตรง ๆ คำนวณ metric (`count` หรือ `sum:<field>`) ในช่วงเวลาที่กำหนดต่อ organization ไม่มี state ของตัวเอง
 - [x] Rules engine อย่างง่าย (threshold/pattern → insight) — `intelligence_rules` table (per-tenant, runtime-configurable ผ่าน API ไม่ hardcode) + `IntelligenceEngine` ที่ subscribe ทุก event ผ่าน Event Bus (M5) แล้วประเมิน rule ที่ผูกกับ event_type นั้นทันที **ไม่ต้องมี scheduler**
-- [x] Insight storage + API (`Insight`, `Recommendation` entities) — `insights` table (append-only เหมือน events) + `GET /api/v1/insights`; **`Recommendation` ยังไม่ implement** (ดูขอบเขตด้านล่าง — เก็บเฉพาะ Insight ที่เป็นรูปแบบพื้นฐานสุดตาม DoD)
+- [x] Insight storage + API (`Insight`, `Recommendation` entities) — `insights` table (append-only เหมือน events) + `GET /api/v1/insights`; `Recommendation` **implement แล้ว 2026-08-15** (ดู ADR 0010)
 - [x] **ORVA Agent API** — จุดเชื่อมสำหรับ ORVA Worker (OpenWorker) ใน Phase ถัดไป: agent authentication (service identity) ผ่าน header ใหม่ `X-Orva-Service-Key` (ต่อ `ServiceIdentity`/`authenticate_service_key` ที่มีอยู่แล้วตั้งแต่ M2 แต่ไม่เคยมี route ใช้จริงจนถึงตอนนี้), scoped permissions (v0.1 = tenant-scoped เท่านั้น ดูขอบเขตด้านล่าง), approval hook เข้า Workflow Engine — agent เรียก `WorkflowService` ตัวเดียวกับที่ user ใช้ผ่าน `POST /api/v1/agent/workflows`
 - [x] ตัวอย่าง end-to-end หนึ่งเคส: event pattern → rule → insight → notification — เคสจริง: "แจ้งเตือนถ้ามีการออก service identity ตั้งแต่ 3 ครั้งขึ้นไปใน 1 ชั่วโมง" (สัญญาณความปลอดภัย ใช้ event ที่ Core มีอยู่แล้วจริง แทนตัวเลขธุรกิจสมมติที่ไม่มีข้อมูลจริงรองรับ)
 
@@ -228,7 +228,7 @@ Notification:
 > - ยืนยัน manual ผ่าน server จริงทั้งคู่: OpenAPI มีครบทุก endpoint ใหม่ (`/agent/*`, `/intelligence/rules`, `/insights`), agent context + propose action ทำงานถูกต้องผ่าน curl จริง
 >
 > **ขอบเขตที่ตัดออกอย่างตั้งใจ:**
-> - **`Recommendation` entity ไม่ implement** — DoD/checklist เอ่ยถึงคู่กับ `Insight` แต่ทำแค่ Insight (สิ่งที่เกิดขึ้นแล้ว) ส่วน Recommendation (สิ่งที่ควรทำต่อ) ต้องมี "action" มาผูกด้วยซึ่งยังไม่มีความหมายจนกว่าจะมี business module จริงให้เสนอ action ต่อ
+> - ~~**`Recommendation` entity ไม่ implement**~~ → **ทำแล้ว 2026-08-15** — action ที่ผูกได้เกิดขึ้นจริงแล้วผ่าน Workflow Definitions (ADR 0009): rule ประกาศ `recommended_action` → trigger สร้าง Recommendation → มนุษย์ accept แล้วได้ workflow instance ที่ยังผ่าน approval ปกติ — ดู [ADR 0010](adr/0010-recommendations.md)
 > - **Agent scoped permissions เป็น tenant-scope เท่านั้น** ไม่ใช่ fine-grained action-scope — key หนึ่งใช้ทำอะไรก็ได้ในองค์กรของตัวเอง (เท่ากับ user ที่ไม่มี role ใด ๆ) ยังไม่มีกลไก "key นี้สร้าง workflow ได้อย่างเดียว ห้ามอ่านอย่างอื่น" — ต้องออกแบบเพิ่มตอนมี ORVA Worker จริงมาใช้งาน
 > - **Context Engine อ่าน events table ทั้งหมดในช่วงเวลาทุกครั้งที่ประเมิน** ไม่มี pre-aggregation/materialized view — พอสำหรับ v0.1 แต่จะช้าลงเมื่อ event เยอะขึ้นมาก (ต้องปรับตอน scale จริง)
 > - **Metric รองรับแค่ตัวเลข** (count/sum) — ยังไม่มี pattern matching แบบซับซ้อนกว่านี้ (เช่น sequence detection, anomaly ทางสถิติ) ตรงตามคำว่า "Rules engine อย่างง่าย" ใน checklist
@@ -240,7 +240,7 @@ Notification:
 
 ครบทั้ง 9 milestones (M0–M8) — **Rust Core Platform พร้อมสำหรับ Phase ถัดไป** (เลือก OSS ประกอบเป็น Business Modules ตาม [OSS-STRATEGY.md](OSS-STRATEGY.md))
 
-สิ่งที่ยังไม่ทำเป็น **known gap ที่บันทึกไว้ครบทุกจุด** ไม่ใช่สิ่งที่ถูกลืม: ~~RLS ระดับ DB (M3)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0005](adr/0005-row-level-security.md)), ~~RS256/JWKS~~ (**ปิดแล้ว 2026-08-15** — [ADR 0006](adr/0006-rs256-jwks.md)), ~~MFA TOTP~~ (**ปิดแล้ว 2026-08-15** — [ADR 0007](adr/0007-mfa-totp.md)), ~~email ไม่ส่งจริง (M6)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0008](adr/0008-smtp-email.md)) เหลือ full OIDC redirect flow (M2), rate limit ต่อ tenant จริง (M4), ~~workflow definition แบบ reusable (M6)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0009](adr/0009-workflow-definitions.md)), dynamic module loading (M7), Recommendation + fine-grained agent scope (M8) — ทั้งหมดมี ADR หรือหมายเหตุอ้างอิงให้ตามไปอ่านตอนถึงเวลาต้องแก้จริง
+สิ่งที่ยังไม่ทำเป็น **known gap ที่บันทึกไว้ครบทุกจุด** ไม่ใช่สิ่งที่ถูกลืม: ~~RLS ระดับ DB (M3)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0005](adr/0005-row-level-security.md)), ~~RS256/JWKS~~ (**ปิดแล้ว 2026-08-15** — [ADR 0006](adr/0006-rs256-jwks.md)), ~~MFA TOTP~~ (**ปิดแล้ว 2026-08-15** — [ADR 0007](adr/0007-mfa-totp.md)), ~~email ไม่ส่งจริง (M6)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0008](adr/0008-smtp-email.md)) เหลือ full OIDC redirect flow (M2), rate limit ต่อ tenant จริง (M4), ~~workflow definition แบบ reusable (M6)~~ (**ปิดแล้ว 2026-08-15** — [ADR 0009](adr/0009-workflow-definitions.md)), dynamic module loading (M7), ~~Recommendation~~ (**ปิดแล้ว 2026-08-15** — [ADR 0010](adr/0010-recommendations.md)) + fine-grained agent scope (M8) — ทั้งหมดมี ADR หรือหมายเหตุอ้างอิงให้ตามไปอ่านตอนถึงเวลาต้องแก้จริง
 
 ---
 

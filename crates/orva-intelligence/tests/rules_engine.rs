@@ -45,6 +45,7 @@ async fn repeated_event_pattern_creates_insight_and_notifies() {
                 operator: "gte",
                 threshold: 3.0,
                 notify_user_id: Some(manager.id),
+                recommended_action: None,
             },
             manager.id,
         )

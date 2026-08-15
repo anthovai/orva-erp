@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use orva_data::{
-    CreateInsightParams, Event, Insight, InsightRepository, IntelligenceRuleRepository, Pool,
+    CreateInsightParams, CreateRecommendationParams, Event, Insight, InsightRepository,
+    IntelligenceRuleRepository, Pool, RecommendationRepository,
 };
 use orva_error::Result;
 use orva_events::EventBus;
@@ -20,6 +21,7 @@ use crate::{
 pub struct IntelligenceEngine {
     rules: IntelligenceRuleRepository,
     insights: InsightRepository,
+    recommendations: RecommendationRepository,
     context: ContextEngine,
     notifications: Arc<NotificationService>,
 }
@@ -29,6 +31,7 @@ impl IntelligenceEngine {
         Self {
             rules: IntelligenceRuleRepository::new(pool.clone()),
             insights: InsightRepository::new(pool.clone()),
+            recommendations: RecommendationRepository::new(pool.clone()),
             context: ContextEngine::new(pool),
             notifications,
         }
@@ -82,6 +85,23 @@ impl IntelligenceEngine {
                     },
                 )
                 .await?;
+
+            // ADR 0010: rule ที่ประกาศ recommended_action ไว้ → สร้าง Recommendation
+            // รอมนุษย์ accept/dismiss (engine ไม่ execute action เองเด็ดขาด)
+            if rule.recommended_action.is_some() {
+                self.recommendations
+                    .create(
+                        event.organization_id,
+                        CreateRecommendationParams {
+                            insight_id: insight.id,
+                            rule_id: rule.id,
+                            title: &format!("Recommended action: {}", rule.name),
+                            description: &insight.description,
+                            suggested_action: rule.recommended_action.clone(),
+                        },
+                    )
+                    .await?;
+            }
 
             self.notify_if_configured(event.organization_id, rule.notify_user_id, &insight)
                 .await?;

@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use orva_auth::{AuthConfig, AuthService, JwtKeys};
-use orva_data::{EventRepository, InsightRepository, IntelligenceRuleRepository, Pool};
+use orva_data::{
+    EventRepository, InsightRepository, IntelligenceRuleRepository, Pool, RecommendationRepository,
+};
 use orva_events::EventBus;
 use orva_intelligence::IntelligenceEngine;
 use orva_module_sdk::{ModuleContext, ModuleRegistry};
@@ -32,6 +34,8 @@ pub struct AppState {
     /// M8 — จัดการ intelligence rule (CRUD) และ query insight ย้อนหลัง
     pub intelligence_rules: IntelligenceRuleRepository,
     pub insights: InsightRepository,
+    /// ADR 0010 — recommendation ที่รอมนุษย์ accept/dismiss
+    pub recommendations: RecommendationRepository,
 }
 
 impl AppState {
@@ -102,7 +106,8 @@ impl AppState {
             modules: Arc::new(registry),
             module_context,
             intelligence_rules: IntelligenceRuleRepository::new(pool.clone()),
-            insights: InsightRepository::new(pool),
+            insights: InsightRepository::new(pool.clone()),
+            recommendations: RecommendationRepository::new(pool),
         }
     }
 }

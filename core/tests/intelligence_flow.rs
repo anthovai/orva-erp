@@ -161,3 +161,189 @@ async fn intelligence_rule_creates_insight_and_notification_via_http() {
         .iter()
         .any(|n| n["title"] == "New insight"));
 }
+
+/// ADR 0010: วงจร insight → recommendation → accept → workflow เต็มสายผ่าน HTTP
+/// rule ประกาศ recommended_action ชี้ workflow definition → เมื่อ trigger เกิด
+/// Recommendation → accept แล้วได้ workflow instance จริงที่ยังต้องผ่าน approval ตามปกติ
+#[tokio::test]
+async fn recommendation_accept_creates_workflow_from_definition() {
+    let state = support::test_state().await;
+    let app = orva_core::app(state);
+
+    let suffix = uuid::Uuid::new_v4();
+    let slug = format!("rec-flow-{suffix}");
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/organizations")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "name": "Rec Flow Co",
+                        "slug": slug,
+                        "owner_email": format!("owner-{suffix}@test.local"),
+                        "owner_display_name": "Owner",
+                        "owner_password": "correct-horse-battery",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let token = json_body(response).await["access_token"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    // workflow definition ที่ recommendation จะชี้ถึง
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/workflow-definitions")
+                .header("content-type", "application/json")
+                .header(AUTHORIZATION, format!("Bearer {token}"))
+                .body(Body::from(
+                    json!({
+                        "name": "investigate-signups",
+                        "resource_type": "investigation",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let definition_id = json_body(response).await["id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    // rule: user.registered ครั้งเดียวก็ trigger — พร้อม recommended_action ชี้ definition
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/intelligence/rules")
+                .header("content-type", "application/json")
+                .header(AUTHORIZATION, format!("Bearer {token}"))
+                .body(Body::from(
+                    json!({
+                        "name": "signup-spike",
+                        "event_type": "user.registered",
+                        "metric": "count",
+                        "window_seconds": 3600,
+                        "operator": "gte",
+                        "threshold": 1.0,
+                        "recommended_action": {
+                            "type": "workflow",
+                            "definition_id": definition_id,
+                            "context": {"reason": "signup spike"},
+                        },
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    // trigger: สมัครสมาชิกใหม่ 1 คน
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/auth/register")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "organization_slug": slug,
+                        "email": format!("newbie-{suffix}@test.local"),
+                        "display_name": "Newbie",
+                        "password": "correct-horse-battery",
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    // recommendation ต้องเกิด (pending)
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/v1/recommendations?status=pending")
+                .header(AUTHORIZATION, format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let recommendations = json_body(response).await;
+    assert_eq!(recommendations.as_array().unwrap().len(), 1);
+    let rec_id = recommendations[0]["id"].as_str().unwrap().to_string();
+    assert_eq!(recommendations[0]["suggested_action"]["type"], "workflow");
+
+    // accept → ได้ workflow instance จริงจาก definition
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/recommendations/{rec_id}/accept"))
+                .header(AUTHORIZATION, format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let accepted = json_body(response).await;
+    assert_eq!(accepted["status"], "accepted");
+    let workflow_id = accepted["resulting_workflow_id"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    // workflow มีจริง + resource_type มาจาก definition
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!("/api/v1/workflows/{workflow_id}"))
+                .header(AUTHORIZATION, format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(json_body(response).await["resource_type"], "investigation");
+
+    // ตัดสินซ้ำไม่ได้
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/v1/recommendations/{rec_id}/dismiss"))
+                .header(AUTHORIZATION, format!("Bearer {token}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+}

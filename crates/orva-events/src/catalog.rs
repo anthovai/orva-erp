@@ -18,3 +18,8 @@ pub const WORKFLOW_APPROVAL_REQUESTED: &str = "workflow.approval_requested";
 pub const WORKFLOW_APPROVED: &str = "workflow.approved";
 pub const WORKFLOW_REJECTED: &str = "workflow.rejected";
 pub const WORKFLOW_COMPLETED: &str = "workflow.completed";
+
+// Intelligence (M8 + ADR 0010)
+pub const RECOMMENDATION_CREATED: &str = "recommendation.created";
+pub const RECOMMENDATION_ACCEPTED: &str = "recommendation.accepted";
+pub const RECOMMENDATION_DISMISSED: &str = "recommendation.dismissed";
