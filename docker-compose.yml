@@ -26,5 +26,36 @@ services:
       - "1025:1025"
       - "8025:8025"
 
+  # ---- Horilla HRM (external OSS module — ADR 0014, LGPL boundary: แยก process/DB เด็ดขาด) ----
+  horilla-db:
+    image: postgres:16-bullseye
+    container_name: orva-horilla-db
+    environment:
+      POSTGRES_DB: horilla
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - horilla-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  horilla:
+    image: horilla/horilla:1.4
+    container_name: orva-horilla
+    environment:
+      DATABASE_URL: "postgres://postgres:postgres@horilla-db:5432/horilla"
+    # image default bind 127.0.0.1 — ต้อง 0.0.0.0 ให้ host (และ ORVA proxy) เข้าถึงได้
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    depends_on:
+      horilla-db:
+        condition: service_healthy
+
 volumes:
   orva-pgdata:
+  horilla-pgdata:

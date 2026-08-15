@@ -248,6 +248,6 @@ Notification:
 
 - ORVA Worker integration (OpenWorker เต็มรูปแบบ — connector ฝั่ง OpenWorker มีแล้ว)
 - ORVA Knowledge (สร้างเองตามแนวคิด linked notes / knowledge graph)
-- เลือก OSS สำหรับ Business Modules (HRM, Finance, Project, Support, Inventory) — โครง adapter พร้อมแล้ว ([ADR 0014](adr/0014-external-module-adapter.md))
+- เลือก OSS สำหรับ Business Modules — โครง adapter พร้อมแล้ว ([ADR 0014](adr/0014-external-module-adapter.md)); **Horilla HRM เชื่อมจริงแล้ว 2026-08-15 (Phase 1 — ดู [modules/horilla.md](modules/horilla.md))**
 - ~~Unified UI shell~~ → **v0.1 เสร็จ 2026-08-15** — `/ui` embed ใน binary ([ADR 0015](adr/0015-unified-ui-shell.md))
 - AI ใน Intelligence Engine (จาก rules → analytics → AI)
