@@ -22,3 +22,4 @@
 | [0014](0014-external-module-adapter.md) | HTTP Adapter สำหรับ OSS Module ที่รันแยก Process | Accepted |
 | [0015](0015-unified-ui-shell.md) | Unified UI Shell v0.1: embed ใน binary ไม่มี build step | Accepted |
 | [0016](0016-canonical-projection.md) | Canonical Entity Sync แบบ Event-driven Projection | Accepted |
+| [0017](0017-orva-knowledge.md) | ORVA Knowledge: linked notes ที่ผูกกับ canonical data | Accepted |

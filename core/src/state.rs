@@ -7,6 +7,7 @@ use orva_data::{
 };
 use orva_events::EventBus;
 use orva_intelligence::IntelligenceEngine;
+use orva_knowledge::KnowledgeService;
 use orva_module_sdk::{ModuleContext, ModuleRegistry};
 use orva_notifications::{
     subscribe_workflow_approval_requests, Mailer, NotificationHub, NotificationService,
@@ -48,6 +49,8 @@ pub struct AppState {
     /// ADR 0016 — canonical entities (projection จาก event ของ external module)
     pub employees: EmployeeRepository,
     pub products: ProductRepository,
+    /// ADR 0017 — ORVA Knowledge (linked notes + graph)
+    pub knowledge: Arc<KnowledgeService>,
     /// HTTP client สำหรับ proxy ไป external module (connection pool ใช้ร่วมทุก request)
     pub http_client: reqwest::Client,
 }
@@ -116,6 +119,7 @@ impl AppState {
             .await
             .expect("module registry initialization failed");
         let module_context = ModuleContext::new(pool.clone(), auth.clone(), event_bus.clone());
+        let event_bus_for_knowledge = event_bus.clone();
 
         Self {
             auth,
@@ -138,7 +142,8 @@ impl AppState {
             notification_hub,
             external_modules: ExternalModuleRepository::new(pool.clone()),
             employees: EmployeeRepository::new(pool.clone()),
-            products: ProductRepository::new(pool),
+            products: ProductRepository::new(pool.clone()),
+            knowledge: Arc::new(KnowledgeService::new(pool, event_bus_for_knowledge)),
             http_client: reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(30))
                 .build()

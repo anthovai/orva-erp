@@ -98,6 +98,7 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:6px;paddi
       <a href="#dashboard" data-view="dashboard">Dashboard</a>
       <a href="#approvals" data-view="approvals">งานรออนุมัติ <span class="badge" id="nav-approvals-badge" style="display:none"></span></a>
       <a href="#notifications" data-view="notifications">การแจ้งเตือน <span id="nav-notif-badge"></span></a>
+      <a href="#knowledge" data-view="knowledge">Knowledge</a>
       <a href="#modules" data-view="modules">Modules</a>
       <a href="#settings" data-view="settings">ตั้งค่า</a>
     </nav>
@@ -179,12 +180,12 @@ async function boot(){
   navigate(location.hash.slice(1)||'dashboard');
 }
 window.addEventListener('hashchange',()=>navigate(location.hash.slice(1)||'dashboard'));
-const VIEWS={dashboard:'Dashboard',approvals:'งานรออนุมัติ',notifications:'การแจ้งเตือน',modules:'Modules',settings:'ตั้งค่า'};
+const VIEWS={dashboard:'Dashboard',approvals:'งานรออนุมัติ',notifications:'การแจ้งเตือน',knowledge:'Knowledge',modules:'Modules',settings:'ตั้งค่า'};
 function navigate(view){
   if(!VIEWS[view]) view='dashboard';
   document.querySelectorAll('#sidebar nav a').forEach(a=>a.classList.toggle('active',a.dataset.view===view));
   $('view-title').textContent=VIEWS[view];
-  ({dashboard:renderDashboard,approvals:renderApprovals,notifications:renderNotifications,modules:renderModules,settings:renderSettings})[view]();
+  ({dashboard:renderDashboard,approvals:renderApprovals,notifications:renderNotifications,knowledge:renderKnowledge,modules:renderModules,settings:renderSettings})[view]();
 }
 async function refreshBadges(){
   try{
@@ -281,6 +282,48 @@ async function renderNotifications(){
   refreshBadges();
 }
 async function markRead(id){ try{ await api('/api/v1/notifications/'+id+'/read',{method:'POST'}); renderNotifications(); }catch(e){ toast(e.message); } }
+/* ---------- knowledge (ADR 0017) ---------- */
+async function renderKnowledge(){
+  $('view').innerHTML='<div class="grid2"><div class="card"><h2>Notes</h2><div id="k-list" class="empty">กำลังโหลด…</div>'+
+  '<label>หัวข้อ</label><input id="k-title"><label>เนื้อหา — ลิงก์ด้วย [[ชื่อโน้ต]], [[employee:email]], [[product:sku]]</label>'+
+  '<textarea id="k-content" rows="5" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 12px;font:inherit"></textarea>'+
+  '<div style="margin-top:12px"><button onclick="createNote()">สร้างโน้ต</button></div><div class="err" id="k-err"></div></div>'+
+  '<div class="card"><h2 id="k-detail-title">เลือกโน้ตเพื่อดู</h2><div id="k-detail"></div></div></div>';
+  try{
+    const notes=await api('/api/v1/knowledge/notes');
+    $('k-list').className=''; $('k-list').innerHTML=notes.length?notes.map(n=>
+      '<div class="list-item"><div class="grow"><a href="#" onclick="openNote(\''+n.id+'\');return false" class="title">'+esc(n.title)+'</a>'+
+      '<div class="sub">'+esc((n.content||'').slice(0,80))+'</div></div>'+
+      '<button class="ghost" onclick="deleteNote(\''+n.id+'\')">ลบ</button></div>').join('')
+      :'<div class="empty">ยังไม่มีโน้ต — สร้างโน้ตแรกด้านล่าง</div>';
+  }catch(e){ $('k-list').innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+}
+async function createNote(){
+  $('k-err').textContent='';
+  try{
+    await api('/api/v1/knowledge/notes',{method:'POST',body:JSON.stringify({title:$('k-title').value.trim(),content:$('k-content').value})});
+    renderKnowledge();
+  }catch(e){ $('k-err').textContent=e.message; }
+}
+async function deleteNote(id){
+  try{ await api('/api/v1/knowledge/notes/'+id,{method:'DELETE'}); renderKnowledge(); }catch(e){ toast(e.message); }
+}
+async function openNote(id){
+  try{
+    const n=await api('/api/v1/knowledge/notes/'+id);
+    $('k-detail-title').textContent=n.title;
+    const badge=k=>({note:'blue',employee:'green',product:'yellow',missing:'red'}[k]||'');
+    $('k-detail').innerHTML=
+      '<div style="white-space:pre-wrap;margin-bottom:14px">'+esc(n.content)+'</div>'+
+      '<h3>ลิงก์ขาออก</h3>'+(n.links.length?n.links.map(l=>
+        '<span class="badge '+badge(l.to_note_id?l.target_kind:(l.target_kind==='note'?'missing':l.target_kind))+'" style="margin:2px">'+esc(l.target_kind)+': '+esc(l.target_ref)+(l.target_kind==='note'&&!l.to_note_id?' (ยังไม่ถูกเขียน)':'')+'</span>').join(' ')
+        :'<span class="muted">ไม่มี</span>')+
+      '<h3 style="margin-top:12px">Backlinks</h3>'+(n.backlinks.length?n.backlinks.map(b=>
+        '<div><a href="#" onclick="openNote(\''+b.id+'\');return false">'+esc(b.title)+'</a></div>').join('')
+        :'<span class="muted">ไม่มีใครลิงก์มา</span>');
+  }catch(e){ toast(e.message); }
+}
+
 async function renderModules(){
   $('view').innerHTML='<div class="grid2"><div class="card"><h2>Compiled Modules</h2><div id="m-core" class="empty">กำลังโหลด…</div></div>'+
   '<div class="card"><h2>External Modules</h2><div id="m-ext" class="empty">กำลังโหลด…</div>'+

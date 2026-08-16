@@ -4,7 +4,7 @@ use utoipa::{Modify, OpenApi};
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
-    routes, routes_agent, routes_external, routes_intelligence, routes_modules,
+    routes, routes_agent, routes_external, routes_intelligence, routes_knowledge, routes_modules,
     routes_notifications, routes_workflow, state::AppState,
 };
 
@@ -78,6 +78,12 @@ impl Modify for BearerAuth {
         routes_external::disable_module,
         routes_external::proxy,
         routes_agent::publish_event,
+        routes_knowledge::create_note,
+        routes_knowledge::list_notes,
+        routes_knowledge::get_note,
+        routes_knowledge::update_note,
+        routes_knowledge::delete_note,
+        routes_knowledge::graph,
         routes_intelligence::list_recommendations,
         routes_intelligence::accept_recommendation,
         routes_intelligence::dismiss_recommendation,
@@ -127,6 +133,14 @@ impl Modify for BearerAuth {
         routes_external::ExternalModuleResponse,
         routes_agent::PublishEventRequest,
         routes_agent::PublishEventResponse,
+        routes_knowledge::CreateNoteRequest,
+        routes_knowledge::UpdateNoteRequest,
+        routes_knowledge::NoteResponse,
+        routes_knowledge::NoteDetailResponse,
+        routes_knowledge::LinkResponse,
+        routes_knowledge::GraphResponse,
+        routes_knowledge::GraphNodeResponse,
+        routes_knowledge::GraphEdgeResponse,
         routes_agent::AgentContextResponse,
         routes_agent::ProposeWorkflowRequest,
     )),

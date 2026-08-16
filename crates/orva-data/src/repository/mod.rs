@@ -3,6 +3,7 @@ mod employee;
 mod event;
 mod external_module;
 mod intelligence;
+mod knowledge;
 mod module_installation;
 mod notification;
 mod organization;
@@ -23,6 +24,7 @@ pub use intelligence::{
     CreateInsightParams, CreateRecommendationParams, CreateRuleParams, InsightRepository,
     IntelligenceRuleRepository, RecommendationRepository,
 };
+pub use knowledge::{KnowledgeRepository, ParsedLink};
 pub use module_installation::ModuleInstallationRepository;
 pub use notification::{NotificationPreferenceRepository, NotificationRepository};
 pub use organization::OrganizationRepository;

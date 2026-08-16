@@ -12,6 +12,7 @@ mod routes;
 mod routes_agent;
 mod routes_external;
 mod routes_intelligence;
+mod routes_knowledge;
 mod routes_modules;
 mod routes_notifications;
 mod routes_workflow;
@@ -33,6 +34,7 @@ pub fn app(state: AppState) -> Router {
         .merge(routes_intelligence::router())
         .merge(routes_agent::router())
         .merge(routes_external::router())
+        .merge(routes_knowledge::router())
         .merge(docs::router())
         .with_state(state.clone())
         .merge(module_router)

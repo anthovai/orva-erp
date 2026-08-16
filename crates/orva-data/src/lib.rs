@@ -16,18 +16,18 @@ mod repository;
 
 pub use entity::{
     ApprovalTask, Document, Employee, Event, ExternalModule, Insight, IntelligenceRule,
-    ModuleInstallation, Notification, NotificationPreference, Organization, Permission, Product,
-    Recommendation, Role, ServiceIdentity, Session, Task, TaskStatus, Team, TeamMember, User,
-    WorkflowDefinition, WorkflowInstance,
+    KnowledgeLink, KnowledgeNote, ModuleInstallation, Notification, NotificationPreference,
+    Organization, Permission, Product, Recommendation, Role, ServiceIdentity, Session, Task,
+    TaskStatus, Team, TeamMember, User, WorkflowDefinition, WorkflowInstance,
 };
 pub use pool::{begin_rls_bypass, begin_tenant, connect, migrate, Pool, TenantTx};
 pub use repository::{
     AppendOptions, ApprovalTaskRepository, CreateInsightParams, CreateInstanceParams,
     CreateRecommendationParams, CreateRuleParams, DocumentRepository, EmployeeFields,
     EmployeeRepository, EventFilter, EventRepository, ExternalModuleRepository, InsightRepository,
-    IntelligenceRuleRepository, ModuleInstallationRepository, NotificationPreferenceRepository,
-    NotificationRepository, OrganizationRepository, PermissionRepository, ProductFields,
-    ProductRepository, RecommendationRepository, RoleRepository, ServiceIdentityRepository,
-    SessionRepository, TaskRepository, TeamRepository, UserRepository,
-    WorkflowDefinitionRepository, WorkflowInstanceRepository,
+    IntelligenceRuleRepository, KnowledgeRepository, ModuleInstallationRepository,
+    NotificationPreferenceRepository, NotificationRepository, OrganizationRepository, ParsedLink,
+    PermissionRepository, ProductFields, ProductRepository, RecommendationRepository,
+    RoleRepository, ServiceIdentityRepository, SessionRepository, TaskRepository, TeamRepository,
+    UserRepository, WorkflowDefinitionRepository, WorkflowInstanceRepository,
 };

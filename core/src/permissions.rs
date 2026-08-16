@@ -54,3 +54,14 @@ pub struct ProductRead;
 impl PermissionKey for ProductRead {
     const KEY: &'static str = "core.product.read";
 }
+
+/// ADR 0017 — ORVA Knowledge
+pub struct KnowledgeRead;
+impl PermissionKey for KnowledgeRead {
+    const KEY: &'static str = "core.knowledge.read";
+}
+
+pub struct KnowledgeManage;
+impl PermissionKey for KnowledgeManage {
+    const KEY: &'static str = "core.knowledge.manage";
+}

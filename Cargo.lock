@@ -1450,6 +1450,7 @@ dependencies = [
  "orva-error",
  "orva-events",
  "orva-intelligence",
+ "orva-knowledge",
  "orva-module-notes",
  "orva-module-sdk",
  "orva-notifications",
@@ -1515,6 +1516,20 @@ dependencies = [
  "orva-error",
  "orva-events",
  "orva-notifications",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "orva-knowledge"
+version = "0.1.0"
+dependencies = [
+ "orva-data",
+ "orva-error",
+ "orva-events",
  "serde",
  "serde_json",
  "tokio",
