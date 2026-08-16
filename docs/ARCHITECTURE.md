@@ -117,7 +117,7 @@ HRM  Finance Project Support Inventory   CRM
 - Roles / Permissions
 - Session
 - SSO, OAuth/OIDC
-- MFA (อนาคต)
+- MFA — TOTP แบบ inline ใน login ([ADR 0007](adr/0007-mfa-totp.md))
 - Service Identity
 
 ## 3. Multi-Tenant Architecture
@@ -315,7 +315,7 @@ Project A                    HR
 
 ## 10. Intelligence Engine
 
-**ยังไม่สร้าง AI Agent ใหญ่ตอนนี้** — ช่วงแรกสร้าง Infrastructure สำหรับ Intelligence ก่อน
+สร้าง Infrastructure ก่อน แล้วค่อยเติม AI ตามลำดับ **rules → analytics → AI** — ทั้งสามชั้นมีของจริงแล้วใน v0.1: rule-based engine (M8), recommendation ที่มนุษย์ตัดสิน ([ADR 0010](adr/0010-recommendations.md)) และ AI analyst ที่วิเคราะห์ context ขององค์กรตามคำถาม ([ADR 0018](adr/0018-ai-intelligence.md))
 
 ```
 ORVA DATA
@@ -362,6 +362,8 @@ Intelligence Engine คือตัวกลางที่เชื่อม Kn
 ```
 
 ตัวอย่างในอนาคต: *"ค่าใช้จ่ายของ Project A เพิ่มขึ้น 18% ในเดือนนี้"* — Intelligence Engine ตรวจ Finance / Project / Resource, วิเคราะห์ Pattern, แจ้งผู้บริหาร, เสนอ Action
+
+เส้นทางจากข้อเสนอไปสู่การลงมือทำเชื่อมครบแล้ว: recommendation (จาก rule หรือ AI) → มนุษย์กด accept → เข้าคิวงานของ ORVA Worker → worker ลงมือ → ผลกลับมาที่ ORVA พร้อมแจ้งคนสั่งงาน ([ADR 0019](adr/0019-worker-task-queue.md))
 
 ดังนั้น AI ไม่ได้อยู่แค่หน้า Chat แต่สามารถ: **อ่านบริบทขององค์กร → เข้าใจข้อมูล → วางแผน → เรียก Module → ทำงาน → ตรวจสอบ → ขออนุมัติ → ส่งผลลัพธ์**
 
@@ -561,3 +563,4 @@ ORVA ERP = **Core + Knowledge + Intelligence + Autonomous Work Execution** — �
 | v0.1 | 2026-08-14 | ORVA Core Platform direction — Core เดียว + Business Modules |
 | v0.2 | 2026-08-14 | ยกระดับเป็นสถาปัตยกรรม 3 ชั้น (Core / Intelligence / Workers) — เพิ่ม ORVA Knowledge (แนวคิดจาก Obsidian) และ ORVA Worker (ฐานจาก OpenWorker), แบ่ง Control Plane / Execution Plane |
 | v0.3 | 2026-08-14 | เพิ่ม **CRM เป็น Office/Business Module ที่ 6** (ทุก diagram/รายการโมดูล) — ริเริ่มจากการตรวจ license `horilla/horilla-crm` |
+| v0.4 | 2026-08-16 | ปรับข้อความให้ตรงกับของที่สร้างจริงเสร็จแล้ว: MFA (ADR 0007), ชั้น AI ของ Intelligence Engine (ADR 0018) และเส้นทาง recommendation → คิวงาน ORVA Worker → ผลกลับ (ADR 0019) |
