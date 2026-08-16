@@ -228,11 +228,15 @@ function onNotification(n){
 
 /* ---------- views ---------- */
 async function renderDashboard(){
-  $('view').innerHTML='<div class="grid2"><div class="card"><h2>Recommendations</h2><div id="d-recs" class="empty">กำลังโหลด…</div></div><div class="card"><h2>Insights ล่าสุด</h2><div id="d-insights" class="empty">กำลังโหลด…</div></div></div>';
+  $('view').innerHTML='<div class="card"><h2>ถาม AI Analyst</h2>'+
+    '<label>คำถามถึงข้อมูลองค์กร (เว้นว่าง = วิเคราะห์ภาพรวม)</label><input id="ai-q" placeholder="เช่น สัปดาห์นี้มีอะไรผิดปกติมั้ย">'+
+    '<div style="margin-top:12px"><button onclick="askAi()">วิเคราะห์</button></div>'+
+    '<div id="ai-out" style="white-space:pre-wrap;margin-top:12px"></div><div class="err" id="ai-err"></div></div>'+
+    '<div class="grid2"><div class="card"><h2>Recommendations</h2><div id="d-recs" class="empty">กำลังโหลด…</div></div><div class="card"><h2>Insights ล่าสุด</h2><div id="d-insights" class="empty">กำลังโหลด…</div></div></div>';
   try{
     const recs=await api('/api/v1/recommendations?status=pending');
     $('d-recs').className=''; $('d-recs').innerHTML=recs.length?recs.map(r=>
-      '<div class="list-item"><div class="grow"><div class="title">'+esc(r.title)+'</div><div class="sub">'+esc(r.description)+'</div></div>'+
+      '<div class="list-item"><div class="grow"><div class="title">'+esc(r.title)+(r.source==='ai'?' <span class="badge blue">AI</span>':'')+'</div><div class="sub">'+esc(r.description)+'</div></div>'+
       '<button class="ok" onclick="decideRec(\''+r.id+'\',true)">Accept</button>'+
       '<button class="ghost" onclick="decideRec(\''+r.id+'\',false)">Dismiss</button></div>').join('')
       :'<div class="empty">ไม่มี recommendation ที่รอตัดสิน</div>';
@@ -243,6 +247,15 @@ async function renderDashboard(){
       '<div class="list-item"><div class="grow"><div class="title">'+esc(i.title)+'</div><div class="sub">'+esc(i.description)+'</div></div><span class="badge blue">'+esc(i.rule_name)+'</span></div>').join('')
       :'<div class="empty">ยังไม่มี insight — ตั้ง intelligence rule เพื่อเริ่มเฝ้า event</div>';
   }catch(e){ $('d-insights').innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+}
+async function askAi(){
+  $('ai-err').textContent=''; $('ai-out').textContent='กำลังวิเคราะห์… (อาจใช้เวลาสักครู่)';
+  try{
+    const q=$('ai-q').value.trim();
+    const r=await api('/api/v1/intelligence/analyze',{method:'POST',body:JSON.stringify(q?{question:q}:{})});
+    $('ai-out').textContent=r.analysis;
+    if(r.recommendation){ toast('AI เสนอ recommendation: '+r.recommendation.title); renderDashboard(); $('ai-out').textContent=r.analysis; }
+  }catch(e){ $('ai-out').textContent=''; $('ai-err').textContent=e.message; }
 }
 async function decideRec(id,accept){
   try{

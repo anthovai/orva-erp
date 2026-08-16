@@ -6,7 +6,7 @@ use orva_data::{
     IntelligenceRuleRepository, Pool, ProductRepository, RecommendationRepository,
 };
 use orva_events::EventBus;
-use orva_intelligence::IntelligenceEngine;
+use orva_intelligence::{Analyst, IntelligenceEngine};
 use orva_knowledge::KnowledgeService;
 use orva_module_sdk::{ModuleContext, ModuleRegistry};
 use orva_notifications::{
@@ -53,11 +53,13 @@ pub struct AppState {
     pub knowledge: Arc<KnowledgeService>,
     /// HTTP client สำหรับ proxy ไป external module (connection pool ใช้ร่วมทุก request)
     pub http_client: reqwest::Client,
+    /// ADR 0018 — AI analyst (`None` = ชั้น AI ปิดอยู่, endpoint analyze ตอบ 400)
+    pub analyst: Option<Arc<dyn Analyst>>,
 }
 
 impl AppState {
     pub async fn new(pool: Pool, keys: JwtKeys, issuer: &str) -> Self {
-        Self::with_options(pool, keys, issuer, DEFAULT_REQUESTS_PER_MINUTE, None).await
+        Self::with_options(pool, keys, issuer, DEFAULT_REQUESTS_PER_MINUTE, None, None).await
     }
 
     /// ใช้ตอน test ที่ต้องการ quota ต่ำ ๆ เพื่อพิสูจน์ 429 ได้โดยไม่ต้องยิงร้อยครั้ง
@@ -67,16 +69,18 @@ impl AppState {
         issuer: &str,
         requests_per_minute: u32,
     ) -> Self {
-        Self::with_options(pool, keys, issuer, requests_per_minute, None).await
+        Self::with_options(pool, keys, issuer, requests_per_minute, None, None).await
     }
 
-    /// จุดประกอบเต็มรูปแบบ — `mailer` = `None` คือไม่ส่งอีเมลจริง (ADR 0008)
+    /// จุดประกอบเต็มรูปแบบ — `mailer` = `None` คือไม่ส่งอีเมลจริง (ADR 0008),
+    /// `analyst` = `None` คือปิดชั้น AI (ADR 0018)
     pub async fn with_options(
         pool: Pool,
         keys: JwtKeys,
         issuer: &str,
         requests_per_minute: u32,
         mailer: Option<Arc<dyn Mailer>>,
+        analyst: Option<Arc<dyn Analyst>>,
     ) -> Self {
         let jwks = serde_json::json!({ "keys": [keys.public_jwk.clone()] });
         let event_bus = EventBus::new(pool.clone());
@@ -148,6 +152,7 @@ impl AppState {
                 .timeout(std::time::Duration::from_secs(30))
                 .build()
                 .expect("build http client"),
+            analyst,
         }
     }
 }

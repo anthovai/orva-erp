@@ -24,3 +24,5 @@ pub const WORKFLOW_COMPLETED: &str = "workflow.completed";
 pub const RECOMMENDATION_CREATED: &str = "recommendation.created";
 pub const RECOMMENDATION_ACCEPTED: &str = "recommendation.accepted";
 pub const RECOMMENDATION_DISMISSED: &str = "recommendation.dismissed";
+/// ADR 0018 — AI analyst วิเคราะห์ context เสร็จ (อาจสร้าง recommendation แนบมาด้วย)
+pub const AI_ANALYSIS_COMPLETED: &str = "intelligence.analysis.completed";

@@ -17,6 +17,18 @@ pub struct Config {
     /// ไม่ใส่ section `[email]` = ไม่ส่งอีเมลจริง (email notification บันทึกแถวไว้เฉย ๆ)
     #[serde(default)]
     pub email: Option<EmailConfig>,
+    /// ไม่ใส่ section `[ai]` = ปิดชั้น AI (POST /intelligence/analyze ตอบ 400) — ADR 0018
+    #[serde(default)]
+    pub ai: Option<AiConfig>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct AiConfig {
+    /// Anthropic API key (หรือ env `ORVA_AI_API_KEY` / `ANTHROPIC_API_KEY`)
+    pub api_key: String,
+    /// model id — ไม่ระบุ = default ของ orva-intelligence (`claude-opus-5`)
+    #[serde(default)]
+    pub model: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -163,6 +175,17 @@ impl Config {
                     Err(_) => default_smtp_tls(),
                 },
             });
+        }
+
+        // env override สำหรับ AI — ตั้ง key ตัวเดียวก็เปิดชั้น AI ได้
+        let ai_key = std::env::var("ORVA_AI_API_KEY")
+            .or_else(|_| std::env::var("ANTHROPIC_API_KEY"))
+            .ok();
+        if let Some(api_key) = ai_key {
+            let model = std::env::var("ORVA_AI_MODEL")
+                .ok()
+                .or_else(|| config.ai.as_ref().and_then(|a| a.model.clone()));
+            config.ai = Some(AiConfig { api_key, model });
         }
 
         Ok(config)

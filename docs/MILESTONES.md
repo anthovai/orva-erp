@@ -250,4 +250,4 @@ Notification:
 - ~~ORVA Knowledge (สร้างเองตามแนวคิด linked notes / knowledge graph)~~ → **v0.1 เสร็จ 2026-08-16** — notes + `[[wikilink]]` + backlinks + graph + ลิงก์ canonical entity ([ADR 0017](adr/0017-orva-knowledge.md))
 - เลือก OSS สำหรับ Business Modules — โครง adapter พร้อมแล้ว ([ADR 0014](adr/0014-external-module-adapter.md)); **Horilla HRM เชื่อมจริงแล้ว 2026-08-15 (Phase 1 — ดู [modules/horilla.md](modules/horilla.md))**
 - ~~Unified UI shell~~ → **v0.1 เสร็จ 2026-08-15** — `/ui` embed ใน binary ([ADR 0015](adr/0015-unified-ui-shell.md))
-- AI ใน Intelligence Engine (จาก rules → analytics → AI)
+- ~~AI ใน Intelligence Engine (จาก rules → analytics → AI)~~ → **v0.1 เสร็จ 2026-08-16** — AI analyst ถาม-ตอบกับ context องค์กร + AI-sourced recommendation เข้า loop accept/dismiss ([ADR 0018](adr/0018-ai-intelligence.md))

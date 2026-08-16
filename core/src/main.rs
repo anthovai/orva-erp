@@ -41,12 +41,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
+    // AI analyst — ไม่ config = ชั้น AI ปิด (ADR 0018)
+    let analyst: Option<std::sync::Arc<dyn orva_intelligence::Analyst>> = match &config.ai {
+        Some(ai) => {
+            let model = ai
+                .model
+                .clone()
+                .unwrap_or_else(|| orva_intelligence::DEFAULT_MODEL.to_string());
+            tracing::info!(model = %model, "AI analyst configured — /intelligence/analyze enabled");
+            Some(std::sync::Arc::new(orva_intelligence::ClaudeAnalyst::new(
+                ai.api_key.clone(),
+                Some(model),
+            )))
+        }
+        None => {
+            tracing::info!("no AI configured — /intelligence/analyze disabled");
+            None
+        }
+    };
+
     let state = orva_core::AppState::with_options(
         pool,
         keys,
         &config.auth.issuer,
         orva_core::state::DEFAULT_REQUESTS_PER_MINUTE,
         mailer,
+        analyst,
     )
     .await;
 

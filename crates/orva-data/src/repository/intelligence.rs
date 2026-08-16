@@ -160,8 +160,11 @@ pub struct RecommendationRepository {
 }
 
 pub struct CreateRecommendationParams<'a> {
-    pub insight_id: Uuid,
-    pub rule_id: Uuid,
+    /// `None` สำหรับ recommendation ที่มาจาก AI analyst (ADR 0018)
+    pub insight_id: Option<Uuid>,
+    pub rule_id: Option<Uuid>,
+    /// `rule` หรือ `ai`
+    pub source: &'a str,
     pub title: &'a str,
     pub description: &'a str,
     pub suggested_action: Option<serde_json::Value>,
@@ -180,12 +183,13 @@ impl RecommendationRepository {
         let mut ttx = begin_tenant(&self.pool, organization_id).await?;
         let recommendation = sqlx::query_as::<_, Recommendation>(
             "insert into recommendations
-                (organization_id, insight_id, rule_id, title, description, suggested_action)
-             values ($1, $2, $3, $4, $5, $6) returning *",
+                (organization_id, insight_id, rule_id, source, title, description, suggested_action)
+             values ($1, $2, $3, $4, $5, $6, $7) returning *",
         )
         .bind(organization_id)
         .bind(params.insight_id)
         .bind(params.rule_id)
+        .bind(params.source)
         .bind(params.title)
         .bind(params.description)
         .bind(params.suggested_action)

@@ -93,8 +93,9 @@ impl IntelligenceEngine {
                     .create(
                         event.organization_id,
                         CreateRecommendationParams {
-                            insight_id: insight.id,
-                            rule_id: rule.id,
+                            insight_id: Some(insight.id),
+                            rule_id: Some(rule.id),
+                            source: "rule",
                             title: &format!("Recommended action: {}", rule.name),
                             description: &insight.description,
                             suggested_action: rule.recommended_action.clone(),

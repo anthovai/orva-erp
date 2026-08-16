@@ -40,12 +40,16 @@ pub struct Insight {
 
 /// ข้อเสนอจาก Intelligence Engine ที่รอมนุษย์ตัดสินใจ (ADR 0010)
 /// `pending` → `accepted` (อาจสร้าง workflow ต่อ) หรือ `dismissed`
+///
+/// ADR 0018: `source` บอกที่มา — `rule` (จาก intelligence rule, มี insight/rule ผูก)
+/// หรือ `ai` (จาก AI analyst — insight_id/rule_id เป็น null)
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, sqlx::FromRow)]
 pub struct Recommendation {
     pub id: Uuid,
     pub organization_id: Uuid,
-    pub insight_id: Uuid,
-    pub rule_id: Uuid,
+    pub insight_id: Option<Uuid>,
+    pub rule_id: Option<Uuid>,
+    pub source: String,
     pub title: String,
     pub description: String,
     pub suggested_action: Option<Value>,

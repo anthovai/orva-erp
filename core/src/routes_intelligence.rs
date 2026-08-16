@@ -31,6 +31,136 @@ pub(crate) fn router() -> Router<AppState> {
             "/api/v1/recommendations/{id}/dismiss",
             post(dismiss_recommendation),
         )
+        .route("/api/v1/intelligence/analyze", post(analyze))
+}
+
+#[derive(Deserialize, ToSchema)]
+pub(crate) struct AnalyzeRequest {
+    /// คำถามถึง AI analyst — ไม่ระบุ = วิเคราะห์ภาพรวมองค์กร
+    #[serde(default)]
+    question: Option<String>,
+}
+
+#[derive(Serialize, ToSchema)]
+pub(crate) struct AnalyzeResponse {
+    analysis: String,
+    /// recommendation ที่ AI สร้าง (ถ้ามี) — เข้า loop accept/dismiss ปกติ
+    recommendation: Option<RecommendationResponse>,
+}
+
+/// AI analyst (ADR 0018) — รวบรวม context ขององค์กร (สรุป event ล่าสุด, insights,
+/// pending recommendations, จำนวน canonical entities) ส่งให้ AI วิเคราะห์ตามคำถาม
+/// ถ้า AI เสนอ action จะบันทึกเป็น Recommendation (source = `ai`) รอมนุษย์ตัดสิน —
+/// AI ไม่ execute อะไรเองเด็ดขาด
+#[utoipa::path(post, path = "/api/v1/intelligence/analyze", tag = "intelligence",
+    security(("bearer" = [])), request_body = AnalyzeRequest,
+    responses((status = 200, description = "Analysis (+ recommendation when AI proposes one)", body = AnalyzeResponse),
+               (status = 400, description = "AI is not configured on this server")))]
+pub(crate) async fn analyze(
+    State(state): State<AppState>,
+    RequirePermission(user, ..): RequirePermission<IntelligenceManage>,
+    Json(body): Json<AnalyzeRequest>,
+) -> Result<Json<AnalyzeResponse>, ApiError> {
+    let Some(analyst) = state.analyst.clone() else {
+        return Err(orva_error::Error::Validation(
+            "AI is not configured — set [ai] api_key or ORVA_AI_API_KEY".to_string(),
+        )
+        .into());
+    };
+
+    let context = gather_context(&state, user.organization_id).await?;
+    let result = analyst
+        .analyze(&context, body.question.as_deref())
+        .await
+        .map_err(ApiError::from)?;
+
+    // AI เสนอ action → บันทึกเป็น recommendation รอมนุษย์ accept/dismiss (ADR 0010/0018)
+    let recommendation = match &result.recommendation {
+        Some(r) => Some(
+            state
+                .recommendations
+                .create(
+                    user.organization_id,
+                    orva_data::CreateRecommendationParams {
+                        insight_id: None,
+                        rule_id: None,
+                        source: "ai",
+                        title: &r.title,
+                        description: &r.description,
+                        suggested_action: None,
+                    },
+                )
+                .await?,
+        ),
+        None => None,
+    };
+
+    state
+        .event_bus
+        .publish(
+            user.organization_id,
+            orva_events::catalog::AI_ANALYSIS_COMPLETED,
+            serde_json::json!({
+                "question": body.question,
+                "recommendation_id": recommendation.as_ref().map(|r| r.id),
+            }),
+            orva_events::PublishOptions {
+                actor_user_id: Some(user.id),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+    Ok(Json(AnalyzeResponse {
+        analysis: result.analysis,
+        recommendation: recommendation.map(RecommendationResponse::from),
+    }))
+}
+
+/// snapshot ขององค์กรที่ส่งให้ AI — ตัวเลขล้วน ๆ จากระบบจริง ไม่มี PII เกินจำเป็น
+async fn gather_context(state: &AppState, organization_id: Uuid) -> Result<Value, ApiError> {
+    // สรุป event 7 วันล่าสุดเป็น count ต่อ event_type (ไม่ส่ง payload ดิบ)
+    let events = state
+        .events
+        .list(
+            organization_id,
+            orva_data::EventFilter {
+                occurred_from: Some(chrono::Utc::now() - chrono::Duration::days(7)),
+                ..Default::default()
+            },
+            2_000,
+        )
+        .await?;
+    let mut event_counts = std::collections::BTreeMap::<String, u32>::new();
+    for event in &events {
+        *event_counts.entry(event.event_type.clone()).or_default() += 1;
+    }
+
+    let insights = state.insights.list(organization_id, 10).await?;
+    let pending = state
+        .recommendations
+        .list(organization_id, Some("pending"), 10)
+        .await?;
+    let employees = state.employees.list(organization_id).await?;
+    let products = state.products.list(organization_id).await?;
+
+    Ok(serde_json::json!({
+        "event_counts_last_7_days": event_counts,
+        "recent_insights": insights.iter().map(|i| serde_json::json!({
+            "title": i.title,
+            "description": i.description,
+            "metric_value": i.metric_value,
+            "threshold": i.threshold,
+            "created_at": i.created_at,
+        })).collect::<Vec<_>>(),
+        "pending_recommendations": pending.iter().map(|r| serde_json::json!({
+            "title": r.title,
+            "source": r.source,
+            "created_at": r.created_at,
+        })).collect::<Vec<_>>(),
+        "employee_count": employees.len(),
+        "product_count": products.len(),
+    }))
 }
 
 #[derive(Deserialize, ToSchema)]
@@ -168,8 +298,11 @@ pub(crate) async fn list_insights(
 #[derive(Serialize, ToSchema)]
 pub(crate) struct RecommendationResponse {
     id: Uuid,
-    insight_id: Uuid,
-    rule_id: Uuid,
+    /// null เมื่อ recommendation มาจาก AI analyst (source = `ai`) — ADR 0018
+    insight_id: Option<Uuid>,
+    rule_id: Option<Uuid>,
+    /// `rule` | `ai`
+    source: String,
     title: String,
     description: String,
     suggested_action: Option<Value>,
@@ -184,6 +317,7 @@ impl From<orva_data::Recommendation> for RecommendationResponse {
             id: r.id,
             insight_id: r.insight_id,
             rule_id: r.rule_id,
+            source: r.source,
             title: r.title,
             description: r.description,
             suggested_action: r.suggested_action,
