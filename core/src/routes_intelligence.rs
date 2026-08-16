@@ -374,6 +374,25 @@ pub(crate) async fn accept_recommendation(
         .await?
         .ok_or_else(|| orva_error::Error::NotFound(format!("recommendation '{id}'")))?;
 
+    // ADR 0019 — action แบบ worker: มอบงานให้ ORVA Worker ไปลงมือทำ (เข้าคิว pending
+    // รอ worker มา claim) ปิดวงจร insight/AI → มนุษย์อนุมัติ → Execution Plane
+    if let Some(action) = &recommendation.suggested_action {
+        if action["type"] == "worker" {
+            let instruction = action["instruction"]
+                .as_str()
+                .unwrap_or(&recommendation.title);
+            crate::routes_agent::queue_worker_task(
+                &state,
+                user.organization_id,
+                instruction,
+                "recommendation",
+                Some(recommendation.id),
+                Some(user.id),
+            )
+            .await?;
+        }
+    }
+
     // interpret suggested_action ที่ชั้น core (intelligence layer ไม่ execute อะไรเอง)
     let resulting_workflow_id = match &recommendation.suggested_action {
         Some(action) if action["type"] == "workflow" => {

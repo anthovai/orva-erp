@@ -23,6 +23,10 @@ pub enum Error {
     #[error("rate limit exceeded")]
     RateLimited,
 
+    /// ชนกับสถานะปัจจุบันของ resource — เช่น worker อีกตัว claim งานไปก่อน (ADR 0019)
+    #[error("conflict: {0}")]
+    Conflict(String),
+
     #[error("internal error: {0}")]
     Internal(String),
 }

@@ -14,6 +14,7 @@ mod session;
 mod task;
 mod team;
 mod user;
+mod worker;
 mod workflow;
 
 pub use document::DocumentRepository;
@@ -35,6 +36,7 @@ pub use session::SessionRepository;
 pub use task::TaskRepository;
 pub use team::TeamRepository;
 pub use user::UserRepository;
+pub use worker::{CreateWorkerTaskParams, WorkerTaskRepository};
 pub use workflow::{
     ApprovalTaskRepository, CreateInstanceParams, WorkflowDefinitionRepository,
     WorkflowInstanceRepository,

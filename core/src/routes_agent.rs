@@ -7,8 +7,8 @@ use utoipa::ToSchema;
 use uuid::Uuid;
 
 use crate::{
-    error::ApiError, extractor::ServiceIdentityAuth, routes_workflow::WorkflowResponse,
-    state::AppState,
+    error::ApiError, extractor::ServiceIdentityAuth, routes_worker::WorkerTaskResponse,
+    routes_workflow::WorkflowResponse, state::AppState,
 };
 
 /// ORVA Agent API (M8) — จุดเชื่อมสำหรับ ORVA Worker (OpenWorker) ใน Phase ถัดไป
@@ -20,6 +20,9 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/api/v1/agent/workflows", post(propose_workflow))
         .route("/api/v1/agent/workflows/{id}", get(get_workflow))
         .route("/api/v1/agent/events", post(publish_event))
+        .route("/api/v1/agent/tasks", get(poll_tasks))
+        .route("/api/v1/agent/tasks/{id}/claim", post(claim_task))
+        .route("/api/v1/agent/tasks/{id}/result", post(report_task_result))
 }
 
 /// scope ไม่พอ → 403 พร้อมบอกชัดว่าขาด scope ไหน (คนตั้ง integration จะได้แก้ถูก)
@@ -186,4 +189,184 @@ pub(crate) async fn publish_event(
             event_type: event.event_type,
         }),
     ))
+}
+
+/// สร้างงานเข้าคิว + publish event — จุดเดียวที่ทั้งฝั่งมนุษย์ (`routes_worker`)
+/// และฝั่ง recommendation accept ใช้ร่วมกัน (ADR 0019)
+pub(crate) async fn queue_worker_task(
+    state: &AppState,
+    organization_id: Uuid,
+    instruction: &str,
+    source: &str,
+    source_id: Option<Uuid>,
+    created_by: Option<Uuid>,
+) -> Result<orva_data::WorkerTask, ApiError> {
+    let task = state
+        .worker_tasks
+        .create(
+            organization_id,
+            orva_data::CreateWorkerTaskParams {
+                instruction,
+                source,
+                source_id,
+                created_by,
+            },
+        )
+        .await?;
+
+    state
+        .event_bus
+        .publish(
+            organization_id,
+            orva_events::catalog::WORKER_TASK_CREATED,
+            serde_json::json!({ "task_id": task.id, "source": source }),
+            orva_events::PublishOptions {
+                actor_user_id: created_by,
+                resource: Some(("worker_task".to_string(), task.id)),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+    Ok(task)
+}
+
+/// Worker poll คิวงานที่รออยู่ (FIFO) — ORVA ยิงเข้าหา worker ไม่ได้เพราะ worker
+/// รันบนเครื่องผู้ใช้หลัง NAT จึงใช้ pull model (ADR 0019)
+#[utoipa::path(get, path = "/api/v1/agent/tasks", tag = "agent",
+    security(("service_key" = [])),
+    responses((status = 200, description = "งานที่รอ worker (เก่าก่อน)", body = [WorkerTaskResponse]),
+               (status = 403, description = "Missing scope agent:task:read")))]
+pub(crate) async fn poll_tasks(
+    State(state): State<AppState>,
+    ServiceIdentityAuth(identity): ServiceIdentityAuth,
+) -> Result<Json<Vec<WorkerTaskResponse>>, ApiError> {
+    require_scope(&identity, "agent:task:read")?;
+    let tasks = state
+        .worker_tasks
+        .list_pending(identity.organization_id, 20)
+        .await?;
+    Ok(Json(
+        tasks.into_iter().map(WorkerTaskResponse::from).collect(),
+    ))
+}
+
+/// จองงานก่อนลงมือ — atomic ที่ระดับ DB จึงปลอดภัยเมื่อ worker หลายตัว poll คิวเดียวกัน
+/// (ตัวที่ช้ากว่าได้ 409 แล้วไป claim ชิ้นถัดไป)
+#[utoipa::path(post, path = "/api/v1/agent/tasks/{id}/claim", tag = "agent",
+    security(("service_key" = [])), params(("id" = Uuid, Path)),
+    responses((status = 200, description = "Claimed — งานเป็นของ worker ตัวนี้แล้ว", body = WorkerTaskResponse),
+               (status = 409, description = "Another worker claimed it first (or it is no longer pending)"),
+               (status = 403, description = "Missing scope agent:task:write")))]
+pub(crate) async fn claim_task(
+    State(state): State<AppState>,
+    ServiceIdentityAuth(identity): ServiceIdentityAuth,
+    Path(id): Path<Uuid>,
+) -> Result<Json<WorkerTaskResponse>, ApiError> {
+    require_scope(&identity, "agent:task:write")?;
+    let task = state
+        .worker_tasks
+        .claim(identity.organization_id, id, identity.id)
+        .await?
+        .ok_or_else(|| {
+            orva_error::Error::Conflict(
+                "worker task is no longer pending — another worker claimed it first".to_string(),
+            )
+        })?;
+
+    state
+        .event_bus
+        .publish(
+            identity.organization_id,
+            orva_events::catalog::WORKER_TASK_CLAIMED,
+            serde_json::json!({ "task_id": id, "service_identity_id": identity.id }),
+            orva_events::PublishOptions {
+                resource: Some(("worker_task".to_string(), id)),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+    Ok(Json(task.into()))
+}
+
+#[derive(Deserialize, ToSchema)]
+pub(crate) struct TaskResultRequest {
+    succeeded: bool,
+    /// ผลงานที่ทำเสร็จ (เมื่อ succeeded)
+    result: Option<String>,
+    /// เหตุผลที่ทำไม่สำเร็จ (เมื่อ !succeeded)
+    error: Option<String>,
+}
+
+/// Worker รายงานผลกลับ — ปิดวงจร Control Plane → Execution Plane → Control Plane
+/// คนที่สั่งงานได้ notification ทันที (ADR 0013 push ผ่าน SSE ให้อยู่แล้ว)
+#[utoipa::path(post, path = "/api/v1/agent/tasks/{id}/result", tag = "agent",
+    security(("service_key" = [])), params(("id" = Uuid, Path)), request_body = TaskResultRequest,
+    responses((status = 200, description = "ผลถูกบันทึก", body = WorkerTaskResponse),
+               (status = 400, description = "Task is not running (never claimed, or already reported)"),
+               (status = 403, description = "Missing scope agent:task:write")))]
+pub(crate) async fn report_task_result(
+    State(state): State<AppState>,
+    ServiceIdentityAuth(identity): ServiceIdentityAuth,
+    Path(id): Path<Uuid>,
+    Json(body): Json<TaskResultRequest>,
+) -> Result<Json<WorkerTaskResponse>, ApiError> {
+    require_scope(&identity, "agent:task:write")?;
+    let task = state
+        .worker_tasks
+        .complete(
+            identity.organization_id,
+            id,
+            body.succeeded,
+            body.result.as_deref(),
+            body.error.as_deref(),
+        )
+        .await?
+        .ok_or_else(|| {
+            orva_error::Error::Validation(
+                "worker task is not running — claim it before reporting a result".to_string(),
+            )
+        })?;
+
+    // แจ้งคนที่สั่งงาน (best-effort — งานเสร็จแล้วจริง ไม่ควรพังเพราะแจ้งเตือนไม่ผ่าน)
+    if let Some(user_id) = task.created_by {
+        let title = if body.succeeded {
+            "Worker task succeeded"
+        } else {
+            "Worker task failed"
+        };
+        let detail = task
+            .result
+            .as_deref()
+            .or(task.error.as_deref())
+            .unwrap_or("(no detail reported)");
+        if let Err(e) = state
+            .notifications
+            .notify(
+                identity.organization_id,
+                user_id,
+                title,
+                &format!("{}: {detail}", task.instruction),
+            )
+            .await
+        {
+            tracing::warn!(task_id = %id, error = %e, "worker task completion notification failed");
+        }
+    }
+
+    state
+        .event_bus
+        .publish(
+            identity.organization_id,
+            orva_events::catalog::WORKER_TASK_COMPLETED,
+            serde_json::json!({ "task_id": id, "succeeded": body.succeeded }),
+            orva_events::PublishOptions {
+                resource: Some(("worker_task".to_string(), id)),
+                ..Default::default()
+            },
+        )
+        .await?;
+
+    Ok(Json(task.into()))
 }

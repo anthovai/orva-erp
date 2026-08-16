@@ -24,3 +24,4 @@
 | [0016](0016-canonical-projection.md) | Canonical Entity Sync แบบ Event-driven Projection | Accepted |
 | [0017](0017-orva-knowledge.md) | ORVA Knowledge: linked notes ที่ผูกกับ canonical data | Accepted |
 | [0018](0018-ai-intelligence.md) | AI ใน Intelligence Engine: Analyst ที่เสนอ ไม่ execute | Accepted |
+| [0019](0019-worker-task-queue.md) | ORVA Worker task queue: pull-based dispatch ไป Execution Plane | Accepted |

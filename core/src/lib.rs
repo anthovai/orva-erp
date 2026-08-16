@@ -15,6 +15,7 @@ mod routes_intelligence;
 mod routes_knowledge;
 mod routes_modules;
 mod routes_notifications;
+mod routes_worker;
 mod routes_workflow;
 pub mod state;
 mod validation;
@@ -35,6 +36,7 @@ pub fn app(state: AppState) -> Router {
         .merge(routes_agent::router())
         .merge(routes_external::router())
         .merge(routes_knowledge::router())
+        .merge(routes_worker::router())
         .merge(docs::router())
         .with_state(state.clone())
         .merge(module_router)

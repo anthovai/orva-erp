@@ -516,11 +516,14 @@ impl AuthService {
     }
 
     /// scope ที่ Agent API รู้จัก (ADR 0011) — แบบเจาะจง resource_type ใช้ prefix ด้านล่าง
-    pub const KNOWN_AGENT_SCOPES: [&'static str; 4] = [
+    pub const KNOWN_AGENT_SCOPES: [&'static str; 6] = [
         "agent:context:read",
         "agent:workflow:read",
         "agent:workflow:propose",
         "agent:event:publish",
+        // ADR 0019 — คิวงานที่ ORVA มอบให้ worker: อ่านคิว / claim + รายงานผล
+        "agent:task:read",
+        "agent:task:write",
     ];
     pub const PROPOSE_SCOPE_PREFIX: &'static str = "agent:workflow:propose:";
 

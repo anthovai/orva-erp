@@ -65,3 +65,14 @@ pub struct KnowledgeManage;
 impl PermissionKey for KnowledgeManage {
     const KEY: &'static str = "core.knowledge.manage";
 }
+
+/// ADR 0019 — คิวงานที่มอบให้ ORVA Worker
+pub struct WorkerRead;
+impl PermissionKey for WorkerRead {
+    const KEY: &'static str = "core.worker.read";
+}
+
+pub struct WorkerManage;
+impl PermissionKey for WorkerManage {
+    const KEY: &'static str = "core.worker.manage";
+}

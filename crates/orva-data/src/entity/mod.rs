@@ -14,6 +14,7 @@ mod session;
 mod task;
 mod team;
 mod user;
+mod worker;
 mod workflow;
 
 pub use document::Document;
@@ -32,4 +33,5 @@ pub use session::Session;
 pub use task::{Task, TaskStatus};
 pub use team::{Team, TeamMember};
 pub use user::User;
+pub use worker::WorkerTask;
 pub use workflow::{ApprovalTask, WorkflowDefinition, WorkflowInstance};

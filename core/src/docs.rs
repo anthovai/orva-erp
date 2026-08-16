@@ -5,7 +5,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
     routes, routes_agent, routes_external, routes_intelligence, routes_knowledge, routes_modules,
-    routes_notifications, routes_workflow, state::AppState,
+    routes_notifications, routes_worker, routes_workflow, state::AppState,
 };
 
 struct BearerAuth;
@@ -91,6 +91,13 @@ impl Modify for BearerAuth {
         routes_intelligence::list_rules,
         routes_intelligence::list_insights,
         routes_intelligence::analyze,
+        routes_worker::create_task,
+        routes_worker::list_tasks,
+        routes_worker::get_task,
+        routes_worker::cancel_task,
+        routes_agent::poll_tasks,
+        routes_agent::claim_task,
+        routes_agent::report_task_result,
         routes_agent::context,
         routes_agent::propose_workflow,
         routes_agent::get_workflow,
@@ -132,6 +139,9 @@ impl Modify for BearerAuth {
         routes_intelligence::RecommendationResponse,
         routes_intelligence::AnalyzeRequest,
         routes_intelligence::AnalyzeResponse,
+        routes_worker::CreateTaskRequest,
+        routes_worker::WorkerTaskResponse,
+        routes_agent::TaskResultRequest,
         routes_external::RegisterExternalModuleRequest,
         routes_external::ExternalModuleResponse,
         routes_agent::PublishEventRequest,

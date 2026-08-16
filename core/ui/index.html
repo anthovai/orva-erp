@@ -99,6 +99,7 @@ code{background:var(--bg);border:1px solid var(--border);border-radius:6px;paddi
       <a href="#approvals" data-view="approvals">งานรออนุมัติ <span class="badge" id="nav-approvals-badge" style="display:none"></span></a>
       <a href="#notifications" data-view="notifications">การแจ้งเตือน <span id="nav-notif-badge"></span></a>
       <a href="#knowledge" data-view="knowledge">Knowledge</a>
+      <a href="#worker" data-view="worker">Worker</a>
       <a href="#modules" data-view="modules">Modules</a>
       <a href="#settings" data-view="settings">ตั้งค่า</a>
     </nav>
@@ -180,12 +181,12 @@ async function boot(){
   navigate(location.hash.slice(1)||'dashboard');
 }
 window.addEventListener('hashchange',()=>navigate(location.hash.slice(1)||'dashboard'));
-const VIEWS={dashboard:'Dashboard',approvals:'งานรออนุมัติ',notifications:'การแจ้งเตือน',knowledge:'Knowledge',modules:'Modules',settings:'ตั้งค่า'};
+const VIEWS={dashboard:'Dashboard',approvals:'งานรออนุมัติ',notifications:'การแจ้งเตือน',knowledge:'Knowledge',worker:'ORVA Worker',modules:'Modules',settings:'ตั้งค่า'};
 function navigate(view){
   if(!VIEWS[view]) view='dashboard';
   document.querySelectorAll('#sidebar nav a').forEach(a=>a.classList.toggle('active',a.dataset.view===view));
   $('view-title').textContent=VIEWS[view];
-  ({dashboard:renderDashboard,approvals:renderApprovals,notifications:renderNotifications,knowledge:renderKnowledge,modules:renderModules,settings:renderSettings})[view]();
+  ({dashboard:renderDashboard,approvals:renderApprovals,notifications:renderNotifications,knowledge:renderKnowledge,worker:renderWorker,modules:renderModules,settings:renderSettings})[view]();
 }
 async function refreshBadges(){
   try{
@@ -295,6 +296,34 @@ async function renderNotifications(){
   refreshBadges();
 }
 async function markRead(id){ try{ await api('/api/v1/notifications/'+id+'/read',{method:'POST'}); renderNotifications(); }catch(e){ toast(e.message); } }
+/* ---------- ORVA Worker (ADR 0019) ---------- */
+async function renderWorker(){
+  $('view').innerHTML='<div class="card"><h2>มอบงานให้ ORVA Worker</h2>'+
+    '<label>สิ่งที่อยากให้ worker ทำ</label><input id="w-instr" placeholder="เช่น รวบรวมใบเสนอราคาจากอีเมลสัปดาห์นี้">'+
+    '<div style="margin-top:12px"><button onclick="queueTask()">เข้าคิว</button></div><div class="err" id="w-err"></div></div>'+
+    '<div class="card"><h2>คิวงาน</h2><div id="w-list" class="empty">กำลังโหลด…</div></div>';
+  try{
+    const tasks=await api('/api/v1/worker/tasks');
+    const badge={pending:'',running:'blue',succeeded:'green',failed:'red',cancelled:''};
+    $('w-list').className=''; $('w-list').innerHTML=tasks.length?tasks.map(t=>
+      '<div class="list-item"><div class="grow"><div class="title">'+esc(t.instruction)+'</div>'+
+      '<div class="sub">'+esc(t.source)+(t.result?' — '+esc(t.result):'')+(t.error?' — '+esc(t.error):'')+'</div></div>'+
+      '<span class="badge '+(badge[t.status]||'')+'">'+esc(t.status)+'</span>'+
+      (t.status==='pending'?'<button class="ghost" onclick="cancelTask(\''+t.id+'\')">ยกเลิก</button>':'')+'</div>').join('')
+      :'<div class="empty">ยังไม่มีงานในคิว</div>';
+  }catch(e){ $('w-list').innerHTML='<div class="empty">'+esc(e.message)+'</div>'; }
+}
+async function queueTask(){
+  $('w-err').textContent='';
+  try{
+    await api('/api/v1/worker/tasks',{method:'POST',body:JSON.stringify({instruction:$('w-instr').value.trim()})});
+    renderWorker();
+  }catch(e){ $('w-err').textContent=e.message; }
+}
+async function cancelTask(id){
+  try{ await api('/api/v1/worker/tasks/'+id+'/cancel',{method:'POST'}); renderWorker(); }catch(e){ toast(e.message); }
+}
+
 /* ---------- knowledge (ADR 0017) ---------- */
 async function renderKnowledge(){
   $('view').innerHTML='<div class="grid2"><div class="card"><h2>Notes</h2><div id="k-list" class="empty">กำลังโหลด…</div>'+

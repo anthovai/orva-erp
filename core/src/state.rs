@@ -4,6 +4,7 @@ use orva_auth::{AuthConfig, AuthService, JwtKeys};
 use orva_data::{
     EmployeeRepository, EventRepository, ExternalModuleRepository, InsightRepository,
     IntelligenceRuleRepository, Pool, ProductRepository, RecommendationRepository,
+    WorkerTaskRepository,
 };
 use orva_events::EventBus;
 use orva_intelligence::{Analyst, IntelligenceEngine};
@@ -55,6 +56,8 @@ pub struct AppState {
     pub http_client: reqwest::Client,
     /// ADR 0018 — AI analyst (`None` = ชั้น AI ปิดอยู่, endpoint analyze ตอบ 400)
     pub analyst: Option<Arc<dyn Analyst>>,
+    /// ADR 0019 — คิวงานที่ ORVA มอบให้ ORVA Worker (worker มา poll เอง)
+    pub worker_tasks: WorkerTaskRepository,
 }
 
 impl AppState {
@@ -147,6 +150,7 @@ impl AppState {
             external_modules: ExternalModuleRepository::new(pool.clone()),
             employees: EmployeeRepository::new(pool.clone()),
             products: ProductRepository::new(pool.clone()),
+            worker_tasks: WorkerTaskRepository::new(pool.clone()),
             knowledge: Arc::new(KnowledgeService::new(pool, event_bus_for_knowledge)),
             http_client: reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(30))

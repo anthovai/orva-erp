@@ -22,6 +22,7 @@ impl IntoResponse for ApiError {
                 StatusCode::TOO_MANY_REQUESTS,
                 "rate limit exceeded".to_string(),
             ),
+            Conflict(m) => (StatusCode::CONFLICT, m.clone()),
             Config(m) => (StatusCode::INTERNAL_SERVER_ERROR, m.clone()),
             Internal(m) => (StatusCode::INTERNAL_SERVER_ERROR, m.clone()),
         };

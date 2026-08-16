@@ -15,6 +15,13 @@ url = "postgres://orva_app:orva@localhost:5432/orva"
 rsa_key_path = "config/keys/jwt_rsa.pem"
 issuer = "orva-core"
 
+# เปิดชั้น AI (ADR 0018): ใส่ section [ai] หรือ env ORVA_AI_API_KEY (หรือ ANTHROPIC_API_KEY)
+# ไม่ตั้ง = POST /api/v1/intelligence/analyze ตอบ 400
+# อย่า commit key จริงลงไฟล์นี้ — ใช้ env ในเครื่อง/secret manager แทน
+# [ai]
+# api_key = "sk-ant-..."
+# model = "claude-opus-5"   # ไม่ระบุ = default ของ orva-intelligence
+
 # เปิดส่งอีเมลจริง: ใส่ section [email] หรือ env ORVA_SMTP_HOST + ORVA_SMTP_FROM
 # (dev: docker compose มี Mailpit — SMTP :1025, Web UI http://localhost:8025)
 # [email]

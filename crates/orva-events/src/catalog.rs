@@ -26,3 +26,9 @@ pub const RECOMMENDATION_ACCEPTED: &str = "recommendation.accepted";
 pub const RECOMMENDATION_DISMISSED: &str = "recommendation.dismissed";
 /// ADR 0018 — AI analyst วิเคราะห์ context เสร็จ (อาจสร้าง recommendation แนบมาด้วย)
 pub const AI_ANALYSIS_COMPLETED: &str = "intelligence.analysis.completed";
+
+/// ADR 0019 — คิวงานของ ORVA Worker (Execution Plane)
+pub const WORKER_TASK_CREATED: &str = "worker.task.created";
+pub const WORKER_TASK_CLAIMED: &str = "worker.task.claimed";
+pub const WORKER_TASK_COMPLETED: &str = "worker.task.completed";
+pub const WORKER_TASK_CANCELLED: &str = "worker.task.cancelled";
