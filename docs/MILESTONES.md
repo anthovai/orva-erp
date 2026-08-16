@@ -246,7 +246,7 @@ Notification:
 
 ## หลัง v0.1 (Phase ถัดไป — ไม่อยู่ใน scope นี้)
 
-- ORVA Worker integration (OpenWorker เต็มรูปแบบ) → **ฝั่ง ORVA เสร็จ 2026-08-16** — คิวงาน + Agent API ให้ worker poll/claim/รายงานผล ([ADR 0019](adr/0019-worker-task-queue.md)); เหลือเพิ่ม tool ฝั่ง OpenWorker ให้เรียก endpoint ชุดนี้
+- ~~ORVA Worker integration (OpenWorker เต็มรูปแบบ)~~ → **เสร็จ 2026-08-16 ทั้งสองฝั่ง** — ORVA: คิวงาน + Agent API ให้ worker poll/claim/รายงานผล ([ADR 0019](adr/0019-worker-task-queue.md)); OpenWorker: tools `orva_poll_tasks` / `orva_claim_task` / `orva_report_task_result` (`anthovai/openworker` commit c7b22c2)
 - ~~ORVA Knowledge (สร้างเองตามแนวคิด linked notes / knowledge graph)~~ → **v0.1 เสร็จ 2026-08-16** — notes + `[[wikilink]]` + backlinks + graph + ลิงก์ canonical entity ([ADR 0017](adr/0017-orva-knowledge.md))
 - เลือก OSS สำหรับ Business Modules — โครง adapter พร้อมแล้ว ([ADR 0014](adr/0014-external-module-adapter.md)); **Horilla HRM เชื่อมจริงแล้ว 2026-08-15 (Phase 1 — ดู [modules/horilla.md](modules/horilla.md))**
 - ~~Unified UI shell~~ → **v0.1 เสร็จ 2026-08-15** — `/ui` embed ใน binary ([ADR 0015](adr/0015-unified-ui-shell.md))
