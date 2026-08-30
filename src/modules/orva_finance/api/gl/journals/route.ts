@@ -48,7 +48,7 @@ export const { metadata, GET, POST, PUT, DELETE } = makeCrudRoute({
     schema: journalListSchema,
     entityId: ENTITY_ID,
     fields: [
-      'id', 'journal_no', 'status', 'period_id', 'journal_date', 'currency_code', 'memo',
+      'id', 'journal_no', 'status', 'journal_kind', 'period_id', 'journal_date', 'currency_code', 'memo',
       'total_debit', 'total_credit', 'posted_at', 'tenant_id', 'organization_id', 'created_at', 'updated_at',
     ],
     sortFieldMap: { id: 'id', journal_no: 'journal_no', status: 'status', journal_date: 'journal_date', created_at: 'created_at' },

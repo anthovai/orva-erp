@@ -17,6 +17,7 @@ type JournalRow = {
   id: string
   journal_no?: string | null
   status: string
+  journal_kind?: string
   journal_date: string
   currency_code: string
   memo?: string | null
@@ -46,11 +47,18 @@ export default function JournalsTable() {
       accessorKey: 'status',
       header: t('orva_finance.journals.column.status', 'Status'),
       meta: { priority: 1 },
-      cell: ({ getValue }) => {
+      cell: ({ row, getValue }) => {
         const status = String(getValue())
         return (
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs border ${status === 'posted' ? 'bg-accent/50' : 'bg-muted text-muted-foreground'}`}>
-            {t(`orva_finance.journalStatus.${status}`, status)}
+          <span className="inline-flex items-center gap-1">
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs border ${status === 'posted' ? 'bg-accent/50' : 'bg-muted text-muted-foreground'}`}>
+              {t(`orva_finance.journalStatus.${status}`, status)}
+            </span>
+            {row.original.journal_kind === 'closing' ? (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs border bg-muted text-muted-foreground">
+                {t('orva_finance.journalKind.closing', 'Closing')}
+              </span>
+            ) : null}
           </span>
         )
       },

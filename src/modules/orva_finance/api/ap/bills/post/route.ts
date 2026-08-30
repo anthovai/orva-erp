@@ -75,6 +75,7 @@ export async function POST(req: Request) {
         organizationId: String(bill.organizationId),
         journalNo,
         status: 'draft',
+        journalKind: 'standard',
         periodId: String(bill.periodId),
         journalDate: String(bill.billDate),
         currencyCode: bill.currencyCode,

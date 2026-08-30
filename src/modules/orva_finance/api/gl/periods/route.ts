@@ -1,6 +1,8 @@
 import { z } from 'zod'
+import type { EntityManager } from '@mikro-orm/postgresql'
 import { makeCrudRoute } from '@open-mercato/shared/lib/crud/factory'
-import { FiscalPeriod } from '../../../data/entities'
+import { badRequest } from '@open-mercato/shared/lib/crud/errors'
+import { FiscalPeriod, GlJournal } from '../../../data/entities'
 import { periodCreateSchema, periodListSchema, periodUpdateSchema, deleteByIdSchema } from '../../../data/validators'
 import { createOrvaFinanceCrudOpenApi, createPagedListResponseSchema, createdSchema, okSchema } from '../../openapi'
 
@@ -72,6 +74,20 @@ export const { metadata, GET, POST, PUT, DELETE } = makeCrudRoute({
     idFrom: 'body',
     softDelete: true,
     response: () => ({ ok: true }),
+  },
+  hooks: {
+    // Reopening a period whose books were closed would let new postings
+    // bypass the closing entries; require a proper reversal instead.
+    beforeUpdate: async (input, ctx) => {
+      if (input.status !== 'open') return
+      const em = ctx.container.resolve<EntityManager>('em')
+      const closing = await em.findOne(GlJournal, {
+        periodId: input.id, journalKind: 'closing', deletedAt: null,
+      })
+      if (closing) {
+        throw badRequest(`Period has closing journal ${closing.journalNo} — it cannot be reopened`)
+      }
+    },
   },
 })
 

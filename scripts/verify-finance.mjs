@@ -185,6 +185,22 @@ try {
   await expectError('posted receipt allocations frozen', /immutable/i,
     () => client.query(`update orva_ar_receipt_allocations set amount=1 where receipt_id=$1`, [receipt.id]))
 
+  // period closing: at most one closing journal per period + kind check
+  await expectError('journal_kind constrained to standard/closing', /kind_check/i,
+    () => client.query(
+      `insert into orva_gl_journals (tenant_id, organization_id, journal_no, status, journal_kind, period_id, journal_date, total_debit, total_credit, created_at, updated_at)
+       values ($1,$2,$3,'draft','bogus',$4,'2099-01-27',0,0,now(),now())`,
+      [scope.tenant, scope.org, `T-JE-KIND-${Date.now()}`, openPeriod]))
+  await client.query(
+    `insert into orva_gl_journals (tenant_id, organization_id, journal_no, status, journal_kind, period_id, journal_date, total_debit, total_credit, created_at, updated_at)
+     values ($1,$2,$3,'draft','closing',$4,'2099-01-31',10,10,now(),now())`,
+    [scope.tenant, scope.org, `T-JE-CLOSE-${Date.now()}`, openPeriod])
+  await expectError('second closing journal per period blocked (unique)', /closing_per_period_unique/i,
+    () => client.query(
+      `insert into orva_gl_journals (tenant_id, organization_id, journal_no, status, journal_kind, period_id, journal_date, total_debit, total_credit, created_at, updated_at)
+       values ($1,$2,$3,'draft','closing',$4,'2099-01-31',10,10,now(),now())`,
+      [scope.tenant, scope.org, `T-JE-CLOSE2-${Date.now()}`, openPeriod]))
+
   await expectError('ap settings unique per scope', /scope_unique/i, async () => {
     await client.query(`insert into orva_ap_settings (tenant_id, organization_id, ap_account_id, created_at, updated_at) values ($1,$2,$3,now(),now())`, [scope.tenant, scope.org, apAcct])
     await client.query(`insert into orva_ap_settings (tenant_id, organization_id, ap_account_id, created_at, updated_at) values ($1,$2,$3,now(),now())`, [scope.tenant, scope.org, apAcct])

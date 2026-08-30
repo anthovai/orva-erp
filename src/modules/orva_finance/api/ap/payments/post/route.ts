@@ -96,6 +96,7 @@ export async function POST(req: Request) {
         organizationId: String(payment.organizationId),
         journalNo,
         status: 'draft',
+        journalKind: 'standard',
         periodId: String(payment.periodId),
         journalDate: String(payment.paymentDate),
         currencyCode: payment.currencyCode,
@@ -131,7 +132,7 @@ export async function POST(req: Request) {
       journal.postedAt = now
       journal.postedBy = auth.sub ?? null
 
-      // Settle the bills — the relaxed bill guard allows exactly this change.
+      // Settle the bills â€” the relaxed bill guard allows exactly this change.
       for (const alloc of allocations) {
         const bill = bills.get(alloc.billId)
         if (!bill) continue

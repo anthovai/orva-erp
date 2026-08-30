@@ -113,6 +113,14 @@ export class GlJournal {
   @Property({ type: 'text', default: 'draft' })
   status: string = 'draft'
 
+  /**
+   * 'standard' | 'closing'. Closing journals zero the period's income and
+   * expense into retained earnings; the P&L excludes them (a closed period
+   * would otherwise report zero profit), the balance sheet includes them.
+   */
+  @Property({ name: 'journal_kind', type: 'text', default: 'standard' })
+  journalKind: string = 'standard'
+
   @Property({ name: 'period_id', type: 'uuid' })
   periodId!: string
 
@@ -198,6 +206,31 @@ export class GlJournalLine {
 
   @Property({ name: 'deleted_at', type: Date, nullable: true })
   deletedAt?: Date | null
+}
+
+/**
+ * GL configuration (one row per tenant/org): the retained-earnings equity
+ * account that period closing transfers net profit into.
+ */
+@Entity({ tableName: 'orva_gl_settings' })
+export class GlSettings {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ name: 'retained_earnings_account_id', type: 'uuid' })
+  retainedEarningsAccountId!: string
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
 }
 
 /**

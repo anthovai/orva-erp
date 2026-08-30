@@ -103,6 +103,12 @@ export const journalUpdateSchema = z.object({
 
 export const journalPostSchema = z.object({ id: z.string().uuid() })
 
+export const glSettingsPutSchema = z.object({
+  retainedEarningsAccountId: z.string().uuid(),
+})
+
+export const periodCloseSchema = z.object({ periodId: z.string().uuid() })
+
 export const deleteByIdSchema = z.object({ id: z.string().uuid() })
 
 export const billLineInputSchema = z.object({

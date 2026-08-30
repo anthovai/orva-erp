@@ -103,6 +103,7 @@ export async function POST(req: Request) {
         organizationId: String(receipt.organizationId),
         journalNo,
         status: 'draft',
+        journalKind: 'standard',
         periodId: String(receipt.periodId),
         journalDate: String(receipt.receiptDate),
         currencyCode: receipt.currencyCode,

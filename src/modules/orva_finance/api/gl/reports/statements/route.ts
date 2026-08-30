@@ -77,6 +77,7 @@ export async function GET(req: Request) {
        where j.id = l.journal_id
          and j.status = 'posted'
          and j.deleted_at is null
+         ${useFrom ? `and j.journal_kind <> 'closing'` : ''}
          ${useFrom ? `and (?::date is null or j.journal_date >= ?::date)` : ''}
          and (?::date is null or j.journal_date <= ?::date)
          and (?::uuid is null or j.organization_id = ?::uuid)
