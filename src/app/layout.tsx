@@ -8,10 +8,10 @@ import { detectLocale, loadDictionary } from '@open-mercato/shared/lib/i18n/serv
 import { resolveForcedLocale } from '@open-mercato/shared/lib/i18n/locale'
 
 export const metadata: Metadata = {
-  title: 'Open Mercato',
-  description: 'AI-supportive, modular ERP foundation for product & service companies',
+  title: 'Orva',
+  description: 'Orva — AI-native ERP by Anthovai',
   icons: {
-    icon: '/open-mercato.svg',
+    icon: '/orva.svg',
   },
 }
 

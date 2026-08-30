@@ -155,3 +155,7 @@ if (parseBooleanWithDefault(process.env.OM_ENABLE_STORAGE_S3, false)) {
 // Orva policy: @open-mercato/enterprise is proprietary (no commercial/SaaS use)
 // and must never be wired in. SSO/MFA/record-locking will be reimplemented
 // clean-room as @orva/* modules through public extension points.
+
+// Orva branding: registered LAST so its i18n overrides every module's defaults
+// (dictionary merge is last-write-wins across enabledModules order).
+enabledModules.push({ id: 'orva', from: '@app' })

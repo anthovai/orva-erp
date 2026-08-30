@@ -89,7 +89,7 @@ export default async function BackendLayout({
     grantedFeatures,
     unrestricted: auth?.isSuperAdmin === true,
   })
-  const baseProductName = translate('appShell.productName', 'Open Mercato')
+  const baseProductName = translate('appShell.productName', 'Orva')
   const productName = deployEnv && deployEnv !== 'local'
     ? `${baseProductName} (${deployEnv.charAt(0).toUpperCase() + deployEnv.slice(1)})`
     : baseProductName
