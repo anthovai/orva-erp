@@ -1,0 +1,95 @@
+// Orva Finance: live verification of the GL invariants that are enforced in
+// the DATABASE (triggers + checks), independent of application code.
+// Connects with DATABASE_URL (orva_app). Usage: node scripts/verify-finance.mjs
+import 'dotenv/config'
+import pg from 'pg'
+import { randomUUID } from 'node:crypto'
+
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL })
+await client.connect()
+let failures = 0
+const check = (name, ok, detail) => { console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`); if (!ok) failures++ }
+const expectError = async (name, pattern, fn) => {
+  await client.query('savepoint sp')
+  try { await fn(); check(name, false, 'no error raised') }
+  catch (e) { check(name, pattern.test(e.message), e.message.split('\n')[0]) }
+  await client.query('rollback to sp')
+}
+
+try {
+  const { rows: [scope] } = await client.query(`select t.id as tenant, o.id as org from tenants t, organizations o limit 1`)
+  await client.query('begin')
+  await client.query(`select set_config('orva.tenant_id', $1, true)`, [scope.tenant])
+
+  const mk = async (sql, params) => (await client.query(sql, params)).rows[0]
+  const acct = async (code, type) => (await mk(
+    `insert into orva_gl_accounts (tenant_id, organization_id, code, name, account_type, created_at, updated_at)
+     values ($1,$2,$3,$3,$4,now(),now()) returning id`, [scope.tenant, scope.org, code, type])).id
+  const cash = await acct(`T-1000-${Date.now()}`, 'asset')
+  const sales = await acct(`T-4000-${Date.now()}`, 'income')
+
+  const openPeriod = (await mk(
+    `insert into orva_fiscal_periods (tenant_id, organization_id, code, starts_on, ends_on, status, created_at, updated_at)
+     values ($1,$2,$3,'2099-01-01','2099-01-31','open',now(),now()) returning id`,
+    [scope.tenant, scope.org, `T-2099-01-${Date.now()}`])).id
+  const closedPeriod = (await mk(
+    `insert into orva_fiscal_periods (tenant_id, organization_id, code, starts_on, ends_on, status, created_at, updated_at)
+     values ($1,$2,$3,'2099-02-01','2099-02-28','closed',now(),now()) returning id`,
+    [scope.tenant, scope.org, `T-2099-02-${Date.now()}`])).id
+
+  const journal = async (period, date, no) => (await mk(
+    `insert into orva_gl_journals (tenant_id, organization_id, journal_no, status, period_id, journal_date, total_debit, total_credit, created_at, updated_at)
+     values ($1,$2,$3,'draft',$4,$5,100,100,now(),now()) returning id`,
+    [scope.tenant, scope.org, no, period, date])).id
+  const line = (j, acc, debit, credit, n) => client.query(
+    `insert into orva_gl_journal_lines (tenant_id, organization_id, journal_id, line_no, account_id, debit, credit, created_at, updated_at)
+     values ($1,$2,$3,$4,$5,$6,$7,now(),now())`, [scope.tenant, scope.org, j, n, acc, debit, credit])
+
+  // happy path: balanced journal in an open period posts
+  const j1 = await journal(openPeriod, '2099-01-15', `T-JE-OK-${Date.now()}`)
+  await line(j1, cash, 100, 0, 1)
+  await line(j1, sales, 0, 100, 2)
+  await client.query(`update orva_gl_journals set status='posted', posted_at=now() where id=$1`, [j1])
+  check('balanced journal in open period posts', true)
+
+  // posted journal is immutable / undeletable / lines frozen (DB triggers)
+  await expectError('posted journal rejects UPDATE', /immutable/i,
+    () => client.query(`update orva_gl_journals set memo='tamper' where id=$1`, [j1]))
+  await expectError('posted journal rejects DELETE', /cannot be deleted/i,
+    () => client.query(`delete from orva_gl_journals where id=$1`, [j1]))
+  await expectError('posted journal lines reject UPDATE (incl. soft delete)', /immutable/i,
+    () => client.query(`update orva_gl_journal_lines set deleted_at=now() where journal_id=$1`, [j1]))
+  await expectError('posted journal lines reject INSERT', /immutable/i,
+    () => line(j1, cash, 1, 0, 3))
+
+  // unbalanced posting is rejected by the trigger
+  const j2 = await journal(openPeriod, '2099-01-16', `T-JE-UNBAL-${Date.now()}`)
+  await expectError('unbalanced journal cannot post', /not balanced/i,
+    () => client.query(`update orva_gl_journals set status='posted', total_debit=100, total_credit=99 where id=$1`, [j2]))
+
+  // closed period rejects posting
+  const j3 = await journal(closedPeriod, '2099-02-10', `T-JE-CLOSED-${Date.now()}`)
+  await expectError('closed period rejects posting', /closed/i,
+    () => client.query(`update orva_gl_journals set status='posted' where id=$1`, [j3]))
+
+  // date outside period rejects posting
+  const j4 = await journal(openPeriod, '2099-03-01', `T-JE-DATE-${Date.now()}`)
+  await expectError('journal date outside period rejects posting', /outside period/i,
+    () => client.query(`update orva_gl_journals set status='posted' where id=$1`, [j4]))
+
+  // line-level constraint: debit and credit on the same line
+  await expectError('line with both debit and credit rejected (check)', /amounts_check/i,
+    () => line(j2, cash, 5, 5, 9))
+
+  // RLS: another tenant sees nothing
+  await client.query('rollback')
+  await client.query('begin')
+  await client.query(`select set_config('orva.tenant_id', $1, true)`, [randomUUID()])
+  const { rows: [{ count: crossCount }] } = await client.query(
+    `select count(*)::int as count from orva_gl_journals where journal_no like 'T-JE-%'`)
+  check('cross-tenant: journals invisible (RLS)', crossCount === 0, `${crossCount} visible`)
+  await client.query('rollback')
+} finally {
+  await client.end()
+}
+process.exit(failures === 0 ? 0 : 1)
