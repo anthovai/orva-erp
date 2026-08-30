@@ -1,9 +1,11 @@
 "use client"
 import * as React from 'react'
+import Link from 'next/link'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy'
 import { DataTable } from '@open-mercato/ui/backend/DataTable'
 import { RowActions } from '@open-mercato/ui/backend/RowActions'
+import { Button } from '@open-mercato/ui/primitives/button'
 import { fetchCrudList } from '@open-mercato/ui/backend/utils/crud'
 import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
@@ -72,6 +74,11 @@ export default function JournalsTable() {
     <>
       <DataTable
         title={t('orva_finance.journals.page.title', 'GL Journals')}
+        actions={(
+          <Button asChild>
+            <Link href="/backend/gl/journals/create">{t('orva_finance.journals.actions.create', 'Create journal')}</Link>
+          </Button>
+        )}
         columns={columns}
         data={data?.items ?? []}
         entityId="orva_finance:gl_journal"
