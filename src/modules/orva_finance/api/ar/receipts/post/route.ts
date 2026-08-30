@@ -115,6 +115,9 @@ export async function POST(req: Request) {
         updatedAt: now,
       })
       tem.persist(journal)
+      // Flush the header first: the uuid PK is DB-generated, so journal.id
+      // is only hydrated after this flush and the lines need it for their FK.
+      await tem.flush()
       journalLines.forEach((draft, index) => {
         tem.persist(
           tem.create(GlJournalLine, {

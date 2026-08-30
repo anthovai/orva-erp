@@ -25,3 +25,9 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 - Run `node scripts/check-lessons.mjs` before committing.
 
 ## Catalog
+
+### debugging
+
+| Lesson | Modules | Topics |
+|---|---|---|
+| [Flush a DB-generated uuid PK before creating child rows that reference it](.ai/lessons/db-generated-uuid-pk-needs-flush-before-child-rows.md) | orva_finance, orva_hr | mikro-orm, primary-keys, posting-routes |

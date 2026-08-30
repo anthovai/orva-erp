@@ -97,7 +97,7 @@ function BrowserFrame({ src, alt }: { src: string; alt: string }) {
           app.orva.co
         </span>
       </div>
-      <Image src={src} alt={alt} width={960} height={560} className="w-full" />
+      <Image src={src} alt={alt} width={1440} height={900} className="w-full" />
     </div>
   )
 }
@@ -191,7 +191,7 @@ export default function OrvaStartPage() {
 
           {/* mock peeking out of the hero */}
           <div className="relative z-10 mt-14 w-full max-w-4xl translate-y-16 sm:translate-y-20">
-            <BrowserFrame src="/marketing/mock-finance.svg" alt="หน้างบการเงินของ Orva" />
+            <BrowserFrame src="/marketing/screen-finance.png" alt="หน้างบการเงินของ Orva" />
           </div>
         </div>
       </section>
@@ -287,14 +287,14 @@ export default function OrvaStartPage() {
         </div>
         <div className="mt-10 grid items-start gap-10 lg:grid-cols-2">
           <figure className="flex flex-col gap-4">
-            <BrowserFrame src="/marketing/mock-finance.svg" alt="หน้างบการเงินของ Orva" />
+            <BrowserFrame src="/marketing/screen-finance.png" alt="หน้างบการเงินของ Orva" />
             <figcaption className="text-sm leading-6 text-[#66756e]">
               <span className="font-semibold text-[#101828]">งบการเงิน real-time</span> — งบกำไรขาดทุนและงบแสดงฐานะการเงิน
               คำนวณสดจาก journal ที่โพสต์แล้ว สมการบัญชีลงตัวเสมอ
             </figcaption>
           </figure>
           <figure className="flex flex-col gap-4">
-            <BrowserFrame src="/marketing/mock-payroll.svg" alt="หน้าเงินเดือนของ Orva" />
+            <BrowserFrame src="/marketing/screen-payroll.png" alt="หน้าเงินเดือนของ Orva" />
             <figcaption className="text-sm leading-6 text-[#66756e]">
               <span className="font-semibold text-[#101828]">เงินเดือนโปร่งใสรายคน</span> — คำนวณด้วย Rust engine
               (ประกันสังคม + ภาษีหัก ณ ที่จ่าย) แล้วโพสต์เข้าบัญชีเป็น journal ที่ดุลเสมอ
