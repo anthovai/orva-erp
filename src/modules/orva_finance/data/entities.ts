@@ -450,6 +450,75 @@ export class ApBillLine {
   deletedAt?: Date | null
 }
 
+/**
+ * AR configuration (one row per tenant/org): which GL accounts receive
+ * sales-invoice postings — AR control (asset), revenue (income), and an
+ * optional tax-payable (liability) for the invoice's tax total.
+ */
+@Entity({ tableName: 'orva_ar_settings' })
+export class ArSettings {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ name: 'ar_account_id', type: 'uuid' })
+  arAccountId!: string
+
+  @Property({ name: 'revenue_account_id', type: 'uuid' })
+  revenueAccountId!: string
+
+  @Property({ name: 'tax_account_id', type: 'uuid', nullable: true })
+  taxAccountId?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+}
+
+/**
+ * Immutable record that a sales invoice (core `sales` module, referenced by
+ * bare uuid per the cross-module rule) has been booked into the GL. The
+ * partial unique index makes double-posting impossible at the database.
+ */
+@Entity({ tableName: 'orva_ar_invoice_postings' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class ArInvoicePosting {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ name: 'invoice_id', type: 'uuid' })
+  @Index()
+  invoiceId!: string
+
+  @Property({ name: 'invoice_number', type: 'text' })
+  invoiceNumber!: string
+
+  @Property({ name: 'journal_id', type: 'uuid' })
+  journalId!: string
+
+  @Property({ type: 'numeric', precision: 18, scale: 4, default: '0' })
+  amount: string = '0'
+
+  @Property({ name: 'posted_by', type: 'uuid', nullable: true })
+  postedBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+}
+
 /** Race-safe per-scope document numbering (one row per tenant/org/kind). */
 @Entity({ tableName: 'orva_gl_sequences' })
 export class GlSequence {

@@ -149,6 +149,22 @@ try {
   await expectError('posted payment allocations frozen', /immutable/i,
     () => client.query(`update orva_ap_payment_allocations set amount=1 where payment_id=$1`, [payment.id]))
 
+  // AR posting records: immutable + one per invoice
+  const fakeInvoiceId = randomUUID()
+  const { rows: [arPosting] } = await client.query(
+    `insert into orva_ar_invoice_postings (tenant_id, organization_id, invoice_id, invoice_number, journal_id, amount, created_at)
+     select $1,$2,$3,'T-INV-PROBE',j.id,100,now() from orva_gl_journals j where j.tenant_id=$1 limit 1 returning id`,
+    [scope.tenant, scope.org, fakeInvoiceId])
+  await expectError('ar posting record rejects UPDATE', /immutable/i,
+    () => client.query(`update orva_ar_invoice_postings set amount=1 where id=$1`, [arPosting.id]))
+  await expectError('ar posting record rejects DELETE', /immutable/i,
+    () => client.query(`delete from orva_ar_invoice_postings where id=$1`, [arPosting.id]))
+  await expectError('ar double-posting blocked (unique per invoice)', /invoice_unique/i,
+    () => client.query(
+      `insert into orva_ar_invoice_postings (tenant_id, organization_id, invoice_id, invoice_number, journal_id, amount, created_at)
+       select $1,$2,$3,'T-INV-PROBE-2',j.id,100,now() from orva_gl_journals j where j.tenant_id=$1 limit 1`,
+      [scope.tenant, scope.org, fakeInvoiceId]))
+
   await expectError('ap settings unique per scope', /scope_unique/i, async () => {
     await client.query(`insert into orva_ap_settings (tenant_id, organization_id, ap_account_id, created_at, updated_at) values ($1,$2,$3,now(),now())`, [scope.tenant, scope.org, apAcct])
     await client.query(`insert into orva_ap_settings (tenant_id, organization_id, ap_account_id, created_at, updated_at) values ($1,$2,$3,now(),now())`, [scope.tenant, scope.org, apAcct])

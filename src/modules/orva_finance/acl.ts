@@ -27,6 +27,13 @@ export const features = [
     module: 'orva_finance',
     dependsOn: ['orva_finance.ap.manage'],
   },
+  { id: 'orva_finance.ar.view', title: 'View AR posting', module: 'orva_finance' },
+  {
+    id: 'orva_finance.ar.post',
+    title: 'Post sales invoices to the ledger',
+    module: 'orva_finance',
+    dependsOn: ['orva_finance.ar.view'],
+  },
 ]
 
 export default features

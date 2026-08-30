@@ -181,3 +181,15 @@ export const paymentUpdateSchema = z.object({
 })
 
 export const paymentPostSchema = z.object({ id: z.string().uuid() })
+
+export const arSettingsPutSchema = z.object({
+  arAccountId: z.string().uuid(),
+  revenueAccountId: z.string().uuid(),
+  taxAccountId: z.string().uuid().optional().nullable(),
+})
+
+export const arPostSchema = z.object({
+  invoiceIds: z.array(z.string().uuid()).min(1).max(100),
+  periodId: z.string().uuid(),
+  postingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+})
