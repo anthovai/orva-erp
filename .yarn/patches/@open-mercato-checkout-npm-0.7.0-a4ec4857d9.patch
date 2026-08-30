@@ -1,0 +1,26 @@
+diff --git a/dist/modules/checkout/components/PayPage.js b/dist/modules/checkout/components/PayPage.js
+index f4108e8cacdd83962887e2aa50b7de23bf301c49..f67dbb2b59c62bb4a10bbeb007bd4779a74cbbc2 100644
+--- a/dist/modules/checkout/components/PayPage.js
++++ b/dist/modules/checkout/components/PayPage.js
+@@ -972,7 +972,8 @@ function PayPageFooter({ payload, themeTokens }) {
+     pl: t("common.languages.polish", "Polski"),
+     es: t("common.languages.spanish", "Espa\xF1ol"),
+     de: t("common.languages.german", "Deutsch"),
+-    ko: t("common.languages.korean", "\uD55C\uAD6D\uC5B4")
++    ko: t("common.languages.korean", "\uD55C\uAD6D\uC5B4"),
++    th: t("common.languages.thai", "\u0E44\u0E17\u0E22")
+   }), [t]);
+   const setLocale = React.useCallback(async (nextLocale) => {
+     if (nextLocale === locale) return;
+diff --git a/src/modules/checkout/components/PayPage.tsx b/src/modules/checkout/components/PayPage.tsx
+index 95d20edf1177a0bdda548a001241268ff52efd41..b522c0f33612590ce590dc090259732faafcac12 100644
+--- a/src/modules/checkout/components/PayPage.tsx
++++ b/src/modules/checkout/components/PayPage.tsx
+@@ -1370,6 +1370,7 @@ export function PayPageFooter({ payload, themeTokens }: PayPageFooterProps) {
+     es: t('common.languages.spanish', 'Español'),
+     de: t('common.languages.german', 'Deutsch'),
+     ko: t('common.languages.korean', '한국어'),
++    th: t('common.languages.thai', 'ไทย'),
+   }), [t])
+ 
+   const setLocale = React.useCallback(async (nextLocale: Locale) => {

@@ -1,0 +1,52 @@
+diff --git a/dist/backend/ProfileDropdown.js b/dist/backend/ProfileDropdown.js
+index 08bfa8523fa41d24a319fa28b269ecffab0892f3..7bdbf15d9ef67b7783134feee0955df33333b3d2 100644
+--- a/dist/backend/ProfileDropdown.js
++++ b/dist/backend/ProfileDropdown.js
+@@ -21,7 +21,8 @@ const localeLabels = {
+   de: "Deutsch",
+   es: "Espa\xF1ol",
+   pl: "Polski",
+-  ko: "\uD55C\uAD6D\uC5B4"
++  ko: "\uD55C\uAD6D\uC5B4",
++  th: "\u0E44\u0E17\u0E22"
+ };
+ function ProfileDropdown({
+   email,
+diff --git a/dist/frontend/LanguageSwitcher.js b/dist/frontend/LanguageSwitcher.js
+index f2b1c97753b77c01b3f8ff466d69f1bc915b131e..a446d93672daa4bbfe014e644dbd93a938e72a6e 100644
+--- a/dist/frontend/LanguageSwitcher.js
++++ b/dist/frontend/LanguageSwitcher.js
+@@ -23,7 +23,8 @@ function LanguageSwitcher() {
+     pl: t("common.languages.polish", "Polski"),
+     es: t("common.languages.spanish", "Espa\xF1ol"),
+     de: t("common.languages.german", "Deutsch"),
+-    ko: t("common.languages.korean", "\uD55C\uAD6D\uC5B4")
++    ko: t("common.languages.korean", "\uD55C\uAD6D\uC5B4"),
++    th: t("common.languages.thai", "\u0E44\u0E17\u0E22")
+   };
+   async function setLocale(locale) {
+     if (locale === current) return;
+diff --git a/src/backend/ProfileDropdown.tsx b/src/backend/ProfileDropdown.tsx
+index d600ac139e77f63dc5271667af2a2d4e8d8c339d..4609b9f68d9a9bcdf32318a48c4cd107498b4e70 100644
+--- a/src/backend/ProfileDropdown.tsx
++++ b/src/backend/ProfileDropdown.tsx
+@@ -29,6 +29,7 @@ const localeLabels: Record<Locale, string> = {
+   es: 'Español',
+   pl: 'Polski',
+   ko: '한국어',
++  th: 'ไทย',
+ }
+ 
+ export function ProfileDropdown({
+diff --git a/src/frontend/LanguageSwitcher.tsx b/src/frontend/LanguageSwitcher.tsx
+index 9f7dabff8f994c43b18f745b68fb91a47b9aa562..41e0d515b340f75c99b24d76256a405c0344e107 100644
+--- a/src/frontend/LanguageSwitcher.tsx
++++ b/src/frontend/LanguageSwitcher.tsx
+@@ -25,6 +25,7 @@ export function LanguageSwitcher() {
+     es: t('common.languages.spanish', 'Español'),
+     de: t('common.languages.german', 'Deutsch'),
+     ko: t('common.languages.korean', '한국어'),
++    th: t('common.languages.thai', 'ไทย'),
+   }
+ 
+   async function setLocale(locale: Locale) {

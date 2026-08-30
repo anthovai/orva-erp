@@ -1,0 +1,21 @@
+diff --git a/dist/lib/i18n/config.js b/dist/lib/i18n/config.js
+index fad0e81692f3afa6d58e28d410484a2d8b4862b6..54c44b76028fe33854205c44ff38c6b023828bb2 100644
+--- a/dist/lib/i18n/config.js
++++ b/dist/lib/i18n/config.js
+@@ -1,4 +1,4 @@
+-const locales = ["en", "pl", "es", "de", "ko"];
++const locales = ["en", "pl", "es", "de", "ko", "th"];
+ const defaultLocale = "en";
+ export {
+   defaultLocale,
+diff --git a/src/lib/i18n/config.ts b/src/lib/i18n/config.ts
+index 5f71f245c84e95987bb8daface34296f5704ed72..473773780e58b2c5732d30979cbd8d8efd104199 100644
+--- a/src/lib/i18n/config.ts
++++ b/src/lib/i18n/config.ts
+@@ -1,4 +1,4 @@
+-export type Locale = 'en' | 'pl' | 'es' | 'de' | 'ko'
++export type Locale = 'en' | 'pl' | 'es' | 'de' | 'ko' | 'th'
+ 
+-export const locales: Locale[] = ['en', 'pl', 'es', 'de', 'ko']
++export const locales: Locale[] = ['en', 'pl', 'es', 'de', 'ko', 'th']
+ export const defaultLocale: Locale = 'en'

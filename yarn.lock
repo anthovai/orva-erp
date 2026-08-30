@@ -3709,6 +3709,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@open-mercato/checkout@patch:@open-mercato/checkout@npm%3A0.7.0#~/.yarn/patches/@open-mercato-checkout-npm-0.7.0-a4ec4857d9.patch":
+  version: 0.7.0
+  resolution: "@open-mercato/checkout@patch:@open-mercato/checkout@npm%3A0.7.0#~/.yarn/patches/@open-mercato-checkout-npm-0.7.0-a4ec4857d9.patch::version=0.7.0&hash=d0c05c"
+  dependencies:
+    "@open-mercato/core": "npm:0.7.0"
+    "@open-mercato/ui": "npm:0.7.0"
+    bcryptjs: "npm:^3.0.3"
+  peerDependencies:
+    "@mikro-orm/postgresql": ^7.0.14
+    "@open-mercato/shared": 0.7.0
+    react: ^19.0.0
+    react-dom: ^19.0.0
+  checksum: 10c0/ba76d5b8dcae11205cf4c8154c06ecb4bd4b2a36175a3e15d53cfcd9e3253f3b53c0b4ed3a38ec0760d087ffa7121b4c96130895a5fd009bb9c3393229c28706
+  languageName: node
+  linkType: hard
+
 "@open-mercato/cli@npm:0.7.0":
   version: 0.7.0
   resolution: "@open-mercato/cli@npm:0.7.0"
@@ -3904,6 +3920,26 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@open-mercato/shared@patch:@open-mercato/shared@npm%3A0.7.0#~/.yarn/patches/@open-mercato-shared-npm-0.7.0-1fb7368a48.patch":
+  version: 0.7.0
+  resolution: "@open-mercato/shared@patch:@open-mercato/shared@npm%3A0.7.0#~/.yarn/patches/@open-mercato-shared-npm-0.7.0-1fb7368a48.patch::version=0.7.0&hash=6fd3e2"
+  dependencies:
+    "@mikro-orm/core": "npm:^7.1.8"
+    "@mikro-orm/decorators": "npm:^7.1.8"
+    "@mikro-orm/postgresql": "npm:^7.1.8"
+    "@open-mercato/cache": "npm:0.7.0"
+    "@types/sanitize-html": "npm:^2.16.1"
+    dotenv: "npm:^17.4.2"
+    pino: "npm:^10.3.1"
+    rate-limiter-flexible: "npm:^11.2.0"
+    re2js: "npm:2.8.6"
+    reflect-metadata: "npm:^0.2.2"
+    sanitize-html: "npm:2.17.5"
+    undici: "npm:^8.9.0"
+  checksum: 10c0/6893f72b6ebd4ecbdb459383d6e65ae59509e3c3bf0ecc72f1cac9d3f58d5e2237efafff6192b0a5df505719d6fce907c6c68caecc1bc3ac4d060ce65db6caec
+  languageName: node
+  linkType: hard
+
 "@open-mercato/sync-akeneo@npm:0.7.0":
   version: 0.7.0
   resolution: "@open-mercato/sync-akeneo@npm:0.7.0"
@@ -4005,6 +4041,39 @@ __metadata:
     react-dom: ">=18.0.0"
     react-is: ">=18.0.0"
   checksum: 10c0/d3a863f78dad070550325868836f3ab890eff2000061485fd79d0da297908f7266670c8617755035b950bd94b83de8f9d41a7fc102e7e1ccda95674471f9c55a
+  languageName: node
+  linkType: hard
+
+"@open-mercato/ui@patch:@open-mercato/ui@npm%3A0.7.0#~/.yarn/patches/@open-mercato-ui-npm-0.7.0-ba4e69b790.patch":
+  version: 0.7.0
+  resolution: "@open-mercato/ui@patch:@open-mercato/ui@npm%3A0.7.0#~/.yarn/patches/@open-mercato-ui-npm-0.7.0-ba4e69b790.patch::version=0.7.0&hash=9c9cdc"
+  dependencies:
+    "@dnd-kit/core": "npm:^6.3.1"
+    "@dnd-kit/sortable": "npm:^10.0.0"
+    "@dnd-kit/utilities": "npm:^3.2.2"
+    "@mdxeditor/editor": "npm:^4.0.4"
+    "@radix-ui/react-accordion": "npm:^1.2.20"
+    "@radix-ui/react-dialog": "npm:^1.1.23"
+    "@radix-ui/react-popover": "npm:^1.1.23"
+    "@radix-ui/react-radio-group": "npm:^1.4.7"
+    "@radix-ui/react-scroll-area": "npm:^1.2.18"
+    "@radix-ui/react-select": "npm:^2.3.7"
+    "@radix-ui/react-slider": "npm:^1.4.7"
+    "@radix-ui/react-tooltip": "npm:^1.2.16"
+    "@tanstack/react-virtual": "npm:^3.14.6"
+    cmdk: "npm:^1.0.0"
+    date-fns: "npm:4.4.0"
+    react-big-calendar: "npm:^1.20.0"
+    react-day-picker: "npm:^10.0.1"
+    react-markdown: "npm:^10.1.0"
+    recharts: "npm:^3.10.1"
+    remark-gfm: "npm:^4.0.1"
+  peerDependencies:
+    "@open-mercato/shared": 0.7.0
+    react: ">=18.0.0"
+    react-dom: ">=18.0.0"
+    react-is: ">=18.0.0"
+  checksum: 10c0/3e7cf91d17a5e549f57f6138fc0f27a3dd3eb00cccf51362a3a42f3039ce1de6495cb9b55a049b9a596723969fcd14d4e9394ac47d511aa085d15ff58985da64
   languageName: node
   linkType: hard
 
@@ -16138,7 +16207,7 @@ __metadata:
     "@open-mercato/channel-fcm": "npm:0.7.0"
     "@open-mercato/channel-gmail": "npm:0.7.0"
     "@open-mercato/channel-imap": "npm:0.7.0"
-    "@open-mercato/checkout": "npm:0.7.0"
+    "@open-mercato/checkout": "patch:@open-mercato/checkout@npm%3A0.7.0#~/.yarn/patches/@open-mercato-checkout-npm-0.7.0-a4ec4857d9.patch"
     "@open-mercato/cli": "npm:0.7.0"
     "@open-mercato/content": "npm:0.7.0"
     "@open-mercato/core": "npm:0.7.0"
@@ -16148,10 +16217,10 @@ __metadata:
     "@open-mercato/queue": "npm:0.7.0"
     "@open-mercato/scheduler": "npm:0.7.0"
     "@open-mercato/search": "npm:0.7.0"
-    "@open-mercato/shared": "npm:0.7.0"
+    "@open-mercato/shared": "patch:@open-mercato/shared@npm%3A0.7.0#~/.yarn/patches/@open-mercato-shared-npm-0.7.0-1fb7368a48.patch"
     "@open-mercato/sync-akeneo": "npm:0.7.0"
     "@open-mercato/telemetry": "npm:0.7.0"
-    "@open-mercato/ui": "npm:0.7.0"
+    "@open-mercato/ui": "patch:@open-mercato/ui@npm%3A0.7.0#~/.yarn/patches/@open-mercato-ui-npm-0.7.0-ba4e69b790.patch"
     "@open-mercato/webhooks": "npm:0.7.0"
     "@playwright/test": "npm:^1.58.2"
     "@radix-ui/react-checkbox": "npm:^1.3.11"
