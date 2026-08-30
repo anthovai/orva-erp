@@ -1,15 +1,13 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
 import type { AwilixContainer } from 'awilix'
 import { findOneWithDecryption } from '@open-mercato/shared/lib/encryption/find'
-import { signJwt } from '@open-mercato/shared/lib/auth/jwt'
 import { hashAuthToken } from '@open-mercato/core/modules/auth/lib/tokenHash'
-import { AuthService } from '@open-mercato/core/modules/auth/services/authService'
+import { issueStaffSession, staffAuthCookieOptions } from '@/lib/staff-session'
 import { RecoveryCode, SessionFlag, TotpCredential } from '../data/entities'
 import { normalizeRecoveryCode, verifyTotp } from './totp'
 
 export const MFA_PENDING_AUDIENCE = 'orva_mfa_pending'
 export const MFA_PENDING_TTL_SECONDS = 300
-export const ACCESS_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 8
 
 const MAX_FAILED_ATTEMPTS = 5
 const BASE_LOCK_SECONDS = 60
@@ -108,32 +106,23 @@ async function registerFailure(
 export type IssuedSession = { token: string; sessionId: string }
 
 /**
- * Full staff-session issuance — the documented public sequence used by the
- * core autologin route: getUserRoles → updateLastLoginAt → createSession →
- * signJwt with a real `sid`. Adds the `mfa: true` claim and records the
- * session flag so refreshed tokens (which lose custom claims) stay trusted.
+ * Staff-session issuance (shared src/lib/staff-session.ts) with the
+ * `mfa: true` claim, plus a session-flag row so refreshed tokens (which
+ * rebuild claims and lose custom ones) stay trusted by the backend gate.
  */
 export async function issueMfaVerifiedSession(
   container: AwilixContainer,
   em: EntityManager,
   params: { userId: string; tenantId: string; orgId: string | null; email: string },
 ): Promise<IssuedSession | null> {
-  const auth = container.resolve<AuthService>('authService')
-  const user = (await em.findOne('User' as never, { id: params.userId } as never)) as
-    | { id: string; organizationId?: string | null }
-    | null
-  if (!user) return null
-
-  const roles = await auth.getUserRoles(user as never, params.tenantId)
-  await auth.updateLastLoginAt(user as never)
-  const expiresAt = new Date(Date.now() + ACCESS_TOKEN_MAX_AGE_SECONDS * 1000)
-  const { session } = await auth.createSession(user as never, expiresAt)
+  const issued = await issueStaffSession(container, em, { ...params, extraClaims: { mfa: true } })
+  if (!issued) return null
 
   const flag = em.create(SessionFlag, {
     tenantId: params.tenantId,
-    organizationId: params.orgId ?? String(user.organizationId ?? ''),
+    organizationId: params.orgId ?? issued.organizationId ?? '',
     userId: params.userId,
-    sessionId: String(session.id),
+    sessionId: issued.sessionId,
     verifiedAt: new Date(),
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -141,24 +130,7 @@ export async function issueMfaVerifiedSession(
   em.persist(flag)
   await em.flush()
 
-  const token = signJwt({
-    sub: params.userId,
-    sid: String(session.id),
-    tenantId: params.tenantId,
-    orgId: params.orgId,
-    email: params.email,
-    roles,
-    mfa: true,
-  })
-  return { token, sessionId: String(session.id) }
+  return { token: issued.token, sessionId: issued.sessionId }
 }
 
-export function authCookieOptions() {
-  return {
-    httpOnly: true as const,
-    path: '/' as const,
-    sameSite: 'lax' as const,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: ACCESS_TOKEN_MAX_AGE_SECONDS,
-  }
-}
+export const authCookieOptions = staffAuthCookieOptions

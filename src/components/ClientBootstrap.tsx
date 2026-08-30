@@ -73,6 +73,11 @@ export function groupsForProfile(profile: ClientBootstrapProfile): ClientRegistr
       return ['translations', 'injection']
     case 'checkout':
       return ['translations', 'injection', 'payments']
+    case 'login':
+      // Orva: the login page hosts the `auth.login:form` injection spot, which
+      // orva_sso uses to offer "Continue with SSO". Without the injection
+      // registry the spot renders empty and SSO discovery never runs.
+      return ['translations', 'injection']
     case 'message':
       return ['messages']
     default:
