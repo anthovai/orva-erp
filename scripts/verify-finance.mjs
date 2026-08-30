@@ -62,6 +62,19 @@ try {
   await expectError('posted journal lines reject INSERT', /immutable/i,
     () => line(j1, cash, 1, 0, 3))
 
+  // trial balance aggregation over posted lines (same SQL shape as the report)
+  const { rows: tb } = await client.query(
+    `select a.id, coalesce(sum(l.debit),0)::numeric as d, coalesce(sum(l.credit),0)::numeric as c
+     from orva_gl_accounts a
+     left join orva_gl_journal_lines l on l.account_id = a.id and l.deleted_at is null
+       and exists (select 1 from orva_gl_journals j where j.id = l.journal_id and j.status='posted' and j.deleted_at is null)
+     where a.id = any($1::uuid[]) group by a.id`, [[cash, sales]])
+  const cashRow = tb.find((r) => r.id === cash)
+  const salesRow = tb.find((r) => r.id === sales)
+  check('trial balance: cash debit 100 / sales credit 100',
+    Number(cashRow?.d) === 100 && Number(cashRow?.c) === 0 && Number(salesRow?.c) === 100 && Number(salesRow?.d) === 0,
+    `cash d=${cashRow?.d} c=${cashRow?.c}, sales d=${salesRow?.d} c=${salesRow?.c}`)
+
   // unbalanced posting is rejected by the trigger
   const j2 = await journal(openPeriod, '2099-01-16', `T-JE-UNBAL-${Date.now()}`)
   await expectError('unbalanced journal cannot post', /not balanced/i,
