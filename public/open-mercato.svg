@@ -6,8 +6,8 @@
     </linearGradient>
   </defs>
   <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#orva-bg)"/>
-  <!-- O ring with an open gap at the top-right -->
-  <path d="M256 116 a140 140 0 1 0 98.99 41.01" fill="none" stroke="#FFFFFF" stroke-width="52" stroke-linecap="round"/>
-  <!-- orbit node completing the O -->
-  <circle cx="376" cy="136" r="40" fill="#7EE0C4"/>
+  <!-- O ring: open gap from -95deg to -25deg (top-right), drawn the long way -->
+  <path d="M243.79 116.53 A140 140 0 1 0 382.88 196.84" fill="none" stroke="#FFFFFF" stroke-width="52" stroke-linecap="round"/>
+  <!-- orbit node centered in the gap, on the ring path (-60deg) -->
+  <circle cx="326" cy="134.76" r="32" fill="#7EE0C4"/>
 </svg>
