@@ -161,6 +161,8 @@ if (parseBooleanWithDefault(process.env.OM_ENABLE_STORAGE_S3, false)) {
 enabledModules.push({ id: 'orva_party', from: '@app' })
 enabledModules.push({ id: 'orva_finance', from: '@app' })
 enabledModules.push({ id: 'orva_hr', from: '@app' })
+// Clean-room TOTP MFA (spec: .ai/specs/2026-08-30-orva-mfa-sso-clean-room.md).
+enabledModules.push({ id: 'orva_mfa', from: '@app' })
 
 // Orva branding: registered LAST so its i18n overrides every module's defaults
 // (dictionary merge is last-write-wins across enabledModules order).
