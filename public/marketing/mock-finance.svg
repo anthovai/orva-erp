@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" font-family="'Segoe UI',system-ui,sans-serif">
+  <defs>
+    <linearGradient id="mfbg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#11836E"/><stop offset="1" stop-color="#0A4A3E"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="560" rx="16" fill="#F6F8F7"/>
+  <rect width="960" height="560" rx="16" fill="none" stroke="#D9E2DE"/>
+  <!-- sidebar -->
+  <rect x="0" y="0" width="216" height="560" rx="16" fill="#0E2B25"/>
+  <rect x="16" y="0" width="200" height="560" fill="#0E2B25"/>
+  <circle cx="40" cy="36" r="14" fill="url(#mfbg)"/>
+  <path d="M40 27 a9.5 9.5 0 1 0 6.7 2.8" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/>
+  <circle cx="48" cy="28.5" r="2.6" fill="#7EE0C4"/>
+  <text x="62" y="41" fill="#fff" font-size="16" font-weight="700">Orva</text>
+  <g fill="#8FB5AA" font-size="12">
+    <text x="28" y="88">Dashboard</text>
+    <rect x="16" y="104" width="184" height="30" rx="6" fill="#14483C"/>
+    <text x="28" y="124" fill="#FFFFFF">Chart of Accounts</text>
+    <text x="28" y="158">GL Journals</text>
+    <text x="28" y="190">Financial Statements</text>
+    <text x="28" y="222">Trial Balance</text>
+    <text x="28" y="254">AP/AR Aging</text>
+    <text x="28" y="286">Vendor Bills</text>
+    <text x="28" y="318">Customer Receipts</text>
+    <text x="28" y="350">Parties</text>
+    <text x="28" y="382">Employees</text>
+    <text x="28" y="414">Payroll Runs</text>
+  </g>
+  <!-- header -->
+  <text x="248" y="48" font-size="20" font-weight="700" fill="#17332C">Financial Statements</text>
+  <rect x="720" y="28" width="100" height="30" rx="6" fill="#FFFFFF" stroke="#D9E2DE"/>
+  <text x="736" y="48" font-size="12" fill="#5A6E67">2026-08-01</text>
+  <rect x="828" y="28" width="100" height="30" rx="6" fill="#FFFFFF" stroke="#D9E2DE"/>
+  <text x="844" y="48" font-size="12" fill="#5A6E67">2026-08-31</text>
+  <!-- P&L card -->
+  <rect x="248" y="76" width="330" height="452" rx="10" fill="#FFFFFF" stroke="#D9E2DE"/>
+  <text x="268" y="108" font-size="15" font-weight="700" fill="#17332C">Profit &amp; Loss</text>
+  <text x="268" y="140" font-size="11" fill="#7A8C86" font-weight="600">INCOME</text>
+  <g font-size="12" fill="#31443E">
+    <text x="268" y="164">4000 · Sales revenue</text><text x="558" y="164" text-anchor="end">125,900.00</text>
+    <text x="268" y="188">4100 · Service income</text><text x="558" y="188" text-anchor="end">48,250.00</text>
+  </g>
+  <line x1="268" y1="200" x2="558" y2="200" stroke="#E4EAE7"/>
+  <text x="268" y="220" font-size="12" font-weight="700" fill="#17332C">Total income</text>
+  <text x="558" y="220" font-size="12" font-weight="700" fill="#17332C" text-anchor="end">174,150.00</text>
+  <text x="268" y="252" font-size="11" fill="#7A8C86" font-weight="600">EXPENSES</text>
+  <g font-size="12" fill="#31443E">
+    <text x="268" y="276">5000 · Salaries</text><text x="558" y="276" text-anchor="end">62,000.00</text>
+    <text x="268" y="300">5100 · Office rent</text><text x="558" y="300" text-anchor="end">18,000.00</text>
+    <text x="268" y="324">5200 · Utilities</text><text x="558" y="324" text-anchor="end">4,730.00</text>
+  </g>
+  <line x1="268" y1="338" x2="558" y2="338" stroke="#E4EAE7"/>
+  <text x="268" y="358" font-size="12" font-weight="700" fill="#17332C">Total expenses</text>
+  <text x="558" y="358" font-size="12" font-weight="700" fill="#17332C" text-anchor="end">84,730.00</text>
+  <rect x="264" y="380" width="298" height="40" rx="8" fill="#E4F2ED"/>
+  <text x="278" y="405" font-size="13" font-weight="700" fill="#0E6E5C">Net profit</text>
+  <text x="548" y="405" font-size="13" font-weight="700" fill="#0E6E5C" text-anchor="end">89,420.00</text>
+  <!-- Balance sheet card -->
+  <rect x="598" y="76" width="330" height="452" rx="10" fill="#FFFFFF" stroke="#D9E2DE"/>
+  <text x="618" y="108" font-size="15" font-weight="700" fill="#17332C">Balance Sheet</text>
+  <text x="748" y="108" font-size="11" fill="#0E6E5C">Balanced ✓</text>
+  <text x="618" y="140" font-size="11" fill="#7A8C86" font-weight="600">ASSETS</text>
+  <g font-size="12" fill="#31443E">
+    <text x="618" y="164">1000 · Cash &amp; bank</text><text x="908" y="164" text-anchor="end">214,560.00</text>
+    <text x="618" y="188">1100 · Accounts receivable</text><text x="908" y="188" text-anchor="end">36,900.00</text>
+  </g>
+  <line x1="618" y1="200" x2="908" y2="200" stroke="#E4EAE7"/>
+  <text x="618" y="220" font-size="12" font-weight="700" fill="#17332C">Total assets</text>
+  <text x="908" y="220" font-size="12" font-weight="700" fill="#17332C" text-anchor="end">251,460.00</text>
+  <text x="618" y="252" font-size="11" fill="#7A8C86" font-weight="600">LIABILITIES</text>
+  <g font-size="12" fill="#31443E">
+    <text x="618" y="276">2100 · Accounts payable</text><text x="908" y="276" text-anchor="end">22,040.00</text>
+    <text x="618" y="300">2200 · Tax payable</text><text x="908" y="300" text-anchor="end">5,000.00</text>
+  </g>
+  <text x="618" y="332" font-size="11" fill="#7A8C86" font-weight="600">EQUITY</text>
+  <g font-size="12" fill="#31443E">
+    <text x="618" y="356">3000 · Capital</text><text x="908" y="356" text-anchor="end">135,000.00</text>
+    <text x="618" y="380" font-style="italic">Current earnings</text><text x="908" y="380" text-anchor="end" font-style="italic">89,420.00</text>
+  </g>
+  <rect x="614" y="400" width="298" height="40" rx="8" fill="#F1F5F3"/>
+  <text x="628" y="425" font-size="13" font-weight="700" fill="#17332C">Liabilities + equity</text>
+  <text x="898" y="425" font-size="13" font-weight="700" fill="#17332C" text-anchor="end">251,460.00</text>
+</svg>

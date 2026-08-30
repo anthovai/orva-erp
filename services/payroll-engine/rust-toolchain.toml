@@ -1,0 +1,4 @@
+# This machine has no MSVC linker; pin the GNU toolchain (see CLAUDE.md /
+# dev-machine notes). Prepend mingw64\bin to PATH before building.
+[toolchain]
+channel = "stable-x86_64-pc-windows-gnu"
