@@ -6,6 +6,10 @@
 Include workspace packages in Tailwind content scanning
 TODO: Fix that latter to have reference by the package names
 */
+/* App-authored code: Tailwind 4 auto-detection misses it in this setup
+   (only classes coinciding with the @source'd packages get generated), so
+   arbitrary values like text-[#06342c] on app pages need an explicit source. */
+@source "../../src/**/*.{ts,tsx}";
 @source "../../node_modules/@open-mercato/ui/src/**/*.{ts,tsx}";
 @source "../../node_modules/@open-mercato/core/src/**/*.{ts,tsx}";
 @source "../../node_modules/@open-mercato/shared/src/**/*.{ts,tsx}";
