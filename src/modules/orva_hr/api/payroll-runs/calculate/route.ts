@@ -58,7 +58,6 @@ export async function POST(req: Request) {
         employees.map((employee) => ({
           id: employee.id,
           salary: Number(employee.monthlySalary),
-          whtRate: Number(employee.whtRate),
         })),
       )
 

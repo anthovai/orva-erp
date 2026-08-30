@@ -50,7 +50,7 @@ const listEmployeesInput = z.object({
 const listEmployeesTool: OrvaHrAiToolDefinition = {
   name: 'orva_hr.list_employees',
   displayName: 'List employees',
-  description: 'List employees (number, name from the party registry, position, hire date, monthly salary, WHT rate, status).',
+  description: 'List employees (number, name from the party registry, position, hire date, monthly salary, status). Withholding tax is computed per run by the payroll engine (progressive Thai brackets).',
   inputSchema: listEmployeesInput,
   requiredFeatures: ['orva_hr.employees.view'],
   tags: ['read', 'orva_hr'],
@@ -62,8 +62,7 @@ const listEmployeesTool: OrvaHrAiToolDefinition = {
       (await tem.execute(
         `select e.id, e.employee_no, p.display_name, e.position,
                 to_char(e.hire_date, 'YYYY-MM-DD') as hire_date,
-                e.monthly_salary::text as monthly_salary,
-                e.wht_rate::text as wht_rate, e.status
+                e.monthly_salary::text as monthly_salary, e.status
          from orva_hr_employees e
          left join orva_parties p on p.id = e.party_id and p.deleted_at is null
          where e.deleted_at is null
@@ -92,7 +91,6 @@ const listEmployeesTool: OrvaHrAiToolDefinition = {
         position: (row.position as string | null) ?? null,
         hireDate: (row.hire_date as string | null) ?? null,
         monthlySalary: String(row.monthly_salary),
-        whtRate: String(row.wht_rate),
         status: String(row.status),
         href: '/backend/hr/employees',
       })),

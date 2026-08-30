@@ -1,8 +1,8 @@
 [package]
 name = "orva-payroll-engine"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
-description = "Orva payroll calculation sidecar - Thai SSO + withholding tax"
+description = "Orva payroll calculation sidecar - Thai SSO + progressive withholding tax"
 license = "MIT"
 
 [dependencies]

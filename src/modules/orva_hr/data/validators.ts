@@ -24,7 +24,6 @@ export const employeeCreateSchema = z.object({
   position: z.string().optional().nullable(),
   hireDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   monthlySalary: z.coerce.number().positive(),
-  whtRate: z.coerce.number().min(0).max(100).default(0),
 })
 
 export const employeeUpdateSchema = z.object({
@@ -32,7 +31,6 @@ export const employeeUpdateSchema = z.object({
   position: z.string().optional().nullable(),
   hireDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   monthlySalary: z.coerce.number().positive().optional(),
-  whtRate: z.coerce.number().min(0).max(100).optional(),
   status: z.enum(['active', 'inactive']).optional(),
 })
 

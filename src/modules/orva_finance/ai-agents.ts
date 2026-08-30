@@ -103,7 +103,7 @@ const agent: AiAgentDefinition = {
       'orva_finance.fiscal_period',
       'orva_finance.ap_bill',
       'orva_finance.ar_invoice_posting',
-      'orva_hr.employee',
+      'orva_hr.hr_employee',
       'orva_hr.payroll_run',
     ],
     operations: ['read', 'aggregate'],

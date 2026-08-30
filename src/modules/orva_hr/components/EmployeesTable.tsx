@@ -78,12 +78,6 @@ export default function EmployeesTable() {
       cell: ({ getValue }) => <span className="tabular-nums">{fmt(getValue() as string)}</span>,
     },
     {
-      accessorKey: 'wht_rate',
-      header: t('orva_hr.employees.column.whtRate', 'WHT %'),
-      meta: { priority: 4 },
-      cell: ({ getValue }) => <span className="tabular-nums">{Number(getValue() ?? 0).toFixed(2)}</span>,
-    },
-    {
       accessorKey: 'status',
       header: t('orva_finance.journals.column.status', 'Status'),
       meta: { priority: 2 },
@@ -109,7 +103,7 @@ export default function EmployeesTable() {
         )}
         columns={columns}
         data={data?.items ?? []}
-        entityId="orva_hr:employee"
+        entityId="orva_hr:hr_employee"
         perspective={{ tableId: 'orva_hr.employees.list' }}
         rowActions={(row) => (
           <RowActions

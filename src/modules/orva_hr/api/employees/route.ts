@@ -9,7 +9,7 @@ import { allocateHrNo } from '../../lib/payroll'
 import { employeeCreateSchema, employeeListSchema, employeeUpdateSchema, deleteByIdSchema } from '../../data/validators'
 import { createOrvaHrCrudOpenApi, createPagedListResponseSchema, createdSchema, okSchema } from '../openapi'
 
-const ENTITY_ID = 'orva_hr:employee' as const
+const ENTITY_ID = 'orva_hr:hr_employee' as const
 
 type EmployeeListQuery = z.infer<typeof employeeListSchema>
 
@@ -21,7 +21,6 @@ const employeeListItemSchema = z
     position: z.string().nullable().optional(),
     hire_date: z.string().nullable().optional(),
     monthly_salary: z.union([z.string(), z.number()]).optional(),
-    wht_rate: z.union([z.string(), z.number()]).optional(),
     status: z.string(),
     updated_at: z.string().nullable().optional(),
   })
@@ -45,7 +44,7 @@ export const { metadata, GET, POST, PUT, DELETE } = makeCrudRoute({
   list: {
     schema: employeeListSchema,
     entityId: ENTITY_ID,
-    fields: ['id', 'employee_no', 'party_id', 'position', 'hire_date', 'monthly_salary', 'wht_rate', 'status', 'tenant_id', 'organization_id', 'created_at', 'updated_at'],
+    fields: ['id', 'employee_no', 'party_id', 'position', 'hire_date', 'monthly_salary', 'status', 'tenant_id', 'organization_id', 'created_at', 'updated_at'],
     sortFieldMap: { id: 'id', employee_no: 'employee_no', position: 'position', hire_date: 'hire_date', status: 'status', created_at: 'created_at' },
     buildFilters: async (query: EmployeeListQuery) => {
       const filters: Record<string, unknown> = {}
@@ -62,7 +61,6 @@ export const { metadata, GET, POST, PUT, DELETE } = makeCrudRoute({
       position: input.position ?? null,
       hireDate: input.hireDate ?? null,
       monthlySalary: Number(input.monthlySalary).toFixed(4),
-      whtRate: Number(input.whtRate ?? 0).toFixed(2),
       status: 'active',
       createdBy: ctx.auth?.sub ?? null,
     }),
@@ -75,7 +73,6 @@ export const { metadata, GET, POST, PUT, DELETE } = makeCrudRoute({
       if (input.position !== undefined) entity.position = input.position
       if (input.hireDate !== undefined) entity.hireDate = input.hireDate
       if (input.monthlySalary !== undefined) entity.monthlySalary = Number(input.monthlySalary).toFixed(4)
-      if (input.whtRate !== undefined) entity.whtRate = Number(input.whtRate).toFixed(2)
       if (input.status !== undefined) entity.status = input.status
     },
     response: () => ({ ok: true }),

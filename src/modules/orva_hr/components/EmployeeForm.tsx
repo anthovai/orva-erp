@@ -7,7 +7,7 @@ import { createCrud, fetchCrudList, updateCrud } from '@open-mercato/ui/backend/
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 
 const LIST_HREF = '/backend/hr/employees'
-const ENTITY_ID = 'orva_hr:employee'
+const ENTITY_ID = 'orva_hr:hr_employee'
 
 type PartyRoleRow = { id: string; party_id: string }
 type PartyRow = { id: string; display_name: string }
@@ -43,11 +43,10 @@ export function EmployeeCreateForm() {
     { id: 'position', label: t('orva_hr.employees.column.position', 'Position'), type: 'text' },
     { id: 'hireDate', label: t('orva_hr.employees.form.hireDate', 'Hire date'), type: 'date' },
     { id: 'monthlySalary', label: t('orva_hr.employees.form.salary', 'Monthly salary (THB)'), type: 'number', required: true },
-    { id: 'whtRate', label: t('orva_hr.employees.form.whtRate', 'Withholding tax rate (%)'), type: 'number' },
   ], [t, parties])
   const groups = React.useMemo<CrudFormGroup[]>(() => [
     { id: 'employment', title: t('orva_hr.employees.form.group', 'Employment'), column: 1, fields: ['partyId', 'position', 'hireDate'] },
-    { id: 'compensation', title: t('orva_hr.employees.form.compGroup', 'Compensation'), column: 2, fields: ['monthlySalary', 'whtRate'] },
+    { id: 'compensation', title: t('orva_hr.employees.form.compGroup', 'Compensation'), column: 2, fields: ['monthlySalary'] },
   ], [t])
   return (
     <CrudForm
@@ -56,7 +55,7 @@ export function EmployeeCreateForm() {
       entityId={ENTITY_ID}
       fields={fields}
       groups={groups}
-      initialValues={{ whtRate: 0 }}
+      initialValues={{}}
       submitLabel={t('orva_finance.form.create.submit', 'Create')}
       cancelHref={LIST_HREF}
       successRedirect={`${LIST_HREF}?flash=${encodeURIComponent(t('orva_hr.employees.flash.created', 'Employee added'))}&type=success`}
@@ -75,7 +74,6 @@ export function EmployeeEditForm({ id }: { id: string }) {
     { id: 'position', label: t('orva_hr.employees.column.position', 'Position'), type: 'text' },
     { id: 'hireDate', label: t('orva_hr.employees.form.hireDate', 'Hire date'), type: 'date' },
     { id: 'monthlySalary', label: t('orva_hr.employees.form.salary', 'Monthly salary (THB)'), type: 'number', required: true },
-    { id: 'whtRate', label: t('orva_hr.employees.form.whtRate', 'Withholding tax rate (%)'), type: 'number' },
     {
       id: 'status',
       label: t('orva_finance.journals.column.status', 'Status'),
@@ -88,7 +86,7 @@ export function EmployeeEditForm({ id }: { id: string }) {
   ], [t])
   const groups = React.useMemo<CrudFormGroup[]>(() => [
     { id: 'employment', title: t('orva_hr.employees.form.group', 'Employment'), column: 1, fields: ['position', 'hireDate', 'status'] },
-    { id: 'compensation', title: t('orva_hr.employees.form.compGroup', 'Compensation'), column: 2, fields: ['monthlySalary', 'whtRate'] },
+    { id: 'compensation', title: t('orva_hr.employees.form.compGroup', 'Compensation'), column: 2, fields: ['monthlySalary'] },
   ], [t])
 
   React.useEffect(() => {
@@ -104,7 +102,6 @@ export function EmployeeEditForm({ id }: { id: string }) {
             position: item.position ?? '',
             hireDate: item.hire_date ?? '',
             monthlySalary: Number(item.monthly_salary ?? 0),
-            whtRate: Number(item.wht_rate ?? 0),
             status: item.status,
             updatedAt: item.updated_at ?? null,
           })

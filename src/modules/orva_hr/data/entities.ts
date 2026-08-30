@@ -36,6 +36,11 @@ export class HrEmployee {
   monthlySalary: string = '0'
 
   /** Flat projected withholding-tax rate in percent (0-100). */
+  /**
+   * Legacy flat withholding rate. Unused since engine v0.2.0 — WHT is now
+   * computed per run by the Rust engine's progressive Thai brackets. The
+   * column stays so existing rows keep their history; no UI or API writes it.
+   */
   @Property({ name: 'wht_rate', type: 'numeric', precision: 5, scale: 2, default: '0' })
   whtRate: string = '0'
 

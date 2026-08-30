@@ -22,9 +22,11 @@ export function payrollEngineUrl(): string {
 /**
  * Calls the Rust payroll engine. Fails loudly when the sidecar is down —
  * payroll math must come from the tested engine, never a silent JS fallback.
+ * WHT is computed by the engine itself (progressive Thai brackets), so the
+ * input is just the monthly salary per employee.
  */
 export async function callPayrollEngine(
-  employees: Array<{ id: string; salary: number; whtRate: number }>,
+  employees: Array<{ id: string; salary: number }>,
 ): Promise<{ result: EngineResult; engineVersion: string }> {
   const base = payrollEngineUrl()
   let health: { version?: string } = {}

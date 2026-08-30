@@ -1,6 +1,6 @@
 # Lessons
 
-This catalog indexes 1 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
+This catalog indexes 2 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
 
 ## How to use this catalog
 
@@ -29,3 +29,4 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 ### debugging
 
 - [Flush a DB-generated uuid PK before creating child rows that reference it](lessons/db-generated-uuid-pk-needs-flush-before-child-rows.md) — area:debugging,module-data; module:orva_finance,orva_hr; topic:mikro-orm,primary-keys,posting-routes
+- [CRUD list.entityId must be the generated registry id, not a hand-guessed segment](lessons/crud-list-entityid-must-match-generated-registry.md) — area:debugging,module-data; module:orva_hr; topic:crud-factory,query-engine,entity-ids
