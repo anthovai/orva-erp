@@ -275,6 +275,7 @@ export default function PayrollRunsTable() {
           onPageChange: setPage,
         }}
         isLoading={isLoading}
+        onRowClick={(row) => { window.location.href = `/backend/hr/payroll/${row.id}` }}
       />
       {ConfirmDialogElement}
     </>

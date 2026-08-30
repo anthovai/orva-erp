@@ -1,4 +1,13 @@
 {
+  "orva_hr.payroll.detail.title": "Payroll run",
+  "orva_hr.payroll.detail.back": "Back to runs",
+  "orva_hr.payroll.detail.notFound": "Payroll run not found",
+  "orva_hr.payroll.detail.noLines": "No lines yet — run Calculate to compute this month",
+  "orva_hr.payroll.detail.ssoEmployee": "SSO (employee)",
+  "orva_hr.payroll.detail.ssoEmployer": "SSO (employer)",
+  "orva_hr.payroll.detail.wht": "Withholding tax",
+  "orva_hr.payroll.detail.totals": "Totals",
+  "orva_hr.payroll.detail.people": "people",
   "orva_hr.employees.page.title": "Employees",
   "orva_hr.employees.column.no": "Employee #",
   "orva_hr.employees.column.name": "Name",
