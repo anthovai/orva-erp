@@ -81,7 +81,6 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'attachments', from: '@open-mercato/core' },
   { id: 'catalog', from: '@open-mercato/core' },
   { id: 'sales', from: '@open-mercato/core' },
-  { id: 'warranty_claims', from: '@open-mercato/core' },
   { id: 'wms', from: '@open-mercato/core' },
   { id: 'api_keys', from: '@open-mercato/core' },
   { id: 'devices', from: '@open-mercato/core' },
@@ -117,21 +116,12 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'inbox_ops', from: '@open-mercato/core' },
   { id: 'payment_gateways', from: '@open-mercato/core' },
   { id: 'checkout', from: '@open-mercato/checkout' },
-  { id: 'gateway_stripe', from: '@open-mercato/gateway-stripe' },
   // Per-user email channels for the Communications Hub (SPEC-045d / email
   // integration spec). Each provider package registers its `ChannelAdapter`
   // at import time via `setup.ts`; the hub picks them up by `providerKey`.
   { id: 'channel_imap', from: '@open-mercato/channel-imap' },
   { id: 'channel_gmail', from: '@open-mercato/channel-gmail' },
-  // Mobile push providers for the push_notifications channel. Each registers a
-  // `push` ChannelAdapter at import time; the push delivery strategy routes each
-  // device to the channel whose providerKey matches its push_provider.
-  { id: 'channel_apns', from: '@open-mercato/channel-apns' },
-  { id: 'channel_expo', from: '@open-mercato/channel-expo' },
-  { id: 'channel_fcm', from: '@open-mercato/channel-fcm' },
-  { id: 'sync_akeneo', from: '@open-mercato/sync-akeneo' },
   { id: 'shipping_carriers', from: '@open-mercato/core' },
-  { id: 'eudr', from: '@open-mercato/core' },
   { id: 'webhooks', from: '@open-mercato/webhooks' },
   { id: 'customer_accounts', from: '@open-mercato/core' },
   { id: 'portal', from: '@open-mercato/core' },
@@ -155,6 +145,17 @@ if (parseBooleanWithDefault(process.env.OM_ENABLE_STORAGE_S3, false)) {
 // Orva policy: @open-mercato/enterprise is proprietary (no commercial/SaaS use)
 // and must never be wired in. SSO/MFA/record-locking will be reimplemented
 // clean-room as @orva/* modules through public extension points.
+
+// Orva trim (2026-08-30): upstream modules Orva does not use are disabled to
+// keep the product surface (sidebar, AI launcher, settings) focused. Their DB
+// tables are untouched, so re-enabling is a one-line revert:
+//   { id: 'warranty_claims', from: '@open-mercato/core' }
+//   { id: 'eudr', from: '@open-mercato/core' }               // EU deforestation compliance
+//   { id: 'sync_akeneo', from: '@open-mercato/sync-akeneo' } // Akeneo PIM sync
+//   { id: 'gateway_stripe', from: '@open-mercato/gateway-stripe' }
+//   { id: 'channel_apns', from: '@open-mercato/channel-apns' }
+//   { id: 'channel_expo', from: '@open-mercato/channel-expo' }
+//   { id: 'channel_fcm', from: '@open-mercato/channel-fcm' }
 
 // Orva domain modules.
 enabledModules.push({ id: 'orva_party', from: '@app' })
