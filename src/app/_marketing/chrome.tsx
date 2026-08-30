@@ -3,6 +3,8 @@ import Link from 'next/link'
 import type { MarketingDict, MarketingLocale } from './i18n'
 import { LanguageSwitcher } from './LanguageSwitcher'
 
+// Orva CI palette — see docs/BRAND.md (Orva Green / Orva Forest / Orva Mint;
+// `deep` is the one-step-darker background shade used in gradients).
 export const BRAND = {
   deep: '#0A3D33',
   dark: '#0E4A3E',
