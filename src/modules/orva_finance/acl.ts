@@ -14,6 +14,19 @@ export const features = [
     module: 'orva_finance',
     dependsOn: ['orva_finance.gl.manage'],
   },
+  { id: 'orva_finance.ap.view', title: 'View vendor bills', module: 'orva_finance' },
+  {
+    id: 'orva_finance.ap.manage',
+    title: 'Manage vendor bills and AP settings',
+    module: 'orva_finance',
+    dependsOn: ['orva_finance.ap.view'],
+  },
+  {
+    id: 'orva_finance.ap.post',
+    title: 'Post vendor bills to the ledger',
+    module: 'orva_finance',
+    dependsOn: ['orva_finance.ap.manage'],
+  },
 ]
 
 export default features

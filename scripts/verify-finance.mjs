@@ -94,6 +94,38 @@ try {
   await expectError('line with both debit and credit rejected (check)', /amounts_check/i,
     () => line(j2, cash, 5, 5, 9))
 
+  // ---- AP vendor bills ----
+  await client.query('begin')
+  await client.query(`select set_config('orva.tenant_id', $1, true)`, [scope.tenant])
+  const apAcct = await acct(`T-2100-${Date.now()}`, 'liability')
+  const expAcct = await acct(`T-5000-${Date.now()}`, 'expense')
+  const { rows: [vendor] } = await client.query(
+    `insert into orva_parties (tenant_id, organization_id, kind, display_name, created_at, updated_at)
+     values ($1,$2,'company','AP Probe Vendor',now(),now()) returning id`, [scope.tenant, scope.org])
+  const { rows: [bill] } = await client.query(
+    `insert into orva_ap_bills (tenant_id, organization_id, bill_no, status, vendor_party_id, period_id, bill_date, total_amount, created_at, updated_at)
+     values ($1,$2,$3,'draft',$4,$5,'2099-01-20',500,now(),now()) returning id`,
+    [scope.tenant, scope.org, `T-BILL-${Date.now()}`, vendor.id, openPeriod])
+  await client.query(
+    `insert into orva_ap_bill_lines (tenant_id, organization_id, bill_id, line_no, expense_account_id, amount, created_at, updated_at)
+     values ($1,$2,$3,1,$4,500,now(),now())`, [scope.tenant, scope.org, bill.id, expAcct])
+  await expectError('bill line with zero amount rejected (check)', /amount_check/i,
+    () => client.query(
+      `insert into orva_ap_bill_lines (tenant_id, organization_id, bill_id, line_no, expense_account_id, amount, created_at, updated_at)
+       values ($1,$2,$3,2,$4,0,now(),now())`, [scope.tenant, scope.org, bill.id, expAcct]))
+  await client.query(`update orva_ap_bills set status='posted', posted_at=now() where id=$1`, [bill.id])
+  await expectError('posted bill rejects UPDATE', /immutable/i,
+    () => client.query(`update orva_ap_bills set memo='tamper' where id=$1`, [bill.id]))
+  await expectError('posted bill rejects DELETE', /cannot be deleted/i,
+    () => client.query(`delete from orva_ap_bills where id=$1`, [bill.id]))
+  await expectError('posted bill lines frozen', /immutable/i,
+    () => client.query(`update orva_ap_bill_lines set amount=999 where bill_id=$1`, [bill.id]))
+  await expectError('ap settings unique per scope', /scope_unique/i, async () => {
+    await client.query(`insert into orva_ap_settings (tenant_id, organization_id, ap_account_id, created_at, updated_at) values ($1,$2,$3,now(),now())`, [scope.tenant, scope.org, apAcct])
+    await client.query(`insert into orva_ap_settings (tenant_id, organization_id, ap_account_id, created_at, updated_at) values ($1,$2,$3,now(),now())`, [scope.tenant, scope.org, apAcct])
+  })
+  await client.query('rollback')
+
   // RLS: another tenant sees nothing
   await client.query('rollback')
   await client.query('begin')

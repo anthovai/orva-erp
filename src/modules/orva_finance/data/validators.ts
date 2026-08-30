@@ -104,3 +104,44 @@ export const journalUpdateSchema = z.object({
 export const journalPostSchema = z.object({ id: z.string().uuid() })
 
 export const deleteByIdSchema = z.object({ id: z.string().uuid() })
+
+export const billLineInputSchema = z.object({
+  expenseAccountId: z.string().uuid(),
+  amount: z.coerce.number().positive(),
+  description: z.string().optional().nullable(),
+})
+
+export const billListSchema = z
+  .object({
+    ...pagedList,
+    sortField: z.string().optional().default('created_at'),
+    sortDir: z.enum(['asc', 'desc']).optional().default('desc'),
+    status: z.enum(['draft', 'posted']).optional(),
+    vendorPartyId: z.string().uuid().optional(),
+    search: z.string().optional(),
+  })
+  .passthrough()
+
+export const billCreateSchema = z.object({
+  vendorPartyId: z.string().uuid(),
+  vendorBillRef: z.string().optional().nullable(),
+  periodId: z.string().uuid(),
+  billDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  currencyCode: z.string().min(3).max(3).default('THB'),
+  memo: z.string().optional().nullable(),
+  lines: z.array(billLineInputSchema).min(1),
+})
+
+export const billUpdateSchema = z.object({
+  id: z.string().uuid(),
+  vendorBillRef: z.string().optional().nullable(),
+  billDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  periodId: z.string().uuid().optional(),
+  memo: z.string().optional().nullable(),
+})
+
+export const billPostSchema = z.object({ id: z.string().uuid() })
+
+export const apSettingsPutSchema = z.object({ apAccountId: z.string().uuid() })

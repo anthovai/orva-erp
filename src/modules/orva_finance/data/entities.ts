@@ -200,6 +200,145 @@ export class GlJournalLine {
   deletedAt?: Date | null
 }
 
+/**
+ * AP configuration (one row per tenant/org): which GL account is the
+ * accounts-payable control account credited when a vendor bill posts.
+ */
+@Entity({ tableName: 'orva_ap_settings' })
+export class ApSettings {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ name: 'ap_account_id', type: 'uuid' })
+  apAccountId!: string
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+}
+
+/**
+ * Vendor bill (AP). vendor_party_id is a bare uuid into orva_party (the
+ * party must hold an active 'vendor' role — validated at create). Posting a
+ * bill books a GL journal (debit expense lines, credit the AP control
+ * account) and freezes the bill — DB triggers mirror the journal guards.
+ */
+@Entity({ tableName: 'orva_ap_bills' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class ApBill {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  /** Allocated from orva_gl_sequences (kind 'ap_bill'), e.g. BILL-000001. */
+  @Property({ name: 'bill_no', type: 'text', nullable: true })
+  billNo?: string | null
+
+  /** 'draft' | 'posted' */
+  @Property({ type: 'text', default: 'draft' })
+  status: string = 'draft'
+
+  @Property({ name: 'vendor_party_id', type: 'uuid' })
+  @Index()
+  vendorPartyId!: string
+
+  /** The supplier's own invoice/bill reference. */
+  @Property({ name: 'vendor_bill_ref', type: 'text', nullable: true })
+  vendorBillRef?: string | null
+
+  @Property({ name: 'period_id', type: 'uuid' })
+  periodId!: string
+
+  @Property({ name: 'bill_date', type: 'date' })
+  billDate!: string
+
+  @Property({ name: 'due_date', type: 'date', nullable: true })
+  dueDate?: string | null
+
+  @Property({ name: 'currency_code', type: 'text', default: 'THB' })
+  currencyCode: string = 'THB'
+
+  @Property({ type: 'text', nullable: true })
+  memo?: string | null
+
+  @Property({ name: 'total_amount', type: 'numeric', precision: 18, scale: 4, default: '0' })
+  totalAmount: string = '0'
+
+  /** GL journal booked at posting time. */
+  @Property({ name: 'journal_id', type: 'uuid', nullable: true })
+  journalId?: string | null
+
+  @Property({ name: 'posted_at', type: Date, nullable: true })
+  postedAt?: Date | null
+
+  @Property({ name: 'posted_by', type: 'uuid', nullable: true })
+  postedBy?: string | null
+
+  @Property({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+
+  @Property({ name: 'deleted_at', type: Date, nullable: true })
+  deletedAt?: Date | null
+}
+
+/** Vendor bill expense line: which expense account, how much. */
+@Entity({ tableName: 'orva_ap_bill_lines' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class ApBillLine {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ name: 'bill_id', type: 'uuid' })
+  @Index()
+  billId!: string
+
+  @Property({ name: 'line_no', type: 'int' })
+  lineNo!: number
+
+  @Property({ name: 'expense_account_id', type: 'uuid' })
+  expenseAccountId!: string
+
+  @Property({ type: 'numeric', precision: 18, scale: 4, default: '0' })
+  amount: string = '0'
+
+  @Property({ type: 'text', nullable: true })
+  description?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+
+  @Property({ name: 'deleted_at', type: Date, nullable: true })
+  deletedAt?: Date | null
+}
+
 /** Race-safe per-scope document numbering (one row per tenant/org/kind). */
 @Entity({ tableName: 'orva_gl_sequences' })
 export class GlSequence {
