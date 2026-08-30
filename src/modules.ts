@@ -156,6 +156,9 @@ if (parseBooleanWithDefault(process.env.OM_ENABLE_STORAGE_S3, false)) {
 // and must never be wired in. SSO/MFA/record-locking will be reimplemented
 // clean-room as @orva/* modules through public extension points.
 
+// Orva domain modules.
+enabledModules.push({ id: 'orva_party', from: '@app' })
+
 // Orva branding: registered LAST so its i18n overrides every module's defaults
 // (dictionary merge is last-write-wins across enabledModules order).
 enabledModules.push({ id: 'orva', from: '@app' })

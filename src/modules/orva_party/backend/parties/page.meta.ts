@@ -1,0 +1,11 @@
+export const metadata = {
+  requireAuth: true,
+  requireFeatures: ['orva_party.parties.view'],
+  pageTitle: 'Parties',
+  pageTitleKey: 'orva_party.page.title',
+  pageGroup: 'Orva',
+  pageGroupKey: 'orva_party.nav.group',
+  pageOrder: 100,
+  icon: 'users',
+  breadcrumb: [{ label: 'Parties', labelKey: 'orva_party.page.title' }],
+}
