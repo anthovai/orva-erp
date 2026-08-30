@@ -125,7 +125,7 @@ export default function BillCreateForm() {
         <div className="flex flex-col gap-6">
           {error ? <div className="text-sm text-destructive">{error}</div> : null}
           {vendorIds.length === 0 && vendorRolesData ? (
-            <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+            <div className="rounded-md border border-status-warning-border bg-status-warning-bg px-4 py-3 text-sm">
               {t('orva_finance.ap.form.noVendors', 'No parties hold the vendor role yet — assign it in Parties first.')}
             </div>
           ) : null}

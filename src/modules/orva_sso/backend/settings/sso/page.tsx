@@ -1,6 +1,7 @@
 "use client"
 import * as React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Page, PageBody } from '@open-mercato/ui/backend/Page'
 import { DataTable } from '@open-mercato/ui/backend/DataTable'
 import { Button } from '@open-mercato/ui/primitives/button'
@@ -20,6 +21,7 @@ type ConnectionRow = {
 
 export default function SsoConnectionsPage() {
   const t = useT()
+  const router = useRouter()
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['orva_sso.connections'],
     queryFn: async () => fetchCrudList<ConnectionRow>('orva_sso/connections', { page: 1, pageSize: 100 }),
@@ -58,7 +60,7 @@ export default function SsoConnectionsPage() {
           isLoading={isLoading}
           error={error ? String(error) : undefined}
           emptyState={t('orva_sso.empty', 'No SSO connections yet — add one to let users of your identity provider sign in without a password.')}
-          onRowClick={(row) => { window.location.href = `/backend/settings/sso/${row.id}` }}
+          onRowClick={(row) => { router.push(`/backend/settings/sso/${row.id}`) }}
           toolbar={<Button variant="outline" type="button" onClick={() => refetch()}>{t('orva_sso.actions.refresh', 'Refresh')}</Button>}
         />
       </PageBody>

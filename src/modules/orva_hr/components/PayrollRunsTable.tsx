@@ -69,7 +69,7 @@ function HrSettingsCard() {
   const allChosen = slots.every((slot) => values[slot.key] || settings[slot.key])
 
   return (
-    <div className="mb-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+    <div className="mb-4 rounded-md border border-status-warning-border bg-status-warning-bg px-4 py-3 text-sm">
       <div className="mb-2 font-medium">
         {t('orva_hr.settings.missing', 'Set the payroll posting accounts before posting runs:')}
       </div>
@@ -179,7 +179,7 @@ export default function PayrollRunsTable() {
 
   const statusTone: Record<string, string> = {
     draft: 'bg-muted text-muted-foreground',
-    calculated: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+    calculated: 'bg-status-warning-bg text-status-warning-text',
     posted: 'bg-accent/50',
   }
 

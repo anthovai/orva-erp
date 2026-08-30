@@ -70,7 +70,7 @@ export default function PayrollRunDetail({ id }: { id: string }) {
 
   const statusTone: Record<string, string> = {
     draft: 'bg-muted text-muted-foreground',
-    calculated: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+    calculated: 'bg-status-warning-bg text-status-warning-text',
     posted: 'bg-accent/50',
   }
 

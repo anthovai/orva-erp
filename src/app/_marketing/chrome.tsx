@@ -28,9 +28,9 @@ export function MarketingNav({ locale, dict }: { locale: MarketingLocale; dict: 
           <span className="text-lg font-bold tracking-tight text-white">Orva</span>
         </Link>
         <nav className="hidden items-center gap-8 text-sm font-medium text-[#d5efe6cc] md:flex">
-          <a href="/start#modules" className="transition hover:text-white">{dict.nav.modules}</a>
-          <a href="/start#screens" className="transition hover:text-white">{dict.nav.screens}</a>
-          <a href="/start#architecture" className="transition hover:text-white">{dict.nav.architecture}</a>
+          <Link href="/start#modules" className="transition hover:text-white">{dict.nav.modules}</Link>
+          <Link href="/start#screens" className="transition hover:text-white">{dict.nav.screens}</Link>
+          <Link href="/start#architecture" className="transition hover:text-white">{dict.nav.architecture}</Link>
           <Link href="/about" className="transition hover:text-white">{dict.nav.about}</Link>
         </nav>
         <div className="flex items-center gap-3">
@@ -67,9 +67,9 @@ export function MarketingFooter({ dict }: { dict: MarketingDict }) {
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.15em] text-[#eafaf466]">{dict.footer.product}</div>
           <ul className="mt-4 flex flex-col gap-2.5">
-            <li><a href="/start#modules" className="transition hover:text-white">{dict.footer.allModules}</a></li>
-            <li><a href="/start#screens" className="transition hover:text-white">{dict.footer.screens}</a></li>
-            <li><a href="/start#architecture" className="transition hover:text-white">{dict.footer.architecture}</a></li>
+            <li><Link href="/start#modules" className="transition hover:text-white">{dict.footer.allModules}</Link></li>
+            <li><Link href="/start#screens" className="transition hover:text-white">{dict.footer.screens}</Link></li>
+            <li><Link href="/start#architecture" className="transition hover:text-white">{dict.footer.architecture}</Link></li>
             <li><Link href="/about" className="transition hover:text-white">{dict.footer.about}</Link></li>
           </ul>
         </div>
@@ -78,6 +78,9 @@ export function MarketingFooter({ dict }: { dict: MarketingDict }) {
           <ul className="mt-4 flex flex-col gap-2.5">
             <li><Link href="/login" className="transition hover:text-white">{dict.footer.login}</Link></li>
             <li><Link href="/backend" className="transition hover:text-white">{dict.footer.admin}</Link></li>
+            {/* API docs are served by a route handler, not a page — a plain
+                anchor is correct here; Link would prefetch a non-page route. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <li><a href="/api/docs/openapi" className="transition hover:text-white">{dict.footer.api}</a></li>
           </ul>
         </div>

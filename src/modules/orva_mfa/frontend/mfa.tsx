@@ -1,5 +1,6 @@
 "use client"
 import * as React from 'react'
+import Link from 'next/link'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 
 /**
@@ -59,7 +60,7 @@ export default function MfaChallengePage() {
             inputMode="numeric"
             autoComplete="one-time-code"
             aria-label={t('orva_mfa.challenge.codeLabel', 'Verification code')}
-            className="h-11 rounded-md border bg-background px-3 text-center text-lg tracking-[0.3em] outline-none focus:ring-2 focus:ring-ring"
+            className="h-11 rounded-md border bg-background px-3 text-center text-lg tracking-widest outline-none focus:ring-2 focus:ring-ring"
             value={code}
             onChange={(event) => setCode(event.target.value)}
             placeholder="000000"
@@ -78,9 +79,9 @@ export default function MfaChallengePage() {
               : t('orva_mfa.challenge.submit', 'Verify')}
           </button>
         </form>
-        <a href="/login" className="mt-4 block text-center text-xs text-muted-foreground hover:underline">
+        <Link href="/login" className="mt-4 block text-center text-xs text-muted-foreground hover:underline">
           {t('orva_mfa.challenge.backToLogin', 'Back to sign in')}
-        </a>
+        </Link>
       </div>
     </main>
   )

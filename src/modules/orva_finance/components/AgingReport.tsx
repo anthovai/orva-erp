@@ -31,8 +31,8 @@ const BUCKETS = ['current', 'd1_30', 'd31_60', 'd61_90', 'd90_plus'] as const
 function bucketTone(bucket: AgingRow['bucket']): string {
   switch (bucket) {
     case 'current': return 'bg-accent/50'
-    case 'd1_30': return 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
-    case 'd31_60': return 'bg-orange-500/15 text-orange-700 dark:text-orange-400'
+    case 'd1_30': return 'bg-status-warning-bg text-status-warning-text'
+    case 'd31_60': return 'bg-status-warning-bg text-status-warning-text'
     default: return 'bg-destructive/10 text-destructive'
   }
 }

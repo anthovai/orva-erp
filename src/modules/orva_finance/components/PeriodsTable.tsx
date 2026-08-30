@@ -49,7 +49,7 @@ function RetainedEarningsBanner() {
   if (!settings || settings.retainedEarningsAccountId) return null
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-status-warning-border bg-status-warning-bg px-4 py-3 text-sm">
       <span>{t('orva_finance.gl.settings.reMissing', 'Set the retained-earnings account (equity) to enable period closing:')}</span>
       <select className={selectClass} value={selected} onChange={(e) => setSelected(e.target.value)}>
         <option value="">{t('orva_finance.journals.form.selectAccount', '— select account —')}</option>

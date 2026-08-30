@@ -80,7 +80,7 @@ export default function MfaSettingsPage() {
           ) : status.enrolled ? (
             <div className="flex flex-col gap-4 rounded-lg border p-6">
               <div className="text-sm">
-                <span className="mr-2 inline-flex items-center rounded-full border border-green-700/30 bg-green-600/10 px-2.5 py-0.5 text-xs font-semibold text-green-700">
+                <span className="mr-2 inline-flex items-center rounded-full border border-status-success-border bg-status-success-bg px-2.5 py-0.5 text-xs font-semibold text-status-success-text">
                   {t('orva_mfa.settings.activeBadge', 'Active')}
                 </span>
                 {t('orva_mfa.settings.activeSince', 'Enabled since')}{' '}
@@ -141,7 +141,7 @@ export default function MfaSettingsPage() {
           )}
 
           {recoveryCodes ? (
-            <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-6">
+            <div className="rounded-lg border border-status-warning-border bg-status-warning-bg p-6">
               <h2 className="text-sm font-semibold">{t('orva_mfa.settings.recoveryTitle', 'Recovery codes — shown only once')}</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 {t('orva_mfa.settings.recoveryHint', 'Store these somewhere safe. Each code signs you in once if you lose your device.')}

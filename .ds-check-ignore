@@ -2,12 +2,6 @@
   "version": 1,
   "entries": [
     {
-      "file": "src/app/start/page.tsx",
-      "rule": "arbitrary-tailwind",
-      "match": "max-h-[200px]",
-      "reason": "Existing scaffold styling retained as a bounded migration baseline."
-    },
-    {
       "file": "src/components/BackendHeaderChrome.tsx",
       "rule": "arbitrary-tailwind",
       "match": "w-[220px]",
@@ -1212,6 +1206,732 @@
       "rule": "hardcoded-palette",
       "match": "text-blue-500/70",
       "reason": "Existing scaffold styling retained as a bounded migration baseline."
+    },
+    {
+      "file": "src/app/_marketing/LanguageSwitcher.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#d5efe6]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/chrome.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#d5efe6cc]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/chrome.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#d5efe6cc]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/chrome.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#06342c]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/chrome.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "hover:bg-[#e9f7f1]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/chrome.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#eafaf4b3]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/chrome.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[13px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/chrome.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#eafaf48c]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/chrome.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "tracking-[0.15em]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/chrome.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#eafaf466]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/chrome.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "tracking-[0.15em]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/chrome.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#eafaf466]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/chrome.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "tracking-[0.15em]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/chrome.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#eafaf466]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/chrome.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#eafaf466]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/chrome.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/chrome.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#101828]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "size-[480px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "border-[48px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "tracking-[0.18em]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#eafaf4bf]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[15px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#49564f]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "border-[#e3e9e6]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#66756e]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "border-[#e3e9e6]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "bg-[#f6faf8]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[15px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[13px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#66756e]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[15px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#49564f]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "border-[#e3e9e6]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "bg-[#f6faf8]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#49564f]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[13px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#66756e]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "decoration-[#cbd6d1]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "hover:text-[#101828]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[15px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#66756e]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "border-[#cbd6d1]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#101828]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "hover:bg-[#f6faf8]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/about/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "shadow-[#06342c33]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "bg-[#f6faf8]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "bg-[#f66]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "bg-[#fc3]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "bg-[#4c4]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[11px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#94a19b]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#101828]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "size-[560px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "border-[54px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "size-[420px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "border-[44px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "border-[#7ee0c440]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "bg-[#7ee0c41a]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#d5efe6]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "leading-[1.15]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "sm:text-[3.4rem]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#eafaf4bf]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#06342c]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "hover:bg-[#e9f7f1]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[13px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#eafaf4b3]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "border-[#e3e9e6]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "bg-[#f6faf8]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[2rem]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[13px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#66756e]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "tracking-[0.18em]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[15px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#66756e]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[15px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[13px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#eafaf4a6]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "border-[#e3e9e6]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "hover:border-[#cbd6d1]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "hover:shadow-[#dfe7e3]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#49564f]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "tracking-[0.18em]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#66756e]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#101828]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#66756e]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#101828]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "tracking-[0.18em]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "border-[#e3e9e6]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "bg-[#f6faf8]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[15px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[13px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#66756e]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#94a19b]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "border-[36px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[15px]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#eafaf4cc]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "text-[#06342c]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "hover:bg-[#e9f7f1]",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/start/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
     }
   ]
 }

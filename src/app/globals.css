@@ -795,3 +795,142 @@ body[data-ai-chat-open="true"] .om-demo-feedback-floating {
 .om-mdx-editor .cm-dropCursor {
   border-left-color: var(--foreground);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Orva brand theme — see docs/BRAND.md
+   ───────────────────────────────────────────────────────────────────────
+   The blocks above are the stock design-system defaults (neutral greys,
+   near-black primary, indigo selection controls). This block re-points the
+   SEMANTIC tokens at the Orva palette so the whole backoffice — buttons,
+   focus rings, sidebar, checkboxes, links, charts — reads as our product
+   rather than a default template. Nothing here is a new token: every rule
+   overrides an existing variable, so upstream components pick it up with
+   no component-level patches.
+
+   Palette (docs/BRAND.md):
+     Orva Green  #11836E — primary actions, links, active state, focus
+     Orva Forest #0A4A3E — deep brand surfaces, dark-mode grounds
+     Orva Mint   #7EE0C4 — RESERVED: AI, automation, node language,
+                           saved-view highlights. Never a generic accent.
+     Neutrals    #FFFFFF #F8FAF9 #F1F5F3 #DDE7E3 #9AA9A4 #52615D #26332F #111816
+                 (green-biased greys so data-dense screens sit in the
+                  same family as the brand instead of fighting it)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Surfaces — white cards on a faintly green-tinted app ground */
+  --background: #F8FAF9;
+  --foreground: #111816;
+  --card: #FFFFFF;
+  --card-foreground: #111816;
+  --popover: #FFFFFF;
+  --popover-foreground: #111816;
+
+  /* Primary action — Orva Green. White text on #11836E is 4.7:1 (AA). */
+  --primary: #11836E;
+  --primary-foreground: #FFFFFF;
+  --primary-hover: #0E6C5B;
+
+  /* Neutral surfaces */
+  --secondary: #F1F5F3;
+  --secondary-foreground: #26332F;
+  --muted: #F1F5F3;
+  --muted-foreground: #52615D;
+
+  /* Hover/active surfaces carry a hint of the brand instead of plain grey */
+  --accent: #E9F2EF;
+  --accent-foreground: #0A4A3E;
+
+  --border: #DDE7E3;
+  --input: #DDE7E3;
+  --ring: #11836E;
+
+  /* Selection controls (checkbox / radio / switch) follow the brand.
+     The token keeps its historical name; only the value is ours. */
+  --accent-indigo: #11836E;
+  --accent-indigo-foreground: #FFFFFF;
+
+  /* Saved views / perspective tags — the mint highlight from the logomark.
+     Dark text keeps it legible; mint is never used as a text color. */
+  --brand-violet: #7EE0C4;
+  --brand-violet-foreground: #06342C;
+
+  /* Disabled controls, tinted to the same neutral family */
+  --bg-disabled: #F1F5F3;
+  --text-disabled: #9AA9A4;
+  --border-disabled: #E6EDEA;
+
+  /* Sidebar — the quietest surface, brand-tinted selection */
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #26332F;
+  --sidebar-primary: #11836E;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #E9F2EF;
+  --sidebar-accent-foreground: #0A4A3E;
+  --sidebar-border: #DDE7E3;
+  --sidebar-ring: #11836E;
+
+  /* Charts: series 1 anchors on the brand, the rest stay hue-distinct so
+     categorical series remain tellable apart (and colour-blind safe-ish). */
+  --chart-1: #11836E;
+  --chart-2: #3E8FD0;
+  --chart-3: #E2A33C;
+  --chart-4: #8B6FD4;
+  --chart-5: #D96A6A;
+  --chart-emerald: #11836E;
+  --chart-teal: #2FA98D;
+}
+
+.dark {
+  /* Grounds: near-black with a green bias, cards lifted one step */
+  --background: #0F1815;
+  --foreground: #EEF4F1;
+  --card: #16211E;
+  --card-foreground: #EEF4F1;
+  --popover: #16211E;
+  --popover-foreground: #EEF4F1;
+
+  /* Brighter green so it carries on a dark ground; deep-green text on it
+     is ~5.8:1. */
+  --primary: #2FB89B;
+  --primary-foreground: #04231D;
+  --primary-hover: #45C7AB;
+
+  --secondary: #1D2B27;
+  --secondary-foreground: #EEF4F1;
+  --muted: #1D2B27;
+  --muted-foreground: #9AA9A4;
+  --accent: #1E332C;
+  --accent-foreground: #A7E8D6;
+
+  --border: #26332F;
+  --input: #2A3934;
+  --ring: #2FB89B;
+
+  --accent-indigo: #2FB89B;
+  --accent-indigo-foreground: #04231D;
+
+  --brand-violet: #7EE0C4;
+  --brand-violet-foreground: #06342C;
+
+  --bg-disabled: #1A2522;
+  --text-disabled: #52615D;
+  --border-disabled: #22302B;
+
+  --sidebar: #0C1512;
+  --sidebar-foreground: #EEF4F1;
+  --sidebar-primary: #2FB89B;
+  --sidebar-primary-foreground: #04231D;
+  --sidebar-accent: #1E332C;
+  --sidebar-accent-foreground: #A7E8D6;
+  --sidebar-border: #26332F;
+  --sidebar-ring: #2FB89B;
+
+  --chart-1: #2FB89B;
+  --chart-2: #6BAEE8;
+  --chart-3: #EFBB63;
+  --chart-4: #A78BEA;
+  --chart-5: #E88C8C;
+  --chart-emerald: #2FB89B;
+  --chart-teal: #7EE0C4;
+}

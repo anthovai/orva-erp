@@ -181,7 +181,7 @@ export default function ArPosting() {
       <PageBody>
         {settings ? <ArSettingsCard settings={settings} /> : null}
         {!configured && settings ? (
-          <div className="mb-4 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+          <div className="mb-4 rounded-md border border-status-warning-border bg-status-warning-bg px-4 py-3 text-sm">
             {t('orva_finance.ar.settings.missing', 'Set the AR control and revenue accounts above before posting.')}
           </div>
         ) : null}

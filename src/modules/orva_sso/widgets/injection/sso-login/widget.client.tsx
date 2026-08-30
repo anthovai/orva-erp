@@ -37,7 +37,10 @@ export default function SsoLoginWidget({ context }: { context: LoginFormWidgetCo
               const params = new URLSearchParams({ email })
               const redirect = searchParams.get('redirect')
               if (redirect) params.set('redirect', redirect)
-              window.location.assign(`/api/orva_sso/start?${params.toString()}`)
+              // A full document navigation is required: /api/orva_sso/start is
+              // a route handler that 302s to the external IdP and sets the
+              // state cookie. The Next router cannot follow that.
+              window.location.href = `/api/orva_sso/start?${params.toString()}`
             },
             hidePassword: true,
             hideRememberMe: true,
