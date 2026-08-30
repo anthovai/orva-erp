@@ -1,5 +1,11 @@
 import { describe, expect, test } from '@jest/globals'
-import { buildBillJournalLines, computeBillTotal } from '../ap'
+import {
+  buildBillJournalLines,
+  buildPaymentJournalLines,
+  checkAllocationFits,
+  computeAllocationsTotal,
+  computeBillTotal,
+} from '../ap'
 
 describe('orva_finance AP posting helpers', () => {
   const lines = [
@@ -27,5 +33,24 @@ describe('orva_finance AP posting helpers', () => {
   test('requires an AP account and at least one line', () => {
     expect(() => buildBillJournalLines(lines, '')).toThrow(/not configured/)
     expect(() => buildBillJournalLines([], 'acc-ap')).toThrow(/at least one line/)
+  })
+
+  test('payment journal debits AP and credits cash, balanced', () => {
+    const drafts = buildPaymentJournalLines(1250.5, 'acc-ap', 'acc-cash')
+    expect(drafts).toEqual([
+      expect.objectContaining({ accountId: 'acc-ap', debit: '1250.5000', credit: '0.0000' }),
+      expect.objectContaining({ accountId: 'acc-cash', debit: '0.0000', credit: '1250.5000' }),
+    ])
+    expect(() => buildPaymentJournalLines(0, 'acc-ap', 'acc-cash')).toThrow(/positive/)
+    expect(() => buildPaymentJournalLines(10, '', 'acc-cash')).toThrow(/not configured/)
+    expect(() => buildPaymentJournalLines(10, 'acc-ap', '')).toThrow(/cash account/)
+  })
+
+  test('allocations total and remaining checks', () => {
+    expect(computeAllocationsTotal([{ billId: 'b1', amount: 100 }, { billId: 'b2', amount: 50.25 }])).toBe('150.2500')
+    expect(() => computeAllocationsTotal([{ billId: 'b1', amount: 0 }])).toThrow(/positive/)
+    expect(checkAllocationFits(500, 100, 400)).toEqual({ ok: true })
+    expect(checkAllocationFits(500, 100, 400.01)).toMatchObject({ ok: false })
+    expect(checkAllocationFits('500.0000', '0', '500')).toEqual({ ok: true })
   })
 })

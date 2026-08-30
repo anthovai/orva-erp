@@ -145,3 +145,39 @@ export const billUpdateSchema = z.object({
 export const billPostSchema = z.object({ id: z.string().uuid() })
 
 export const apSettingsPutSchema = z.object({ apAccountId: z.string().uuid() })
+
+export const paymentAllocationInputSchema = z.object({
+  billId: z.string().uuid(),
+  amount: z.coerce.number().positive(),
+})
+
+export const paymentListSchema = z
+  .object({
+    ...pagedList,
+    sortField: z.string().optional().default('created_at'),
+    sortDir: z.enum(['asc', 'desc']).optional().default('desc'),
+    status: z.enum(['draft', 'posted']).optional(),
+    vendorPartyId: z.string().uuid().optional(),
+    search: z.string().optional(),
+  })
+  .passthrough()
+
+export const paymentCreateSchema = z.object({
+  vendorPartyId: z.string().uuid(),
+  cashAccountId: z.string().uuid(),
+  periodId: z.string().uuid(),
+  paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  currencyCode: z.string().min(3).max(3).default('THB'),
+  memo: z.string().optional().nullable(),
+  allocations: z.array(paymentAllocationInputSchema).min(1),
+})
+
+export const paymentUpdateSchema = z.object({
+  id: z.string().uuid(),
+  paymentDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  periodId: z.string().uuid().optional(),
+  cashAccountId: z.string().uuid().optional(),
+  memo: z.string().optional().nullable(),
+})
+
+export const paymentPostSchema = z.object({ id: z.string().uuid() })

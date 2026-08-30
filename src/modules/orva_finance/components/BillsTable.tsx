@@ -22,6 +22,7 @@ type BillRow = {
   bill_date: string
   due_date?: string | null
   total_amount?: string | number
+  paid_amount?: string | number
   journal_id?: string | null
 }
 
@@ -149,6 +150,21 @@ export default function BillsTable() {
       header: t('orva_finance.ap.column.total', 'Total'),
       meta: { priority: 2 },
       cell: ({ getValue }) => <span className="tabular-nums">{fmt(getValue() as string)}</span>,
+    },
+    {
+      accessorKey: 'paid_amount',
+      header: t('orva_finance.ap.column.paid', 'Paid'),
+      meta: { priority: 3 },
+      cell: ({ row }) => {
+        const paid = Number(row.original.paid_amount ?? 0)
+        const total = Number(row.original.total_amount ?? 0)
+        const settled = row.original.status === 'posted' && total > 0 && paid >= total - 0.00005
+        return (
+          <span className={`tabular-nums ${settled ? 'text-muted-foreground' : ''}`}>
+            {fmt(paid)}{settled ? ' ✓' : ''}
+          </span>
+        )
+      },
     },
   ], [t, vendorMap])
 

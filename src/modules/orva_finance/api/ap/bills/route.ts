@@ -65,7 +65,7 @@ export const { metadata, GET, POST, PUT, DELETE } = makeCrudRoute({
     entityId: ENTITY_ID,
     fields: [
       'id', 'bill_no', 'status', 'vendor_party_id', 'vendor_bill_ref', 'period_id', 'bill_date', 'due_date',
-      'currency_code', 'memo', 'total_amount', 'journal_id', 'posted_at', 'tenant_id', 'organization_id',
+      'currency_code', 'memo', 'total_amount', 'paid_amount', 'journal_id', 'posted_at', 'tenant_id', 'organization_id',
       'created_at', 'updated_at',
     ],
     sortFieldMap: { id: 'id', bill_no: 'bill_no', status: 'status', bill_date: 'bill_date', due_date: 'due_date', created_at: 'created_at' },

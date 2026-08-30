@@ -120,6 +120,35 @@ try {
     () => client.query(`delete from orva_ap_bills where id=$1`, [bill.id]))
   await expectError('posted bill lines frozen', /immutable/i,
     () => client.query(`update orva_ap_bill_lines set amount=999 where bill_id=$1`, [bill.id]))
+  // relaxed bill guard: paid_amount-only updates are allowed on posted bills
+  await client.query(`update orva_ap_bills set paid_amount = 200 where id=$1`, [bill.id])
+  check('posted bill accepts paid_amount-only update', true)
+  await expectError('posted bill rejects paid_amount above total', /out of range/i,
+    () => client.query(`update orva_ap_bills set paid_amount = 999999 where id=$1`, [bill.id]))
+
+  // payments: posted = frozen, allocations guarded
+  const { rows: [cashProbe] } = await client.query(
+    `insert into orva_gl_accounts (tenant_id, organization_id, code, name, account_type, created_at, updated_at)
+     values ($1,$2,$3,$3,'asset',now(),now()) returning id`, [scope.tenant, scope.org, `T-1100-${Date.now()}`])
+  const { rows: [payment] } = await client.query(
+    `insert into orva_ap_payments (tenant_id, organization_id, payment_no, status, vendor_party_id, cash_account_id, period_id, payment_date, total_amount, created_at, updated_at)
+     values ($1,$2,$3,'draft',$4,$5,$6,'2099-01-25',200,now(),now()) returning id`,
+    [scope.tenant, scope.org, `T-PAY-${Date.now()}`, vendor.id, cashProbe.id, openPeriod])
+  await client.query(
+    `insert into orva_ap_payment_allocations (tenant_id, organization_id, payment_id, bill_id, amount, created_at, updated_at)
+     values ($1,$2,$3,$4,200,now(),now())`, [scope.tenant, scope.org, payment.id, bill.id])
+  await expectError('payment allocation with zero amount rejected (check)', /amount_check/i,
+    () => client.query(
+      `insert into orva_ap_payment_allocations (tenant_id, organization_id, payment_id, bill_id, amount, created_at, updated_at)
+       values ($1,$2,$3,$4,0,now(),now())`, [scope.tenant, scope.org, payment.id, bill.id]))
+  await client.query(`update orva_ap_payments set status='posted', posted_at=now() where id=$1`, [payment.id])
+  await expectError('posted payment rejects UPDATE', /immutable/i,
+    () => client.query(`update orva_ap_payments set memo='tamper' where id=$1`, [payment.id]))
+  await expectError('posted payment rejects DELETE', /cannot be deleted/i,
+    () => client.query(`delete from orva_ap_payments where id=$1`, [payment.id]))
+  await expectError('posted payment allocations frozen', /immutable/i,
+    () => client.query(`update orva_ap_payment_allocations set amount=1 where payment_id=$1`, [payment.id]))
+
   await expectError('ap settings unique per scope', /scope_unique/i, async () => {
     await client.query(`insert into orva_ap_settings (tenant_id, organization_id, ap_account_id, created_at, updated_at) values ($1,$2,$3,now(),now())`, [scope.tenant, scope.org, apAcct])
     await client.query(`insert into orva_ap_settings (tenant_id, organization_id, ap_account_id, created_at, updated_at) values ($1,$2,$3,now(),now())`, [scope.tenant, scope.org, apAcct])

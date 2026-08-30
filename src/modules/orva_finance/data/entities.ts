@@ -277,6 +277,13 @@ export class ApBill {
   @Property({ name: 'total_amount', type: 'numeric', precision: 18, scale: 4, default: '0' })
   totalAmount: string = '0'
 
+  /**
+   * Sum of posted payment allocations against this bill. The only field the
+   * bill guard allows to change after posting.
+   */
+  @Property({ name: 'paid_amount', type: 'numeric', precision: 18, scale: 4, default: '0' })
+  paidAmount: string = '0'
+
   /** GL journal booked at posting time. */
   @Property({ name: 'journal_id', type: 'uuid', nullable: true })
   journalId?: string | null
@@ -289,6 +296,110 @@ export class ApBill {
 
   @Property({ name: 'created_by', type: 'uuid', nullable: true })
   createdBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+
+  @Property({ name: 'deleted_at', type: Date, nullable: true })
+  deletedAt?: Date | null
+}
+
+/**
+ * Vendor payment (AP). Posting books a GL journal (debit the AP control
+ * account, credit the cash/bank asset account) and adds each allocation to
+ * its bill's paid_amount. Posted payments are frozen by DB triggers.
+ */
+@Entity({ tableName: 'orva_ap_payments' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class ApPayment {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  /** Allocated from orva_gl_sequences (kind 'ap_payment'), e.g. PAY-000001. */
+  @Property({ name: 'payment_no', type: 'text', nullable: true })
+  paymentNo?: string | null
+
+  /** 'draft' | 'posted' */
+  @Property({ type: 'text', default: 'draft' })
+  status: string = 'draft'
+
+  @Property({ name: 'vendor_party_id', type: 'uuid' })
+  @Index()
+  vendorPartyId!: string
+
+  /** Asset account the payment is made from (cash/bank). */
+  @Property({ name: 'cash_account_id', type: 'uuid' })
+  cashAccountId!: string
+
+  @Property({ name: 'period_id', type: 'uuid' })
+  periodId!: string
+
+  @Property({ name: 'payment_date', type: 'date' })
+  paymentDate!: string
+
+  @Property({ name: 'currency_code', type: 'text', default: 'THB' })
+  currencyCode: string = 'THB'
+
+  @Property({ type: 'text', nullable: true })
+  memo?: string | null
+
+  @Property({ name: 'total_amount', type: 'numeric', precision: 18, scale: 4, default: '0' })
+  totalAmount: string = '0'
+
+  @Property({ name: 'journal_id', type: 'uuid', nullable: true })
+  journalId?: string | null
+
+  @Property({ name: 'posted_at', type: Date, nullable: true })
+  postedAt?: Date | null
+
+  @Property({ name: 'posted_by', type: 'uuid', nullable: true })
+  postedBy?: string | null
+
+  @Property({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+
+  @Property({ name: 'deleted_at', type: Date, nullable: true })
+  deletedAt?: Date | null
+}
+
+/** How much of a payment settles which posted bill. */
+@Entity({ tableName: 'orva_ap_payment_allocations' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class ApPaymentAllocation {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ name: 'payment_id', type: 'uuid' })
+  @Index()
+  paymentId!: string
+
+  @Property({ name: 'bill_id', type: 'uuid' })
+  @Index()
+  billId!: string
+
+  @Property({ type: 'numeric', precision: 18, scale: 4, default: '0' })
+  amount: string = '0'
 
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()
