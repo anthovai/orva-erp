@@ -1,6 +1,13 @@
 import type { AppContainer } from '@open-mercato/shared/lib/di/container'
 import { bootstrap } from '@open-mercato/core/bootstrap'
 import { applicationLifecycleEvents } from '@open-mercato/shared/lib/runtime/events'
+// Orva fix: the AI agents route (used by the topbar launcher) reads
+// llmProviderRegistry without ever importing llm-bootstrap, so on a fresh
+// boot the registry is empty and the launcher shows "no provider key is
+// configured" even when OPENAI_API_KEY is set. Importing the bootstrap here
+// registers the built-in providers before any request handler runs.
+// (Upstream candidate fix: agents route should import ./llm-bootstrap.)
+import '@open-mercato/ai-assistant/modules/ai_assistant/lib/llm-bootstrap'
 
 const APP_BOOTSTRAP_STARTED_EMITTED_KEY = '__openMercatoApplicationBootstrapStartedEventEmitted__'
 const APP_BOOTSTRAP_COMPLETED_EMITTED_KEY = '__openMercatoApplicationBootstrapCompletedEventEmitted__'
