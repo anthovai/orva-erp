@@ -1,6 +1,6 @@
 # Lessons
 
-This catalog indexes 0 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
+This catalog indexes 1 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
 
 ## How to use this catalog
 
@@ -28,6 +28,4 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 
 ### debugging
 
-| Lesson | Modules | Topics |
-|---|---|---|
-| [Flush a DB-generated uuid PK before creating child rows that reference it](.ai/lessons/db-generated-uuid-pk-needs-flush-before-child-rows.md) | orva_finance, orva_hr | mikro-orm, primary-keys, posting-routes |
+- [Flush a DB-generated uuid PK before creating child rows that reference it](lessons/db-generated-uuid-pk-needs-flush-before-child-rows.md) — area:debugging,module-data; module:orva_finance,orva_hr; topic:mikro-orm,primary-keys,posting-routes
