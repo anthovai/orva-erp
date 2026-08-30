@@ -29,6 +29,12 @@ export const features = [
   },
   { id: 'orva_finance.ar.view', title: 'View AR posting', module: 'orva_finance' },
   {
+    id: 'orva_finance.ar.manage',
+    title: 'Manage draft receipts and AR settings',
+    module: 'orva_finance',
+    dependsOn: ['orva_finance.ar.view'],
+  },
+  {
     id: 'orva_finance.ar.post',
     title: 'Post sales invoices to the ledger',
     module: 'orva_finance',

@@ -165,6 +165,26 @@ try {
        select $1,$2,$3,'T-INV-PROBE-2',j.id,100,now() from orva_gl_journals j where j.tenant_id=$1 limit 1`,
       [scope.tenant, scope.org, fakeInvoiceId]))
 
+  // AR receipts: posted = frozen, allocations guarded
+  const { rows: [receipt] } = await client.query(
+    `insert into orva_ar_receipts (tenant_id, organization_id, receipt_no, status, cash_account_id, period_id, receipt_date, total_amount, created_at, updated_at)
+     values ($1,$2,$3,'draft',$4,$5,'2099-01-26',100,now(),now()) returning id`,
+    [scope.tenant, scope.org, `T-RCT-${Date.now()}`, cashProbe.id, openPeriod])
+  await client.query(
+    `insert into orva_ar_receipt_allocations (tenant_id, organization_id, receipt_id, invoice_id, amount, created_at, updated_at)
+     values ($1,$2,$3,$4,100,now(),now())`, [scope.tenant, scope.org, receipt.id, fakeInvoiceId])
+  await expectError('receipt allocation with zero amount rejected (check)', /amount_check/i,
+    () => client.query(
+      `insert into orva_ar_receipt_allocations (tenant_id, organization_id, receipt_id, invoice_id, amount, created_at, updated_at)
+       values ($1,$2,$3,$4,0,now(),now())`, [scope.tenant, scope.org, receipt.id, fakeInvoiceId]))
+  await client.query(`update orva_ar_receipts set status='posted', posted_at=now() where id=$1`, [receipt.id])
+  await expectError('posted receipt rejects UPDATE', /immutable/i,
+    () => client.query(`update orva_ar_receipts set memo='tamper' where id=$1`, [receipt.id]))
+  await expectError('posted receipt rejects DELETE', /cannot be deleted/i,
+    () => client.query(`delete from orva_ar_receipts where id=$1`, [receipt.id]))
+  await expectError('posted receipt allocations frozen', /immutable/i,
+    () => client.query(`update orva_ar_receipt_allocations set amount=1 where receipt_id=$1`, [receipt.id]))
+
   await expectError('ap settings unique per scope', /scope_unique/i, async () => {
     await client.query(`insert into orva_ap_settings (tenant_id, organization_id, ap_account_id, created_at, updated_at) values ($1,$2,$3,now(),now())`, [scope.tenant, scope.org, apAcct])
     await client.query(`insert into orva_ap_settings (tenant_id, organization_id, ap_account_id, created_at, updated_at) values ($1,$2,$3,now(),now())`, [scope.tenant, scope.org, apAcct])

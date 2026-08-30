@@ -1,6 +1,21 @@
 import type { JournalLineDraft } from './ap'
 
 /**
+ * A customer receipt books: debit cash/bank (asset), credit the AR control
+ * account (reducing the receivable).
+ */
+export function buildReceiptJournalLines(total: number | string, cashAccountId: string, arAccountId: string): JournalLineDraft[] {
+  const amount = Number(total)
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error('orva_ar: receipt total must be positive')
+  if (!cashAccountId) throw new Error('orva_ar: cash account is required')
+  if (!arAccountId) throw new Error('orva_ar: AR control account is not configured')
+  return [
+    { accountId: cashAccountId, debit: amount.toFixed(4), credit: '0.0000', description: 'Cash in' },
+    { accountId: arAccountId, debit: '0.0000', credit: amount.toFixed(4), description: 'Accounts receivable settlement' },
+  ]
+}
+
+/**
  * Pure AR posting math: a sales invoice books as
  *   debit  AR control (asset)          gross total
  *   credit revenue (income)            gross - tax   (or gross when no tax account)

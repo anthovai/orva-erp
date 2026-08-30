@@ -1,5 +1,5 @@
 import { describe, expect, test } from '@jest/globals'
-import { buildArJournalLines } from '../ar'
+import { buildArJournalLines, buildReceiptJournalLines } from '../ar'
 
 describe('orva_finance AR posting helpers', () => {
   test('without tax account: debit AR gross, credit revenue gross', () => {
@@ -26,5 +26,16 @@ describe('orva_finance AR posting helpers', () => {
     expect(() => buildArJournalLines(0, 0, 'a', 'r')).toThrow(/positive/)
     expect(() => buildArJournalLines(100, 200, 'a', 'r')).toThrow(/out of range/)
     expect(() => buildArJournalLines(100, 0, '', 'r')).toThrow(/not configured/)
+  })
+
+  test('receipt journal debits cash and credits AR, balanced', () => {
+    const lines = buildReceiptJournalLines(250.5, 'acc-cash', 'acc-ar')
+    expect(lines).toEqual([
+      expect.objectContaining({ accountId: 'acc-cash', debit: '250.5000', credit: '0.0000' }),
+      expect.objectContaining({ accountId: 'acc-ar', debit: '0.0000', credit: '250.5000' }),
+    ])
+    expect(() => buildReceiptJournalLines(0, 'c', 'a')).toThrow(/positive/)
+    expect(() => buildReceiptJournalLines(10, '', 'a')).toThrow(/cash account/)
+    expect(() => buildReceiptJournalLines(10, 'c', '')).toThrow(/not configured/)
   })
 })

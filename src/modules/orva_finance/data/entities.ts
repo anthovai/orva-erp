@@ -519,6 +519,113 @@ export class ArInvoicePosting {
   createdAt: Date = new Date()
 }
 
+/**
+ * Customer receipt (AR). Posting books a GL journal (debit cash, credit the
+ * AR control account) — one receipt can settle several posted invoices via
+ * allocations. Invoice remaining balances are DERIVED (posting amount minus
+ * posted receipt allocations); nothing upstream and no immutable posting
+ * record is ever mutated.
+ */
+@Entity({ tableName: 'orva_ar_receipts' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class ArReceipt {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  /** Allocated from orva_gl_sequences (kind 'ar_receipt'), e.g. RCT-000001. */
+  @Property({ name: 'receipt_no', type: 'text', nullable: true })
+  receiptNo?: string | null
+
+  /** 'draft' | 'posted' */
+  @Property({ type: 'text', default: 'draft' })
+  status: string = 'draft'
+
+  /** Optional payer dimension (orva_party uuid, when known). */
+  @Property({ name: 'customer_party_id', type: 'uuid', nullable: true })
+  customerPartyId?: string | null
+
+  /** Asset account the money arrives on (cash/bank). */
+  @Property({ name: 'cash_account_id', type: 'uuid' })
+  cashAccountId!: string
+
+  @Property({ name: 'period_id', type: 'uuid' })
+  periodId!: string
+
+  @Property({ name: 'receipt_date', type: 'date' })
+  receiptDate!: string
+
+  @Property({ name: 'currency_code', type: 'text', default: 'THB' })
+  currencyCode: string = 'THB'
+
+  @Property({ type: 'text', nullable: true })
+  memo?: string | null
+
+  @Property({ name: 'total_amount', type: 'numeric', precision: 18, scale: 4, default: '0' })
+  totalAmount: string = '0'
+
+  @Property({ name: 'journal_id', type: 'uuid', nullable: true })
+  journalId?: string | null
+
+  @Property({ name: 'posted_at', type: Date, nullable: true })
+  postedAt?: Date | null
+
+  @Property({ name: 'posted_by', type: 'uuid', nullable: true })
+  postedBy?: string | null
+
+  @Property({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+
+  @Property({ name: 'deleted_at', type: Date, nullable: true })
+  deletedAt?: Date | null
+}
+
+/** How much of a receipt settles which AR-posted sales invoice. */
+@Entity({ tableName: 'orva_ar_receipt_allocations' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class ArReceiptAllocation {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ name: 'receipt_id', type: 'uuid' })
+  @Index()
+  receiptId!: string
+
+  /** Core sales invoice id (bare uuid, cross-module). */
+  @Property({ name: 'invoice_id', type: 'uuid' })
+  @Index()
+  invoiceId!: string
+
+  @Property({ type: 'numeric', precision: 18, scale: 4, default: '0' })
+  amount: string = '0'
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+
+  @Property({ name: 'deleted_at', type: Date, nullable: true })
+  deletedAt?: Date | null
+}
+
 /** Race-safe per-scope document numbering (one row per tenant/org/kind). */
 @Entity({ tableName: 'orva_gl_sequences' })
 export class GlSequence {

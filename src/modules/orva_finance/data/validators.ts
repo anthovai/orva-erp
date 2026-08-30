@@ -188,6 +188,41 @@ export const arSettingsPutSchema = z.object({
   taxAccountId: z.string().uuid().optional().nullable(),
 })
 
+export const receiptAllocationInputSchema = z.object({
+  invoiceId: z.string().uuid(),
+  amount: z.coerce.number().positive(),
+})
+
+export const receiptListSchema = z
+  .object({
+    ...pagedList,
+    sortField: z.string().optional().default('created_at'),
+    sortDir: z.enum(['asc', 'desc']).optional().default('desc'),
+    status: z.enum(['draft', 'posted']).optional(),
+    search: z.string().optional(),
+  })
+  .passthrough()
+
+export const receiptCreateSchema = z.object({
+  cashAccountId: z.string().uuid(),
+  periodId: z.string().uuid(),
+  receiptDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  currencyCode: z.string().min(3).max(3).default('THB'),
+  memo: z.string().optional().nullable(),
+  customerPartyId: z.string().uuid().optional().nullable(),
+  allocations: z.array(receiptAllocationInputSchema).min(1),
+})
+
+export const receiptUpdateSchema = z.object({
+  id: z.string().uuid(),
+  receiptDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  periodId: z.string().uuid().optional(),
+  cashAccountId: z.string().uuid().optional(),
+  memo: z.string().optional().nullable(),
+})
+
+export const receiptPostSchema = z.object({ id: z.string().uuid() })
+
 export const arPostSchema = z.object({
   invoiceIds: z.array(z.string().uuid()).min(1).max(100),
   periodId: z.string().uuid(),
