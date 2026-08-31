@@ -1946,6 +1946,12 @@
       "reason": "A4 paper width at 96dpi. The review dialog shows the exact sheet the PDF will contain, which is a physical measurement rather than a design-system step."
     },
     {
+      "file": "src/modules/orva_documents/components/DocumentReviewDialog.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "max-h-[90vh]",
+      "reason": "Viewport-relative dialog cap matching the convention upstream dialogs already use (max-h-[90vh] appears 16x in @open-mercato/core); the design-system spacing scale has no viewport-fraction step."
+    },
+    {
       "file": "src/modules/orva_documents/emails/DocumentEmail.tsx",
       "rule": "inline-style",
       "match": "style=",
