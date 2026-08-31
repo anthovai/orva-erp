@@ -1,5 +1,6 @@
 "use client"
 import * as React from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Page, PageBody } from '@open-mercato/ui/backend/Page'
 import { Button } from '@open-mercato/ui/primitives/button'
 import {
@@ -11,6 +12,8 @@ import {
 } from '@open-mercato/ui/primitives/select'
 import { Spinner } from '@open-mercato/ui/primitives/spinner'
 import { apiCall } from '@open-mercato/ui/backend/utils/apiCall'
+import { flash } from '@open-mercato/ui/backend/FlashMessages'
+import { Input } from '@open-mercato/ui/primitives/input'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { DOCUMENT_TYPES, TEMPLATE_IDS, type DocumentType, type PrintableDocument, type TemplateId } from '../../../lib/document'
 import { DOCUMENT_TEMPLATES } from '../../../components/templates'
@@ -27,11 +30,28 @@ const TYPE_LABELS: Record<DocumentType, { key: string; fallback: string }> = {
 
 const SAMPLE_VALUE = '__sample__'
 
+function isDocumentType(value: string | null): value is DocumentType {
+  return !!value && (DOCUMENT_TYPES as readonly string[]).includes(value)
+}
+function isTemplateId(value: string | null): value is TemplateId {
+  return !!value && (TEMPLATE_IDS as readonly string[]).includes(value)
+}
+
 export default function DocumentPreviewPage() {
   const t = useT()
-  const [type, setType] = React.useState<DocumentType>('quotation')
-  const [template, setTemplate] = React.useState<TemplateId>('classic')
-  const [sourceId, setSourceId] = React.useState<string>(SAMPLE_VALUE)
+  // The server-side PDF renderer prints this very screen, so the selection
+  // has to come from the URL — otherwise every export would silently render
+  // the default view instead of what was asked for.
+  const searchParams = useSearchParams()
+  const [type, setType] = React.useState<DocumentType>(() => {
+    const value = searchParams.get('type')
+    return isDocumentType(value) ? value : 'quotation'
+  })
+  const [template, setTemplate] = React.useState<TemplateId>(() => {
+    const value = searchParams.get('template')
+    return isTemplateId(value) ? value : 'classic'
+  })
+  const [sourceId, setSourceId] = React.useState<string>(() => searchParams.get('documentId') ?? SAMPLE_VALUE)
   const [data, setData] = React.useState<PreviewResponse | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [failed, setFailed] = React.useState(false)
@@ -53,6 +73,65 @@ export default function DocumentPreviewPage() {
     return () => { cancelled = true }
   }, [type, template, sourceId])
 
+  const [busy, setBusy] = React.useState(false)
+  const [emailTo, setEmailTo] = React.useState('')
+
+  const selectorParams = React.useCallback(() => {
+    const params = new URLSearchParams({ type, template })
+    if (sourceId !== SAMPLE_VALUE) params.set('documentId', sourceId)
+    return params
+  }, [type, template, sourceId])
+
+  // Server-rendered PDF: the browser downloads the same sheet it is showing.
+  const downloadPdf = async () => {
+    if (busy) return
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/orva_documents/pdf?${selectorParams().toString()}`, { credentials: 'include' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        flash(body?.code === 'pdf_browser_unavailable'
+          ? t('orva_documents.pdf.browserMissing', 'เซิร์ฟเวอร์ยังไม่ได้ตั้งค่าตัวสร้าง PDF')
+          : t('orva_documents.pdf.failed', 'สร้างไฟล์ PDF ไม่สำเร็จ'), 'error')
+        return
+      }
+      const blob = await res.blob()
+      const href = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = href
+      link.download = decodeURIComponent((res.headers.get('content-disposition') ?? '').split("UTF-8''")[1] ?? 'document.pdf')
+      link.click()
+      URL.revokeObjectURL(href)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const sendPdf = async () => {
+    if (busy || !emailTo.trim()) return
+    setBusy(true)
+    try {
+      const params = selectorParams()
+      const res = await fetch('/api/orva_documents/send', {
+        method: 'POST', credentials: 'include', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          to: emailTo.trim(), type, template,
+          documentId: params.get('documentId') ?? undefined,
+        }),
+      })
+      const body = await res.json().catch(() => null)
+      if (res.ok) {
+        flash(t('orva_documents.email.sent', 'ส่งเอกสารทางอีเมลแล้ว'), 'success')
+        setEmailTo('')
+      } else {
+        flash(body?.code === 'pdf_browser_unavailable'
+          ? t('orva_documents.pdf.browserMissing', 'เซิร์ฟเวอร์ยังไม่ได้ตั้งค่าตัวสร้าง PDF')
+          : t('orva_documents.email.failed', 'ส่งอีเมลไม่สำเร็จ'), 'error')
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
   const doc = data?.document ?? null
   const Template = DOCUMENT_TEMPLATES[template].Component
 
@@ -105,8 +184,28 @@ export default function DocumentPreviewPage() {
               </Select>
             </label>
 
-            <Button type="button" onClick={() => window.print()} disabled={!doc}>
-              {t('orva_documents.preview.print', 'พิมพ์ / บันทึกเป็น PDF')}
+            <Button type="button" variant="outline" onClick={() => window.print()} disabled={!doc}>
+              {t('orva_documents.preview.print', 'พิมพ์')}
+            </Button>
+            <Button type="button" onClick={downloadPdf} disabled={!doc || busy}>
+              {t('orva_documents.preview.downloadPdf', 'ดาวน์โหลด PDF')}
+            </Button>
+          </div>
+
+          {/* email the rendered PDF straight to the customer */}
+          <div className="flex flex-wrap items-end gap-3 print:hidden">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs text-muted-foreground">{t('orva_documents.preview.emailLabel', 'ส่งอีเมลถึง')}</span>
+              <Input
+                type="email"
+                className="w-72"
+                placeholder="customer@example.co.th"
+                value={emailTo}
+                onChange={(event) => setEmailTo(event.target.value)}
+              />
+            </label>
+            <Button type="button" variant="outline" onClick={sendPdf} disabled={!doc || busy || !emailTo.trim()}>
+              {t('orva_documents.preview.sendEmail', 'ส่งเอกสารทางอีเมล')}
             </Button>
           </div>
 
@@ -140,7 +239,11 @@ export default function DocumentPreviewPage() {
           ) : (
             <div className="flex justify-center">
               {/* A4 sheet: fixed width so the on-screen preview matches paper */}
-              <div className="w-[794px] max-w-full bg-card p-10 shadow-sm print:w-full print:p-0 print:shadow-none">
+              <div
+                // the server-side PDF renderer waits for this marker before printing
+                data-document-sheet="true"
+                className="w-[794px] max-w-full bg-card p-10 shadow-sm print:w-full print:p-0 print:shadow-none"
+              >
                 <Template doc={doc} t={t} />
               </div>
             </div>

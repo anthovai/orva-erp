@@ -13,7 +13,7 @@
   "orva_documents.preview.sourceLabel": "Source record",
   "orva_documents.preview.sample": "Sample data",
   "orva_documents.preview.sampleHint": "Showing sample data — pick a real record to preview your own.",
-  "orva_documents.preview.print": "Print / save as PDF",
+  "orva_documents.preview.print": "Print",
   "orva_documents.preview.failed": "The document preview could not be built.",
   "orva_documents.preview.noLines": "This document has no line items yet",
   "orva_documents.field.number": "No.",
@@ -53,5 +53,15 @@
   "orva_documents.settings.saved": "Document settings saved",
   "orva_documents.settings.saveFailed": "Could not save",
   "orva_documents.settings.loadFailed": "Could not load document settings",
-  "orva_documents.errors.taxId": "Taxpayer ID must be exactly 13 digits"
+  "orva_documents.errors.taxId": "Taxpayer ID must be exactly 13 digits",
+  "orva_documents.preview.downloadPdf": "Download PDF",
+  "orva_documents.preview.emailLabel": "Email to",
+  "orva_documents.preview.sendEmail": "Email the document",
+  "orva_documents.pdf.failed": "Could not create the PDF",
+  "orva_documents.pdf.browserMissing": "PDF rendering is not configured on the server",
+  "orva_documents.email.sent": "Document emailed",
+  "orva_documents.email.failed": "Could not send the email",
+  "orva_documents.email.intro": "Your document is attached to this email.",
+  "orva_documents.email.attachmentNote": "The attachment is a PDF — open it or save it for your records.",
+  "orva_documents.email.footer": "Sent from Orva"
 }

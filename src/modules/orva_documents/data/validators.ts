@@ -34,3 +34,13 @@ export const previewQuerySchema = z.object({
   /** Sales document to render; sample data is used when absent. */
   documentId: z.string().uuid().optional(),
 })
+
+/** Emailing a document: the recipient plus the same selector the preview uses. */
+export const sendSchema = z.object({
+  to: z.string().trim().email(),
+  type: z.enum(DOCUMENT_TYPES),
+  template: templateSchema.optional(),
+  documentId: z.string().uuid().optional(),
+  /** Optional cover note; the default copy is used when blank. */
+  message: z.string().trim().max(2000).optional(),
+})

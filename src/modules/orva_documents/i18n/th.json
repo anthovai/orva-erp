@@ -13,7 +13,7 @@
   "orva_documents.preview.sourceLabel": "ข้อมูลจากเอกสาร",
   "orva_documents.preview.sample": "ข้อมูลตัวอย่าง",
   "orva_documents.preview.sampleHint": "กำลังแสดงข้อมูลตัวอย่าง — เลือกเอกสารจริงจากรายการเพื่อดูข้อมูลของคุณ",
-  "orva_documents.preview.print": "พิมพ์ / บันทึกเป็น PDF",
+  "orva_documents.preview.print": "พิมพ์",
   "orva_documents.preview.failed": "ไม่สามารถสร้างตัวอย่างเอกสารได้",
   "orva_documents.preview.noLines": "เอกสารนี้ยังไม่มีรายการ",
   "orva_documents.field.number": "เลขที่",
@@ -53,5 +53,15 @@
   "orva_documents.settings.saved": "บันทึกการตั้งค่าเอกสารแล้ว",
   "orva_documents.settings.saveFailed": "บันทึกไม่สำเร็จ",
   "orva_documents.settings.loadFailed": "ไม่สามารถโหลดการตั้งค่าเอกสารได้",
-  "orva_documents.errors.taxId": "เลขประจำตัวผู้เสียภาษีต้องเป็นตัวเลข 13 หลัก"
+  "orva_documents.errors.taxId": "เลขประจำตัวผู้เสียภาษีต้องเป็นตัวเลข 13 หลัก",
+  "orva_documents.preview.downloadPdf": "ดาวน์โหลด PDF",
+  "orva_documents.preview.emailLabel": "ส่งอีเมลถึง",
+  "orva_documents.preview.sendEmail": "ส่งเอกสารทางอีเมล",
+  "orva_documents.pdf.failed": "สร้างไฟล์ PDF ไม่สำเร็จ",
+  "orva_documents.pdf.browserMissing": "เซิร์ฟเวอร์ยังไม่ได้ตั้งค่าตัวสร้าง PDF",
+  "orva_documents.email.sent": "ส่งเอกสารทางอีเมลแล้ว",
+  "orva_documents.email.failed": "ส่งอีเมลไม่สำเร็จ",
+  "orva_documents.email.intro": "เอกสารของคุณแนบมากับอีเมลฉบับนี้แล้ว",
+  "orva_documents.email.attachmentNote": "ไฟล์แนบเป็น PDF — เปิดหรือบันทึกเก็บไว้ได้",
+  "orva_documents.email.footer": "ส่งจากระบบ Orva"
 }

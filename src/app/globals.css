@@ -1039,3 +1039,60 @@ aside:has([data-sidebar-scroll]) {
   --orva-mark-ring: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath d='M243.79 116.53 A140 140 0 1 0 382.88 196.84' fill='none' stroke='%23000' stroke-width='52' stroke-linecap='round'/%3E%3C/svg%3E");
   --orva-mark-node: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Ccircle cx='326' cy='134.76' r='32' fill='%23000'/%3E%3C/svg%3E");
 }
+
+/* ═══ Print / server-PDF sheet ══════════════════════════════════════════
+   The document preview screen is also the source the server-side PDF
+   renderer prints, so this stylesheet has one job: strip the application
+   away and leave the sheet. Keeping a single rendering path is deliberate —
+   a separate PDF renderer would drift from what the operator previewed.
+
+   The shell is hidden by structure (rail, header, footer, floating widgets)
+   rather than by adding print:hidden to upstream components we do not own. */
+@media print {
+  /* let the sheet own the page */
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  /* Fixed overlays are chrome by definition — cookie bars, toasts, the
+     floating assistant, chat docks. Any one of them would otherwise be
+     baked into the exported PDF. */
+  .fixed,
+  [data-slot="toaster"],
+  [role="dialog"],
+  [data-radix-popper-content-wrapper] {
+    display: none !important;
+  }
+
+  /* app chrome: navigation rail, top bar, footer */
+  aside:has([data-sidebar-scroll]),
+  header,
+  footer {
+    display: none !important;
+  }
+
+  /* the shell constrains and scrolls its main column; paper does neither */
+  main,
+  main > div,
+  [data-slot="page-body"] {
+    display: block !important;
+    max-width: none !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* keep table rows and the totals block from splitting across pages */
+  tr,
+  thead {
+    break-inside: avoid;
+  }
+}
