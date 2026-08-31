@@ -1,7 +1,7 @@
 # Printable Thai business documents (orva_documents)
 
 **Date**: 2026-08-31
-**Status**: Ready for implementation
+**Status**: Shipped (Phases 1–2)
 
 ## TLDR
 
@@ -122,15 +122,19 @@ Server-side PDF (`puppeteer-core`, prints the preview screen) and emailing the
 document as an attachment — done. Token-scoped customer document view at
 `/documents/<acceptance-token>` with its own public PDF — done.
 
-**Not done: attaching the document to the installed quote-send email.**
+**Decided against: attaching the document to the installed quote-send email.**
 `POST /api/sales/quotes/send` composes and sends that mail inside the route —
 `sendEmail` is a direct import, not a DI registration; the route emits no
-event and runs no interceptor chain. There is no seam. Adding the attachment
-means overriding the whole route via `overrides.routes.api`, which takes
-ownership of upstream's guard, token-minting and status-transition logic.
-That is an ownership decision, so it is deliberately left open rather than
-taken silently. Until it is taken, the customer reaches the document through
-the link the email already carries.
+event and runs no interceptor chain. There is no seam, so attaching would mean
+overriding the whole route via `overrides.routes.api` and owning upstream's
+guard, token-minting and status-transition logic through every future upgrade.
+Not worth it: the link that email already carries now opens the document, with
+print and PDF one click away. Revisit only if customers report that the link
+is not enough.
+
+## Status
+
+Phases 1 and 2 are shipped. Nothing outstanding.
 
 ## Acceptance Criteria
 
@@ -148,4 +152,4 @@ the link the email already carries.
 |---|---|
 | 2026-08-31 | Initial draft, ready for Phase 1 |
 | 2026-08-31 | Phase 1 shipped |
-| 2026-08-31 | Phase 2: server-side PDF, email attachment, customer document view. Quote-send attachment blocked on a route-ownership decision. |
+| 2026-08-31 | Phase 2 shipped: server-side PDF, email attachment on Orva's own send endpoint, customer document view. Attaching to upstream's quote-send email declined — no seam, not worth owning the route. |
