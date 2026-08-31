@@ -1986,6 +1986,12 @@
       "rule": "inline-style",
       "match": "style=",
       "reason": "HTML email template. Gmail, Outlook and most mail clients strip <style> blocks and class selectors, so inline style attributes are the only styling that survives delivery — this file is not a browser surface and never renders inside the design-system theme."
+    },
+    {
+      "file": "src/modules/orva_documents/frontend/documents/[token]/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "w-[794px]",
+      "reason": "A4 paper width at 96dpi. The customer sheet must match the printed page exactly, which is a physical measurement rather than a design-system step."
     }
   ]
 }

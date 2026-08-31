@@ -63,5 +63,9 @@
   "orva_documents.email.failed": "Could not send the email",
   "orva_documents.email.intro": "Your document is attached to this email.",
   "orva_documents.email.attachmentNote": "The attachment is a PDF — open it or save it for your records.",
-  "orva_documents.email.footer": "Sent from Orva"
+  "orva_documents.email.footer": "Sent from Orva",
+  "orva_documents.public.pageTitle": "Document",
+  "orva_documents.public.intro": "A document from the seller — print it or save a copy.",
+  "orva_documents.public.expired": "This quotation has passed its validity date. Please contact the seller.",
+  "orva_documents.public.notFound": "Document not found — the link may have expired or been withdrawn."
 }

@@ -63,5 +63,9 @@
   "orva_documents.email.failed": "ส่งอีเมลไม่สำเร็จ",
   "orva_documents.email.intro": "เอกสารของคุณแนบมากับอีเมลฉบับนี้แล้ว",
   "orva_documents.email.attachmentNote": "ไฟล์แนบเป็น PDF — เปิดหรือบันทึกเก็บไว้ได้",
-  "orva_documents.email.footer": "ส่งจากระบบ Orva"
+  "orva_documents.email.footer": "ส่งจากระบบ Orva",
+  "orva_documents.public.pageTitle": "เอกสาร",
+  "orva_documents.public.intro": "เอกสารจากผู้ขาย — พิมพ์หรือบันทึกเก็บไว้ได้",
+  "orva_documents.public.expired": "เอกสารนี้เลยกำหนดยืนราคาแล้ว กรุณาติดต่อผู้ขาย",
+  "orva_documents.public.notFound": "ไม่พบเอกสารนี้ — ลิงก์อาจหมดอายุหรือถูกยกเลิกแล้ว"
 }

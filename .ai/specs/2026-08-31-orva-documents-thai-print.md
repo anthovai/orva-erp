@@ -117,9 +117,20 @@ browser print dialog against a dedicated `@media print` stylesheet.
 Settings entity + migration + CRUD, pure builder + Thai baht-text with tests,
 three templates, preview page and print CSS, settings page, th/en i18n.
 
-### Phase 2 (later)
-Attach the rendered document to the quote-send email; customer-facing invoice
-view; server-side PDF (needs a dependency decision).
+### Phase 2
+Server-side PDF (`puppeteer-core`, prints the preview screen) and emailing the
+document as an attachment — done. Token-scoped customer document view at
+`/documents/<acceptance-token>` with its own public PDF — done.
+
+**Not done: attaching the document to the installed quote-send email.**
+`POST /api/sales/quotes/send` composes and sends that mail inside the route —
+`sendEmail` is a direct import, not a DI registration; the route emits no
+event and runs no interceptor chain. There is no seam. Adding the attachment
+means overriding the whole route via `overrides.routes.api`, which takes
+ownership of upstream's guard, token-minting and status-transition logic.
+That is an ownership decision, so it is deliberately left open rather than
+taken silently. Until it is taken, the customer reaches the document through
+the link the email already carries.
 
 ## Acceptance Criteria
 
@@ -136,3 +147,5 @@ view; server-side PDF (needs a dependency decision).
 | Date | Change |
 |---|---|
 | 2026-08-31 | Initial draft, ready for Phase 1 |
+| 2026-08-31 | Phase 1 shipped |
+| 2026-08-31 | Phase 2: server-side PDF, email attachment, customer document view. Quote-send attachment blocked on a route-ownership decision. |

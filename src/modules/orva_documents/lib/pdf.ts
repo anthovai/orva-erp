@@ -89,8 +89,12 @@ export function resolveBrowserExecutable(): string {
 export type RenderPdfOptions = {
   /** Absolute URL of the preview screen to print. */
   url: string
-  /** Session cookie so the print page loads as the requesting user. */
-  authToken: string
+  /**
+   * Session cookie so the print page loads as the requesting user. Omitted
+   * for the token-scoped customer page, which authenticates by its own URL
+   * and must never be printed with a staff session attached.
+   */
+  authToken?: string
   /** Cookie domain — the app host. */
   host: string
   /** Locale cookie so the sheet prints in the operator's language. */
@@ -110,10 +114,12 @@ export async function renderDocumentPdf({ url, authToken, host, locale }: Render
     // The preview screen is behind auth; hand Chromium the caller's own
     // session rather than minting a second credential path.
     const cookies = [
-      { name: 'auth_token', value: authToken, domain: host, path: '/', httpOnly: true, secure: false },
+      ...(authToken
+        ? [{ name: 'auth_token', value: authToken, domain: host, path: '/', httpOnly: true, secure: false }]
+        : []),
       ...(locale ? [{ name: 'locale', value: locale, domain: host, path: '/', httpOnly: false, secure: false }] : []),
     ]
-    await browser.setCookie(...cookies)
+    if (cookies.length) await browser.setCookie(...cookies)
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 60_000 })
     // the sheet renders after its data fetch resolves
     await page.waitForSelector('[data-document-sheet="true"]', { timeout: 30_000 })
