@@ -4,7 +4,7 @@
   "orva_documents.type.quotation": "ใบเสนอราคา",
   "orva_documents.type.invoice": "ใบแจ้งหนี้",
   "orva_documents.type.tax_invoice": "ใบกำกับภาษี",
-  "orva_documents.type.receipt": "ใบเสร็จรับเงิน",
+  "orva_documents.type.receipt": "ใบกำกับภาษี/ใบเสร็จรับเงิน",
   "orva_documents.template.classic": "แบบราชการ",
   "orva_documents.template.modern": "แบบโมเดิร์น",
   "orva_documents.template.compact": "แบบกระชับ",

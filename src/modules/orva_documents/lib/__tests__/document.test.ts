@@ -120,4 +120,16 @@ describe('buildPrintableDocument', () => {
     expect(receipt.paymentMethod).toBe('เงินโอน')
     expect(invoice.paymentMethod).toBeNull()
   })
+
+  test('a receipt is issued as the combined tax invoice / receipt form', () => {
+    const doc = buildPrintableDocument({
+      type: 'receipt', template: 'classic', seller, buyer: sampleBuyer(), source: sampleSource(),
+    })
+    // Thai practice issues one sheet when payment is taken on issue, so the
+    // receipt carries the statutory heading and both taxpayer ids rather than
+    // being a bare acknowledgement of payment.
+    expect(doc.headingTh).toBe('ใบกำกับภาษี/ใบเสร็จรับเงิน')
+    expect(doc.isTaxDocument).toBe(true)
+    expect(doc.secondaryDateLabelKey).toBe('orva_documents.field.paidDate')
+  })
 })

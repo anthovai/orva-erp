@@ -62,7 +62,7 @@ export default function DocumentSettingsPage() {
     { id: 'templateQuotation', label: t('orva_documents.type.quotation', 'ใบเสนอราคา'), type: 'select', options: templateOptions },
     { id: 'templateInvoice', label: t('orva_documents.type.invoice', 'ใบแจ้งหนี้'), type: 'select', options: templateOptions },
     { id: 'templateTaxInvoice', label: t('orva_documents.type.tax_invoice', 'ใบกำกับภาษี'), type: 'select', options: templateOptions },
-    { id: 'templateReceipt', label: t('orva_documents.type.receipt', 'ใบเสร็จรับเงิน'), type: 'select', options: templateOptions },
+    { id: 'templateReceipt', label: t('orva_documents.type.receipt', 'ใบกำกับภาษี/ใบเสร็จรับเงิน'), type: 'select', options: templateOptions },
   ], [t, templateOptions])
 
   const groups = React.useMemo<CrudFormGroup[]>(() => [

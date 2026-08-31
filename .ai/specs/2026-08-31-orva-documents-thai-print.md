@@ -46,7 +46,7 @@ overrides.
 | ใบเสนอราคา (quotation) | Pre-sale offer. Shows validity date. Not a tax document — no tax-invoice heading. |
 | ใบแจ้งหนี้ (invoice) | Demand for payment. Shows due date. |
 | ใบกำกับภาษี (tax invoice) | Statutory. MUST show both parties' taxpayer id + branch, VAT rate and VAT amount as separate lines, and the heading "ใบกำกับภาษี". |
-| ใบเสร็จรับเงิน (receipt) | Proof of payment. Shows paid date and method. Commonly issued combined as "ใบกำกับภาษี/ใบเสร็จรับเงิน". |
+| ใบกำกับภาษี/ใบเสร็จรับเงิน (receipt) | Issued as the combined form: proof of payment AND tax invoice on one sheet, which is how payment-on-issue works in Thai practice. Statutory, so it carries both parties' taxpayer ids, plus the paid date and method. |
 | Branch | `สำนักงานใหญ่` for head office, otherwise a 5-digit code. Rendered verbatim. |
 | Amount in words | Thai baht text (…บาทถ้วน / …สตางค์) on every document — expected by Thai accountants. |
 | VAT | Derived from the record's own tax lines; the renderer never re-computes tax, it only presents what sales stored. |
@@ -152,4 +152,5 @@ Phases 1 and 2 are shipped. Nothing outstanding.
 |---|---|
 | 2026-08-31 | Initial draft, ready for Phase 1 |
 | 2026-08-31 | Phase 1 shipped |
+| 2026-09-01 | Review fixes: no baht wording outside THB, VAT rate read from line data, receipt issued as the combined form, public PDF rate-limited. |
 | 2026-08-31 | Phase 2 shipped: server-side PDF, email attachment on Orva's own send endpoint, customer document view. Attaching to upstream's quote-send email declined — no seam, not worth owning the route. |

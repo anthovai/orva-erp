@@ -21,9 +21,11 @@ export type TemplateId = (typeof TEMPLATE_IDS)[number]
 const HEADINGS: Record<DocumentType, { th: string; en: string }> = {
   quotation: { th: 'ใบเสนอราคา', en: 'Quotation' },
   invoice: { th: 'ใบแจ้งหนี้', en: 'Invoice' },
-  // Thai practice combines the two on one sheet when payment is taken on issue
   tax_invoice: { th: 'ใบกำกับภาษี', en: 'Tax Invoice' },
-  receipt: { th: 'ใบเสร็จรับเงิน', en: 'Receipt' },
+  // Thai practice issues one combined sheet when payment is taken on issue,
+  // rather than a bare receipt alongside a separate tax invoice. That is why
+  // this type is statutory below: it carries both parties' taxpayer ids.
+  receipt: { th: 'ใบกำกับภาษี/ใบเสร็จรับเงิน', en: 'Tax Invoice / Receipt' },
 }
 
 /** Types that are statutory tax documents and must carry taxpayer ids. */

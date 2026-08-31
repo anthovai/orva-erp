@@ -4,7 +4,7 @@
   "orva_documents.type.quotation": "Quotation",
   "orva_documents.type.invoice": "Invoice",
   "orva_documents.type.tax_invoice": "Tax invoice",
-  "orva_documents.type.receipt": "Receipt",
+  "orva_documents.type.receipt": "Tax invoice / Receipt",
   "orva_documents.template.classic": "Classic (official form)",
   "orva_documents.template.modern": "Modern (branded)",
   "orva_documents.template.compact": "Compact",
