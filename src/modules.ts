@@ -186,6 +186,8 @@ enabledModules.push({ id: 'orva_hr', from: '@app' })
 // Clean-room TOTP MFA + OIDC SSO (spec: .ai/specs/2026-08-30-orva-mfa-sso-clean-room.md).
 enabledModules.push({ id: 'orva_mfa', from: '@app' })
 enabledModules.push({ id: 'orva_sso', from: '@app' })
+// Printable Thai business documents (spec: .ai/specs/2026-08-31-orva-documents-thai-print.md).
+enabledModules.push({ id: 'orva_documents', from: '@app' })
 
 // Orva branding: registered LAST so its i18n overrides every module's defaults
 // (dictionary merge is last-write-wins across enabledModules order).

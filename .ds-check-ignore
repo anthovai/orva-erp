@@ -1932,6 +1932,12 @@
       "rule": "inline-style",
       "match": "style=",
       "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/modules/orva_documents/backend/documents/preview/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "w-[794px]",
+      "reason": "A4 paper width at 96dpi. The preview sheet must match the printed page exactly, which is a physical measurement rather than a design-system step."
     }
   ]
 }
