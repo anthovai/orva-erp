@@ -1940,6 +1940,12 @@
       "reason": "A4 paper width at 96dpi. The preview sheet must match the printed page exactly, which is a physical measurement rather than a design-system step."
     },
     {
+      "file": "src/modules/orva_documents/components/DocumentReviewDialog.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "w-[794px]",
+      "reason": "A4 paper width at 96dpi. The review dialog shows the exact sheet the PDF will contain, which is a physical measurement rather than a design-system step."
+    },
+    {
       "file": "src/modules/orva_documents/emails/DocumentEmail.tsx",
       "rule": "inline-style",
       "match": "style=",

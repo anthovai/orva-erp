@@ -69,5 +69,9 @@
   "orva_documents.public.expired": "This quotation has passed its validity date. Please contact the seller.",
   "orva_documents.public.notFound": "Document not found — the link may have expired or been withdrawn.",
   "orva_documents.quoteWidget.title": "Documents from this quote",
-  "orva_documents.quoteWidget.hint": "Open a document preview built from this record — print, download PDF or email it from there."
+  "orva_documents.quoteWidget.hint": "Review the quotation, invoice, tax invoice or receipt built from this record.",
+  "orva_documents.quoteWidget.review": "Review documents",
+  "orva_documents.review.title": "Review documents",
+  "orva_documents.review.templateDefault": "As configured",
+  "orva_documents.review.openFull": "Full page / print / email"
 }

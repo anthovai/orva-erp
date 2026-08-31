@@ -69,5 +69,9 @@
   "orva_documents.public.expired": "เอกสารนี้เลยกำหนดยืนราคาแล้ว กรุณาติดต่อผู้ขาย",
   "orva_documents.public.notFound": "ไม่พบเอกสารนี้ — ลิงก์อาจหมดอายุหรือถูกยกเลิกแล้ว",
   "orva_documents.quoteWidget.title": "เอกสารจากใบเสนอราคานี้",
-  "orva_documents.quoteWidget.hint": "เปิดตัวอย่างเอกสารจากข้อมูลใบนี้ — พิมพ์ ดาวน์โหลด PDF หรือส่งอีเมลได้จากหน้าตัวอย่าง"
+  "orva_documents.quoteWidget.hint": "ตรวจดูใบเสนอราคา ใบแจ้งหนี้ ใบกำกับภาษี หรือใบเสร็จจากข้อมูลใบนี้ได้ทันที",
+  "orva_documents.quoteWidget.review": "ตรวจดูเอกสาร",
+  "orva_documents.review.title": "ตรวจดูเอกสาร",
+  "orva_documents.review.templateDefault": "ตามที่ตั้งค่าไว้",
+  "orva_documents.review.openFull": "เปิดหน้าเต็ม / พิมพ์ / ส่งอีเมล"
 }
