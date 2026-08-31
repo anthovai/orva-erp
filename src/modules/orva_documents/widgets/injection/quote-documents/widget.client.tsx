@@ -6,32 +6,27 @@ import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { DocumentReviewDialog } from '../../../components/DocumentReviewDialog'
 
 /**
- * One Review action on the installed quote detail screen
- * (`sales.document.detail.quote:details`), the way the reference ERPs do it:
- * Odoo's Preview on the quotation form, QuickBooks' Print-or-Preview on the
- * invoice. The operator reviews the Thai sheet in place — type and template
- * switching, PDF download, compliance warnings — without leaving the record.
+ * The Review button at the top of the quote screen — where Odoo puts Preview
+ * on the quotation form and QuickBooks puts Print-or-Preview on the invoice.
+ *
+ * Injected into `form-header:detail`, which every detail screen renders, so
+ * the path decides whether this is a quote: the spot's context carries the
+ * pathname, and anything that is not `/backend/sales/quotes/<id>` renders
+ * nothing. The record id is taken from the path rather than a data payload
+ * because the header spot deliberately knows nothing about the record.
  */
-export default function QuoteDocumentsWidget({ data }: { data?: Record<string, unknown> }) {
+const QUOTE_PATH = /^\/backend\/sales\/quotes\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i
+
+export default function QuoteDocumentsWidget({ context }: { context?: Record<string, unknown> }) {
   const t = useT()
   const [open, setOpen] = React.useState(false)
-  const quoteId = typeof data?.id === 'string' ? data.id : null
+  const path = typeof context?.path === 'string' ? context.path : ''
+  const quoteId = QUOTE_PATH.exec(path)?.[1] ?? null
   if (!quoteId) return null
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-md border p-4">
-      <div className="min-w-48 flex-1">
-        <p className="text-sm font-semibold">
-          {t('orva_documents.quoteWidget.title', 'เอกสารจากใบเสนอราคานี้')}
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {t(
-            'orva_documents.quoteWidget.hint',
-            'ตรวจดูใบเสนอราคา ใบแจ้งหนี้ ใบกำกับภาษี หรือใบเสร็จจากข้อมูลใบนี้ได้ทันที',
-          )}
-        </p>
-      </div>
-      <Button type="button" onClick={() => setOpen(true)}>
+    <div className="flex justify-end">
+      <Button type="button" variant="outline" onClick={() => setOpen(true)}>
         <FileText className="size-4" />
         {t('orva_documents.quoteWidget.review', 'ตรวจดูเอกสาร')}
       </Button>

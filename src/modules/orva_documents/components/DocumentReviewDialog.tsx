@@ -124,7 +124,7 @@ export function DocumentReviewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
+      <DialogContent size="xl" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t('orva_documents.review.title', 'ตรวจดูเอกสาร')}</DialogTitle>
         </DialogHeader>
