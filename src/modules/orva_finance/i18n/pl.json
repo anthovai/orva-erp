@@ -184,5 +184,6 @@
   "orva_finance.form.create.submit": "Create",
   "orva_finance.form.edit.submit": "Save",
   "orva_finance.actions.edit": "Edit",
-  "orva_finance.actions.delete": "Delete"
+  "orva_finance.actions.delete": "Delete",
+  "orva_finance.nav.accounting": "Księgowość"
 }

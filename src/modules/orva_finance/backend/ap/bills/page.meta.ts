@@ -5,7 +5,7 @@ export const metadata = {
   pageTitleKey: 'orva_finance.ap.page.title',
   pageGroup: 'Orva',
   pageGroupKey: 'orva_party.nav.group',
-  pageOrder: 150,
+  pageOrder: 20,
   icon: 'receipt',
   breadcrumb: [{ label: 'Vendor Bills', labelKey: 'orva_finance.ap.page.title' }],
 }

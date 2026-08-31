@@ -209,5 +209,6 @@
   "orva_finance.widget.overview.overdueHint": "รวมยอดเกินกำหนดเกิน 90 วัน {amount}",
   "orva_finance.widget.overview.unavailable": "ยังไม่สามารถแสดงตัวเลขทางการเงินได้ในขณะนี้",
   "orva_finance.dashboard.widgets.overview.title": "ภาพรวมการเงิน",
-  "orva_finance.dashboard.widgets.overview.description": "รายได้ กำไรสุทธิ และยอดลูกหนี้/เจ้าหนี้คงค้าง คำนวณจากรายการบัญชีที่โพสต์แล้ว"
+  "orva_finance.dashboard.widgets.overview.description": "รายได้ กำไรสุทธิ และยอดลูกหนี้/เจ้าหนี้คงค้าง คำนวณจากรายการบัญชีที่โพสต์แล้ว",
+  "orva_finance.nav.accounting": "บัญชี"
 }

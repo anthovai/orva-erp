@@ -5,7 +5,7 @@ export const metadata = {
   pageTitleKey: 'orva_finance.ar.page.title',
   pageGroup: 'Orva',
   pageGroupKey: 'orva_party.nav.group',
-  pageOrder: 155,
+  pageOrder: 40,
   icon: 'file-input',
   breadcrumb: [{ label: 'AR Posting', labelKey: 'orva_finance.ar.page.title' }],
 }
