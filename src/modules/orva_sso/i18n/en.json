@@ -24,5 +24,7 @@
   "orva_sso.flash.created": "Connection added",
   "orva_sso.flash.saved": "Connection saved",
   "orva_sso.error.notFound": "Connection not found",
-  "orva_sso.login.continue": "Continue with SSO"
+  "orva_sso.login.continue": "Continue with SSO",
+  "orva_sso.empty.title": "No SSO connections yet",
+  "orva_sso.empty.description": "Add a connection to let people from your identity provider sign in without a password."
 }

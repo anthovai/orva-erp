@@ -12,6 +12,7 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { OrvaEmptyState } from '@/components/orva/NodeMark'
 
 type PeriodRow = {
   id: string
@@ -117,6 +118,12 @@ export default function PeriodsTable() {
       <RetainedEarningsBanner />
       <DataTable
         title={t('orva_finance.periods.page.title', 'Fiscal Periods')}
+        emptyState={(
+          <OrvaEmptyState
+            title={t('orva_finance.periods.empty.title', "No fiscal periods yet")}
+            description={t('orva_finance.periods.empty.description', "Create the accounting periods you post into; closed periods reject new entries.")}
+          />
+        )}
         actions={(
           <Button asChild>
             <Link href="/backend/gl/periods/create">{t('orva_finance.periods.actions.create', 'Create period')}</Link>

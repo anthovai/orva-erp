@@ -52,5 +52,9 @@
   "orva_hr.payroll.detail.ssoEmployer": "ประกันสังคม (นายจ้าง)",
   "orva_hr.payroll.detail.wht": "ภาษีหัก ณ ที่จ่าย",
   "orva_hr.payroll.detail.totals": "รวม",
-  "orva_hr.payroll.detail.people": "คน"
+  "orva_hr.payroll.detail.people": "คน",
+  "orva_hr.employees.empty.title": "ยังไม่มีพนักงาน",
+  "orva_hr.employees.empty.description": "เพิ่มพนักงานที่อยู่ในระบบเงินเดือน — แต่ละคนเชื่อมกับทะเบียนกลาง",
+  "orva_hr.payrollRuns.empty.title": "ยังไม่มีรอบเงินเดือน",
+  "orva_hr.payrollRuns.empty.description": "สร้างรอบประจำเดือนเพื่อคำนวณเงินเดือน ประกันสังคม และภาษีหัก ณ ที่จ่าย"
 }

@@ -12,6 +12,7 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { OrvaEmptyState } from '@/components/orva/NodeMark'
 
 type JournalRow = {
   id: string
@@ -82,6 +83,12 @@ export default function JournalsTable() {
     <>
       <DataTable
         title={t('orva_finance.journals.page.title', 'GL Journals')}
+        emptyState={(
+          <OrvaEmptyState
+            title={t('orva_finance.journals.empty.title', "No journals yet")}
+            description={t('orva_finance.journals.empty.description', "Every posted document lands here as a balanced journal entry.")}
+          />
+        )}
         actions={(
           <Button asChild>
             <Link href="/backend/gl/journals/create">{t('orva_finance.journals.actions.create', 'Create journal')}</Link>

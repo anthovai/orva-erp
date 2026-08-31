@@ -36,5 +36,7 @@
   "orva_party.form.flash.deleted": "ลบรายชื่อแล้ว",
   "orva_party.form.error.load": "โหลดรายชื่อไม่สำเร็จ",
   "orva_party.form.error.notFound": "ไม่พบรายชื่อนี้",
-  "orva_party.form.actions.backToList": "กลับไปหน้ารายชื่อ"
+  "orva_party.form.actions.backToList": "กลับไปหน้ารายชื่อ",
+  "orva_party.parties.empty.title": "ยังไม่มีข้อมูลบุคคล/องค์กร",
+  "orva_party.parties.empty.description": "บุคคลและบริษัทถูกบันทึกที่นี่ครั้งเดียว แล้วนำไปใช้เป็นลูกค้า ผู้ขาย หรือพนักงาน"
 }

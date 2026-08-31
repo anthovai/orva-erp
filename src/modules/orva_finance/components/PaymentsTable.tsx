@@ -12,6 +12,7 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { OrvaEmptyState } from '@/components/orva/NodeMark'
 
 type PaymentRow = {
   id: string
@@ -92,6 +93,12 @@ export default function PaymentsTable() {
     <>
       <DataTable
         title={t('orva_finance.payments.page.title', 'Vendor Payments')}
+        emptyState={(
+          <OrvaEmptyState
+            title={t('orva_finance.payments.empty.title', "No payments yet")}
+            description={t('orva_finance.payments.empty.description', "Pay an open vendor bill to settle it against your cash account.")}
+          />
+        )}
         actions={(
           <Button asChild>
             <Link href="/backend/ap/payments/create">{t('orva_finance.payments.actions.create', 'Create payment')}</Link>

@@ -12,6 +12,7 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { OrvaEmptyState } from '@/components/orva/NodeMark'
 
 type RunRow = {
   id: string
@@ -220,6 +221,12 @@ export default function PayrollRunsTable() {
       <HrSettingsCard />
       <DataTable
         title={t('orva_hr.payroll.page.title', 'Payroll Runs')}
+        emptyState={(
+          <OrvaEmptyState
+            title={t('orva_hr.payrollRuns.empty.title', "No payroll runs yet")}
+            description={t('orva_hr.payrollRuns.empty.description', "Create a monthly run to calculate salaries, social security and withholding tax.")}
+          />
+        )}
         actions={<CreateRunBar />}
         columns={columns}
         data={data?.items ?? []}

@@ -8,6 +8,7 @@ import { Button } from '@open-mercato/ui/primitives/button'
 import { fetchCrudList } from '@open-mercato/ui/backend/utils/crud'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { useQuery } from '@tanstack/react-query'
+import { OrvaEmptyState } from '@/components/orva/NodeMark'
 
 type ConnectionRow = {
   id: string
@@ -59,7 +60,12 @@ export default function SsoConnectionsPage() {
           data={data?.items ?? []}
           isLoading={isLoading}
           error={error ? String(error) : undefined}
-          emptyState={t('orva_sso.empty', 'No SSO connections yet — add one to let users of your identity provider sign in without a password.')}
+          emptyState={(
+            <OrvaEmptyState
+              title={t('orva_sso.empty.title', 'No SSO connections yet')}
+              description={t('orva_sso.empty.description', 'Add a connection to let people from your identity provider sign in without a password.')}
+            />
+          )}
           onRowClick={(row) => { router.push(`/backend/settings/sso/${row.id}`) }}
           toolbar={<Button variant="outline" type="button" onClick={() => refetch()}>{t('orva_sso.actions.refresh', 'Refresh')}</Button>}
         />

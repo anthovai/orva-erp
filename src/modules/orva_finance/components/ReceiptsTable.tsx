@@ -12,6 +12,7 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { OrvaEmptyState } from '@/components/orva/NodeMark'
 
 type ReceiptRow = {
   id: string
@@ -67,6 +68,12 @@ export default function ReceiptsTable() {
     <>
       <DataTable
         title={t('orva_finance.receipts.page.title', 'Customer Receipts')}
+        emptyState={(
+          <OrvaEmptyState
+            title={t('orva_finance.receipts.empty.title', "No receipts yet")}
+            description={t('orva_finance.receipts.empty.description', "Record money received to settle posted customer invoices.")}
+          />
+        )}
         actions={(
           <Button asChild>
             <Link href="/backend/ar/receipts/create">{t('orva_finance.receipts.actions.create', 'Create receipt')}</Link>

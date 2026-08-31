@@ -184,5 +184,17 @@
   "orva_finance.receipts.form.total": "ยอดรับรวม",
   "orva_finance.receipts.form.noOpenItems": "ไม่มีลูกหนี้ค้างชำระ — ใบแจ้งหนี้ที่ลงบัญชีถูกชำระครบแล้ว",
   "orva_finance.receipts.form.error.create": "สร้างรายการรับไม่สำเร็จ",
-  "orva_finance.receipts.form.hint": "เมื่อโพสต์ ระบบจะเดบิตบัญชีเงินที่เลือกและเครดิตบัญชีลูกหนี้ แล้วตัดยอดใบแจ้งหนี้ตามจำนวนที่ระบุ"
+  "orva_finance.receipts.form.hint": "เมื่อโพสต์ ระบบจะเดบิตบัญชีเงินที่เลือกและเครดิตบัญชีลูกหนี้ แล้วตัดยอดใบแจ้งหนี้ตามจำนวนที่ระบุ",
+  "orva_finance.accounts.empty.title": "ยังไม่มีผังบัญชี",
+  "orva_finance.accounts.empty.description": "เพิ่มบัญชีที่ธุรกิจของคุณใช้บันทึกรายการ — สินทรัพย์ หนี้สิน ส่วนของเจ้าของ รายได้ และค่าใช้จ่าย",
+  "orva_finance.bills.empty.title": "ยังไม่มีบิลผู้ขาย",
+  "orva_finance.bills.empty.description": "บันทึกบิลจากผู้ขายเพื่อลงค่าใช้จ่ายและตั้งเจ้าหนี้",
+  "orva_finance.journals.empty.title": "ยังไม่มีสมุดรายวัน",
+  "orva_finance.journals.empty.description": "ทุกเอกสารที่โพสต์แล้วจะมาอยู่ที่นี่ในรูปรายการบัญชีที่ดุลเสมอ",
+  "orva_finance.payments.empty.title": "ยังไม่มีการจ่ายชำระ",
+  "orva_finance.payments.empty.description": "จ่ายชำระบิลที่ค้างอยู่เพื่อตัดยอดกับบัญชีเงินสด",
+  "orva_finance.periods.empty.title": "ยังไม่มีงวดบัญชี",
+  "orva_finance.periods.empty.description": "สร้างงวดบัญชีสำหรับบันทึกรายการ — งวดที่ปิดแล้วจะไม่รับรายการใหม่",
+  "orva_finance.receipts.empty.title": "ยังไม่มีการรับชำระ",
+  "orva_finance.receipts.empty.description": "บันทึกเงินที่ได้รับเพื่อตัดยอดใบแจ้งหนี้ลูกค้าที่โพสต์แล้ว"
 }

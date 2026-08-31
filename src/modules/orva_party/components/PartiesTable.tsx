@@ -16,6 +16,7 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { OrvaEmptyState } from '@/components/orva/NodeMark'
 
 type PartyRow = {
   id: string
@@ -85,6 +86,12 @@ export default function PartiesTable() {
     <>
       <DataTable
         title={t('orva_party.page.title', 'Parties')}
+        emptyState={(
+          <OrvaEmptyState
+            title={t('orva_party.parties.empty.title', "No parties yet")}
+            description={t('orva_party.parties.empty.description', "People and companies live here once, then act as customers, vendors or employees.")}
+          />
+        )}
         actions={(
           <Button asChild>
             <Link href="/backend/parties/create">{t('orva_party.table.actions.create', 'Create party')}</Link>

@@ -52,5 +52,9 @@
   "orva_hr.settings.ssoExpense": "SSO expense",
   "orva_hr.settings.ssoPayable": "SSO payable",
   "orva_hr.settings.taxPayable": "Tax payable",
-  "orva_hr.settings.netPayable": "Net salaries payable"
+  "orva_hr.settings.netPayable": "Net salaries payable",
+  "orva_hr.employees.empty.title": "No employees yet",
+  "orva_hr.employees.empty.description": "Add the people on your payroll — each one links to a party in the central registry.",
+  "orva_hr.payrollRuns.empty.title": "No payroll runs yet",
+  "orva_hr.payrollRuns.empty.description": "Create a monthly run to calculate salaries, social security and withholding tax."
 }

@@ -13,6 +13,7 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { OrvaEmptyState } from '@/components/orva/NodeMark'
 
 type EmployeeRow = {
   id: string
@@ -96,6 +97,12 @@ export default function EmployeesTable() {
     <>
       <DataTable
         title={t('orva_hr.employees.page.title', 'Employees')}
+        emptyState={(
+          <OrvaEmptyState
+            title={t('orva_hr.employees.empty.title', "No employees yet")}
+            description={t('orva_hr.employees.empty.description', "Add the people on your payroll — each one links to a party in the central registry.")}
+          />
+        )}
         actions={(
           <Button asChild>
             <Link href="/backend/hr/employees/create">{t('orva_hr.employees.actions.create', 'Add employee')}</Link>

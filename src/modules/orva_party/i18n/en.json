@@ -34,5 +34,7 @@
   "orva_party.form.flash.created": "Party created",
   "orva_party.form.flash.saved": "Party saved",
   "orva_party.form.flash.deleted": "Party deleted",
-  "orva_party.form.error.load": "Failed to load party"
+  "orva_party.form.error.load": "Failed to load party",
+  "orva_party.parties.empty.title": "No parties yet",
+  "orva_party.parties.empty.description": "People and companies live here once, then act as customers, vendors or employees."
 }

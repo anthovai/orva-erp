@@ -934,3 +934,56 @@ body[data-ai-chat-open="true"] .om-demo-feedback-floating {
   --chart-emerald: #2FB89B;
   --chart-teal: #7EE0C4;
 }
+
+/* ═══ Orva sidebar rail — brand-dark navigation ═════════════════════════
+   The shell's sidebar is painted with the same generic surface tokens as
+   the rest of the app (`bg-background`, `bg-muted`, `text-muted-foreground`,
+   `border`), so instead of overriding upstream utility classes one by one
+   we REDEFINE those variables inside the sidebar subtree. Custom properties
+   inherit, so every control in there — nav items, group headers, the search
+   box, skeletons — flips to the brand rail automatically, and any future
+   upstream markup change inherits it too.
+
+   `[data-sidebar-scroll]` is the shell's own stable hook (it queries that
+   attribute in its scroll logic). If upstream ever drops it the selector
+   simply stops matching and the sidebar falls back to the light surface —
+   it degrades to the previous look instead of breaking.
+
+   Popovers and dropdowns opened from the rail portal to <body>, so they
+   keep the normal light/dark card tokens — only the rail itself is dark. */
+aside:has([data-sidebar-scroll]) {
+  /* Custom properties inherit, but an inherited `color` does not re-resolve:
+     children without a text-* utility would keep body's dark computed colour.
+     Setting color here re-anchors that inheritance to the rail palette. */
+  color: var(--foreground);
+  --background: #0A4A3E;   /* Orva Forest */
+  --foreground: #F2FAF7;
+  --muted: rgba(255, 255, 255, 0.10);   /* hover + active pill */
+  --muted-foreground: #CDE7DD;          /* idle labels; /70 group headers still clear 3:1 */
+  --accent: rgba(255, 255, 255, 0.12);
+  --accent-foreground: #FFFFFF;
+  --border: rgba(255, 255, 255, 0.12);
+  --input: rgba(255, 255, 255, 0.16);
+  --secondary: rgba(255, 255, 255, 0.10);
+  --secondary-foreground: #F2FAF7;
+  --primary: #7EE0C4;                    /* active markers read as the node */
+  --primary-foreground: #06342C;
+  --ring: #7EE0C4;
+}
+
+/* Dark mode already sits on a near-black ground; the rail only needs to be
+   one shade greener than the page so it still reads as a distinct surface. */
+.dark aside:has([data-sidebar-scroll]) {
+  color: var(--foreground);
+  --background: #0A1714;
+  --foreground: #EEF4F1;
+  --muted: rgba(126, 224, 196, 0.10);
+  --muted-foreground: #A9CCC1;
+  --accent: rgba(126, 224, 196, 0.14);
+  --accent-foreground: #A7E8D6;
+  --border: rgba(255, 255, 255, 0.08);
+  --input: rgba(255, 255, 255, 0.12);
+  --primary: #7EE0C4;
+  --primary-foreground: #04231D;
+  --ring: #7EE0C4;
+}

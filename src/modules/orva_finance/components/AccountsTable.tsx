@@ -16,6 +16,7 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { OrvaEmptyState } from '@/components/orva/NodeMark'
 
 type AccountRow = {
   id: string
@@ -68,6 +69,12 @@ export default function AccountsTable() {
     <>
       <DataTable
         title={t('orva_finance.accounts.page.title', 'Chart of Accounts')}
+        emptyState={(
+          <OrvaEmptyState
+            title={t('orva_finance.accounts.empty.title', "No accounts yet")}
+            description={t('orva_finance.accounts.empty.description', "Add the ledger accounts your business posts to — assets, liabilities, equity, income and expenses.")}
+          />
+        )}
         actions={(
           <Button asChild>
             <Link href="/backend/gl/accounts/create">{t('orva_finance.accounts.actions.create', 'Create account')}</Link>

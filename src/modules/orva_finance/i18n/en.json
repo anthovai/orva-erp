@@ -184,5 +184,17 @@
   "orva_finance.form.create.submit": "Create",
   "orva_finance.form.edit.submit": "Save",
   "orva_finance.actions.edit": "Edit",
-  "orva_finance.actions.delete": "Delete"
+  "orva_finance.actions.delete": "Delete",
+  "orva_finance.accounts.empty.title": "No accounts yet",
+  "orva_finance.accounts.empty.description": "Add the ledger accounts your business posts to — assets, liabilities, equity, income and expenses.",
+  "orva_finance.bills.empty.title": "No vendor bills yet",
+  "orva_finance.bills.empty.description": "Record a supplier bill to book the expense and open a payable.",
+  "orva_finance.journals.empty.title": "No journals yet",
+  "orva_finance.journals.empty.description": "Every posted document lands here as a balanced journal entry.",
+  "orva_finance.payments.empty.title": "No payments yet",
+  "orva_finance.payments.empty.description": "Pay an open vendor bill to settle it against your cash account.",
+  "orva_finance.periods.empty.title": "No fiscal periods yet",
+  "orva_finance.periods.empty.description": "Create the accounting periods you post into; closed periods reject new entries.",
+  "orva_finance.receipts.empty.title": "No receipts yet",
+  "orva_finance.receipts.empty.description": "Record money received to settle posted customer invoices."
 }

@@ -12,6 +12,7 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { OrvaEmptyState } from '@/components/orva/NodeMark'
 
 type BillRow = {
   id: string
@@ -173,6 +174,12 @@ export default function BillsTable() {
       <ApSettingsBanner />
       <DataTable
         title={t('orva_finance.ap.page.title', 'Vendor Bills')}
+        emptyState={(
+          <OrvaEmptyState
+            title={t('orva_finance.bills.empty.title', "No vendor bills yet")}
+            description={t('orva_finance.bills.empty.description', "Record a supplier bill to book the expense and open a payable.")}
+          />
+        )}
         actions={(
           <Button asChild>
             <Link href="/backend/ap/bills/create">{t('orva_finance.ap.actions.create', 'Create bill')}</Link>

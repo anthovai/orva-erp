@@ -24,5 +24,7 @@
   "orva_sso.flash.created": "เพิ่มการเชื่อมต่อแล้ว",
   "orva_sso.flash.saved": "บันทึกการเชื่อมต่อแล้ว",
   "orva_sso.error.notFound": "ไม่พบการเชื่อมต่อ",
-  "orva_sso.login.continue": "เข้าสู่ระบบด้วย SSO"
+  "orva_sso.login.continue": "เข้าสู่ระบบด้วย SSO",
+  "orva_sso.empty.title": "ยังไม่มีการเชื่อมต่อ SSO",
+  "orva_sso.empty.description": "เพิ่มการเชื่อมต่อเพื่อให้ผู้ใช้จากผู้ให้บริการยืนยันตัวตนขององค์กรเข้าสู่ระบบได้โดยไม่ต้องใช้รหัสผ่าน"
 }
