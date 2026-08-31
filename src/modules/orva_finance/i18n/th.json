@@ -196,5 +196,18 @@
   "orva_finance.periods.empty.title": "ยังไม่มีงวดบัญชี",
   "orva_finance.periods.empty.description": "สร้างงวดบัญชีสำหรับบันทึกรายการ — งวดที่ปิดแล้วจะไม่รับรายการใหม่",
   "orva_finance.receipts.empty.title": "ยังไม่มีการรับชำระ",
-  "orva_finance.receipts.empty.description": "บันทึกเงินที่ได้รับเพื่อตัดยอดใบแจ้งหนี้ลูกค้าที่โพสต์แล้ว"
+  "orva_finance.receipts.empty.description": "บันทึกเงินที่ได้รับเพื่อตัดยอดใบแจ้งหนี้ลูกค้าที่โพสต์แล้ว",
+  "orva_finance.widget.overview.title": "ภาพรวมการเงิน",
+  "orva_finance.widget.overview.rangeLabel": "ช่วงเวลาที่รายงาน",
+  "orva_finance.widget.overview.range.month": "เดือนนี้",
+  "orva_finance.widget.overview.range.quarter": "ไตรมาสนี้",
+  "orva_finance.widget.overview.range.year": "ปีนี้",
+  "orva_finance.widget.overview.income": "รายได้",
+  "orva_finance.widget.overview.netProfit": "กำไรสุทธิ",
+  "orva_finance.widget.overview.receivable": "ลูกหนี้คงค้าง",
+  "orva_finance.widget.overview.payable": "เจ้าหนี้คงค้าง",
+  "orva_finance.widget.overview.overdueHint": "รวมยอดเกินกำหนดเกิน 90 วัน {amount}",
+  "orva_finance.widget.overview.unavailable": "ยังไม่สามารถแสดงตัวเลขทางการเงินได้ในขณะนี้",
+  "orva_finance.dashboard.widgets.overview.title": "ภาพรวมการเงิน",
+  "orva_finance.dashboard.widgets.overview.description": "รายได้ กำไรสุทธิ และยอดลูกหนี้/เจ้าหนี้คงค้าง คำนวณจากรายการบัญชีที่โพสต์แล้ว"
 }

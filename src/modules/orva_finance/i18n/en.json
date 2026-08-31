@@ -196,5 +196,18 @@
   "orva_finance.periods.empty.title": "No fiscal periods yet",
   "orva_finance.periods.empty.description": "Create the accounting periods you post into; closed periods reject new entries.",
   "orva_finance.receipts.empty.title": "No receipts yet",
-  "orva_finance.receipts.empty.description": "Record money received to settle posted customer invoices."
+  "orva_finance.receipts.empty.description": "Record money received to settle posted customer invoices.",
+  "orva_finance.widget.overview.title": "Financial overview",
+  "orva_finance.widget.overview.rangeLabel": "Reporting period",
+  "orva_finance.widget.overview.range.month": "This month",
+  "orva_finance.widget.overview.range.quarter": "This quarter",
+  "orva_finance.widget.overview.range.year": "This year",
+  "orva_finance.widget.overview.income": "Revenue",
+  "orva_finance.widget.overview.netProfit": "Net profit",
+  "orva_finance.widget.overview.receivable": "Receivables outstanding",
+  "orva_finance.widget.overview.payable": "Payables outstanding",
+  "orva_finance.widget.overview.overdueHint": "Includes {amount} more than 90 days overdue",
+  "orva_finance.widget.overview.unavailable": "Financial figures are unavailable right now.",
+  "orva_finance.dashboard.widgets.overview.title": "Financial overview",
+  "orva_finance.dashboard.widgets.overview.description": "Revenue, net profit and outstanding receivables/payables from posted journals."
 }

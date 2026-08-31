@@ -987,3 +987,55 @@ aside:has([data-sidebar-scroll]) {
   --primary-foreground: #04231D;
   --ring: #7EE0C4;
 }
+
+/* ═══ Orva node mark on every empty state ═══════════════════════════════
+   Upstream renders one shared `EmptyState` primitive across the whole
+   backoffice (DataTable "no results", filtered/search results, detail tabs)
+   with a generic inbox glyph. Our own lists pass <OrvaEmptyState/> so they
+   already carry the logomark; this rule brings the same node language to
+   every INSTALLED module's list without wrapping or replacing a single
+   component.
+
+   It swaps only the decorative glyph — the icon box keeps its size, and the
+   title/description/actions upstream renders (already localized) are
+   untouched. `data-slot="empty-state"` is the primitive's own stable hook;
+   if it ever changes the rule stops applying and the inbox icon returns.
+
+   The mark is drawn with two masked layers so both brand colours survive a
+   theme switch: the open ring in muted-foreground, the node in the accent. */
+[data-slot="empty-state"] > [aria-hidden="true"]:first-child > svg {
+  display: none;
+}
+[data-slot="empty-state"] > [aria-hidden="true"]:first-child {
+  position: relative;
+  background: transparent;
+}
+[data-slot="empty-state"] > [aria-hidden="true"]:first-child::before,
+[data-slot="empty-state"] > [aria-hidden="true"]:first-child::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+/* open ring */
+[data-slot="empty-state"] > [aria-hidden="true"]:first-child::before {
+  background-color: var(--muted-foreground);
+  opacity: 0.55;
+  -webkit-mask-image: var(--orva-mark-ring);
+  mask-image: var(--orva-mark-ring);
+}
+/* orbit node */
+[data-slot="empty-state"] > [aria-hidden="true"]:first-child::after {
+  background-color: var(--primary);
+  -webkit-mask-image: var(--orva-mark-node);
+  mask-image: var(--orva-mark-node);
+}
+:root {
+  --orva-mark-ring: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Cpath d='M243.79 116.53 A140 140 0 1 0 382.88 196.84' fill='none' stroke='%23000' stroke-width='52' stroke-linecap='round'/%3E%3C/svg%3E");
+  --orva-mark-node: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Ccircle cx='326' cy='134.76' r='32' fill='%23000'/%3E%3C/svg%3E");
+}
