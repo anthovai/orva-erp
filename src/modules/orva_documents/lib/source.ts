@@ -126,7 +126,7 @@ export async function listQuoteSources(
 
 async function loadQuoteLines(tem: EntityManager, quoteId: string): Promise<QuoteRow[]> {
   return (await tem.execute(
-    `select name, description, quantity, unit_price_net, total_net_amount
+    `select name, description, quantity, unit_price_net, total_net_amount, tax_rate
      from sales_quote_lines
      where quote_id = ?::uuid and deleted_at is null
      order by line_number`,
@@ -167,6 +167,18 @@ function partyFromSnapshot(row: QuoteRow, taxId: string | null): Party {
   }
 }
 
+/**
+ * The one VAT rate every line agrees on, or null when they differ.
+ *
+ * A Thai tax invoice states a rate; stating one the lines do not share would
+ * misdescribe the tax actually charged.
+ */
+function unanimousTaxRate(lines: QuoteRow[]): number | null {
+  if (lines.length === 0) return null
+  const rates = new Set(lines.map((line) => num(line.tax_rate)))
+  return rates.size === 1 ? [...rates][0] : null
+}
+
 function sourceFromQuote(row: QuoteRow, lines: QuoteRow[]): DocumentSource {
   const docLines: DocumentLine[] = lines.map((line) => ({
     description: String(line.name ?? line.description ?? ''),
@@ -184,8 +196,11 @@ function sourceFromQuote(row: QuoteRow, lines: QuoteRow[]): DocumentSource {
     lines: docLines,
     subtotal,
     discount: num(row.discount_total_amount),
-    // Present the effective rate the record actually carries; never re-derive.
-    taxRate: subtotal > 0 ? Math.round((taxAmount / subtotal) * 10000) / 100 : null,
+    // The rate the lines actually carry, never tax ÷ subtotal. Dividing yields
+    // an effective rate that drifts whenever a discount lands on a different
+    // base than the tax did — a real quote here printed "ภาษีมูลค่าเพิ่ม
+    // 5.29%", which is not a rate Thai VAT has.
+    taxRate: unanimousTaxRate(lines),
     taxAmount,
     grandTotal: num(row.grand_total_gross_amount),
     // sales encrypts `comments` at rest and this raw read bypasses the

@@ -68,6 +68,19 @@ describe('buildPrintableDocument', () => {
     expect(doc.secondaryDateLabelKey).toBeNull()
   })
 
+  test('a foreign-currency total is not spelled out as baht', () => {
+    const doc = buildPrintableDocument({
+      type: 'tax_invoice',
+      template: 'classic',
+      seller,
+      buyer: sampleBuyer(),
+      source: { ...sampleSource(), currencyCode: 'USD' },
+    })
+    // bahtText would read a USD figure as บาท, contradicting the total beside
+    // it. No words is correct; wrong words on a tax document is not.
+    expect(doc.amountInWords).toBeNull()
+  })
+
   test('a tax document without taxpayer ids reports why it is deficient', () => {
     const doc = buildPrintableDocument({
       type: 'tax_invoice',

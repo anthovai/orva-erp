@@ -79,7 +79,8 @@ export type PrintableDocument = {
   taxRate: number | null
   taxAmount: number
   grandTotal: number
-  amountInWords: string
+  /** Baht text, or null when the document is not in THB. */
+  amountInWords: string | null
   note: string | null
   paymentMethod: string | null
   /** True for statutory documents: templates then print the tax id block. */
@@ -143,7 +144,10 @@ export function buildPrintableDocument(input: {
     taxRate: source.taxRate ?? null,
     taxAmount: source.taxAmount,
     grandTotal: source.grandTotal,
-    amountInWords: bahtText(source.grandTotal),
+    // bahtText spells บาท/สตางค์. On a foreign-currency document that would
+    // state an amount in words contradicting the figures next to it — a USD
+    // total read aloud as baht. Better to print no words than wrong ones.
+    amountInWords: source.currencyCode === 'THB' ? bahtText(source.grandTotal) : null,
     note: source.note ?? null,
     paymentMethod: type === 'receipt' ? (source.paymentMethod ?? null) : null,
     isTaxDocument,

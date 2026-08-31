@@ -134,6 +134,8 @@ export function TotalsBlock({ doc, t }: TemplateProps) {
 
 /** Amount in words — Thai accountants read this line, not just the figures. */
 export function AmountInWords({ doc, t }: TemplateProps) {
+  // Absent for non-THB documents; an empty label would read as a missing value.
+  if (!doc.amountInWords) return null
   return (
     <div className="rounded border bg-muted/30 px-3 py-2 text-sm">
       <span className="text-muted-foreground">{t('orva_documents.field.amountInWords', 'จำนวนเงินเป็นตัวอักษร')}: </span>
