@@ -1,7 +1,13 @@
 import { z } from 'zod'
 
 export const partyKinds = ['person', 'company'] as const
-export const wellKnownPartyRoles = ['customer', 'vendor', 'employee', 'contact'] as const
+/**
+ * Party is Orva's vendor registry — the one concept upstream lacks.
+ * Customers already live in the customers module and people in staff/HR, so
+ * new roles are restricted to 'vendor'; historical rows with other roles are
+ * still readable, they just cannot be minted here any more.
+ */
+export const wellKnownPartyRoles = ['vendor'] as const
 
 export const partyListSchema = z
   .object({
@@ -26,7 +32,7 @@ export const partyCreateSchema = z.object({
   email: z.string().email().optional().nullable().or(z.literal('').transform(() => null)),
   phone: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
-  roles: z.array(z.string().min(1)).optional(),
+  roles: z.array(z.enum(wellKnownPartyRoles)).optional(),
 })
 
 export const partyUpdateSchema = z.object({
@@ -57,13 +63,13 @@ export const partyRoleListSchema = z
 
 export const partyRoleCreateSchema = z.object({
   partyId: z.string().uuid(),
-  role: z.string().min(1),
+  role: z.enum(wellKnownPartyRoles),
   configJson: z.record(z.string(), z.unknown()).optional().nullable(),
 })
 
 export const partyRoleUpdateSchema = z.object({
   id: z.string().uuid(),
-  role: z.string().min(1).optional(),
+  role: z.enum(wellKnownPartyRoles).optional(),
   configJson: z.record(z.string(), z.unknown()).optional().nullable(),
 })
 

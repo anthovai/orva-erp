@@ -1,6 +1,6 @@
 {
   "orva_party.nav.group": "Finance",
-  "orva_party.page.title": "Parties",
+  "orva_party.page.title": "Vendors",
   "orva_party.kind.person": "Person",
   "orva_party.kind.company": "Company",
   "orva_party.role.customer": "Customer",
@@ -11,11 +11,11 @@
   "orva_party.table.column.kind": "Type",
   "orva_party.table.column.email": "Email",
   "orva_party.table.column.phone": "Phone",
-  "orva_party.table.actions.create": "Create party",
+  "orva_party.table.actions.create": "Add vendor",
   "orva_party.table.actions.edit": "Edit",
   "orva_party.table.actions.delete": "Delete",
   "orva_party.table.confirmDelete.title": "Delete party?",
-  "orva_party.form.create.title": "Create party",
+  "orva_party.form.create.title": "Add vendor",
   "orva_party.form.create.submit": "Create",
   "orva_party.form.edit.title": "Edit party",
   "orva_party.form.edit.submit": "Save",
@@ -31,10 +31,10 @@
   "orva_party.form.fields.notes.label": "Notes",
   "orva_party.form.fields.role.label": "Initial role",
   "orva_party.form.fields.role.none": "— none —",
-  "orva_party.form.flash.created": "Party created",
+  "orva_party.form.flash.created": "Vendor added",
   "orva_party.form.flash.saved": "Party saved",
   "orva_party.form.flash.deleted": "Party deleted",
   "orva_party.form.error.load": "Failed to load party",
-  "orva_party.parties.empty.title": "No parties yet",
-  "orva_party.parties.empty.description": "People and companies live here once, then act as customers, vendors or employees."
+  "orva_party.parties.empty.title": "No vendors yet",
+  "orva_party.parties.empty.description": "Record vendors here, then bill and pay them from the Finance menu. Customers live in the Customers menu."
 }

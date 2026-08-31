@@ -22,7 +22,7 @@ type PartyItem = {
   updated_at?: string | null
 }
 
-function usePartyFields(t: Translate, forCreate: boolean): CrudField[] {
+function usePartyFields(t: Translate): CrudField[] {
   return React.useMemo<CrudField[]>(() => {
     const fields: CrudField[] = [
       {
@@ -47,25 +47,11 @@ function usePartyFields(t: Translate, forCreate: boolean): CrudField[] {
       { id: 'phone', label: t('orva_party.form.fields.phone.label', 'Phone'), type: 'text' },
       { id: 'notes', label: t('orva_party.form.fields.notes.label', 'Notes'), type: 'textarea' },
     ]
-    if (forCreate) {
-      fields.push({
-        id: 'role',
-        label: t('orva_party.form.fields.role.label', 'Initial role'),
-        type: 'select',
-        options: [
-          { value: '', label: t('orva_party.form.fields.role.none', '— none —') },
-          { value: 'customer', label: t('orva_party.role.customer', 'Customer') },
-          { value: 'vendor', label: t('orva_party.role.vendor', 'Vendor') },
-          { value: 'employee', label: t('orva_party.role.employee', 'Employee') },
-          { value: 'contact', label: t('orva_party.role.contact', 'Contact') },
-        ],
-      })
-    }
     return fields
-  }, [t, forCreate])
+  }, [t])
 }
 
-function usePartyGroups(t: Translate, forCreate: boolean): CrudFormGroup[] {
+function usePartyGroups(t: Translate): CrudFormGroup[] {
   return React.useMemo<CrudFormGroup[]>(() => [
     {
       id: 'identity',
@@ -77,7 +63,7 @@ function usePartyGroups(t: Translate, forCreate: boolean): CrudFormGroup[] {
       id: 'contact',
       title: t('orva_party.form.groups.contact', 'Contact'),
       column: 2,
-      fields: forCreate ? ['email', 'phone', 'role'] : ['email', 'phone'],
+      fields: ['email', 'phone'],
     },
     {
       id: 'notes',
@@ -85,7 +71,7 @@ function usePartyGroups(t: Translate, forCreate: boolean): CrudFormGroup[] {
       column: 1,
       fields: ['notes'],
     },
-  ], [t, forCreate])
+  ], [t])
 }
 
 type PartyFormValues = {
@@ -103,15 +89,15 @@ type PartyFormValues = {
 
 export function PartyCreateForm() {
   const t = useT()
-  const fields = usePartyFields(t, true)
-  const groups = usePartyGroups(t, true)
+  const fields = usePartyFields(t)
+  const groups = usePartyGroups(t)
   const successRedirect = React.useMemo(
     () => `${LIST_HREF}?flash=${encodeURIComponent(t('orva_party.form.flash.created', 'Party created'))}&type=success`,
     [t],
   )
   return (
     <CrudForm
-      title={t('orva_party.form.create.title', 'Create party')}
+      title={t('orva_party.form.create.title', 'Add vendor')}
       backHref={LIST_HREF}
       entityId={ENTITY_ID}
       fields={fields}
@@ -120,11 +106,11 @@ export function PartyCreateForm() {
       cancelHref={LIST_HREF}
       successRedirect={successRedirect}
       onSubmit={async (vals) => {
-        const { role, ...rest } = vals as PartyFormValues
-        await createCrud('orva_party/parties', {
-          ...rest,
-          roles: role ? [role] : undefined,
-        })
+        const { role: _ignored, ...rest } = vals as PartyFormValues
+        // This screen is the vendor registry. Customers live in the customers
+        // module; people live in staff/HR — a second copy of either only
+        // drifts, so the role is no longer a choice here.
+        await createCrud('orva_party/parties', { ...rest, roles: ['vendor'] })
       }}
     />
   )
@@ -136,8 +122,8 @@ export function PartyEditForm({ id }: { id: string }) {
   const [loading, setLoading] = React.useState(true)
   const [err, setErr] = React.useState<string | null>(null)
   const [isNotFound, setIsNotFound] = React.useState(false)
-  const fields = usePartyFields(t, false)
-  const groups = usePartyGroups(t, false)
+  const fields = usePartyFields(t)
+  const groups = usePartyGroups(t)
   const successRedirect = React.useMemo(
     () => `${LIST_HREF}?flash=${encodeURIComponent(t('orva_party.form.flash.saved', 'Party saved'))}&type=success`,
     [t],
@@ -197,7 +183,7 @@ export function PartyEditForm({ id }: { id: string }) {
 
   return (
     <CrudForm
-      title={t('orva_party.form.edit.title', 'Edit party')}
+      title={t('orva_party.form.edit.title', 'Edit vendor')}
       backHref={LIST_HREF}
       entityId={ENTITY_ID}
       fields={fields}

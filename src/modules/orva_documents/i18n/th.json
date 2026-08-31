@@ -67,5 +67,7 @@
   "orva_documents.public.pageTitle": "เอกสาร",
   "orva_documents.public.intro": "เอกสารจากผู้ขาย — พิมพ์หรือบันทึกเก็บไว้ได้",
   "orva_documents.public.expired": "เอกสารนี้เลยกำหนดยืนราคาแล้ว กรุณาติดต่อผู้ขาย",
-  "orva_documents.public.notFound": "ไม่พบเอกสารนี้ — ลิงก์อาจหมดอายุหรือถูกยกเลิกแล้ว"
+  "orva_documents.public.notFound": "ไม่พบเอกสารนี้ — ลิงก์อาจหมดอายุหรือถูกยกเลิกแล้ว",
+  "orva_documents.quoteWidget.title": "เอกสารจากใบเสนอราคานี้",
+  "orva_documents.quoteWidget.hint": "เปิดตัวอย่างเอกสารจากข้อมูลใบนี้ — พิมพ์ ดาวน์โหลด PDF หรือส่งอีเมลได้จากหน้าตัวอย่าง"
 }

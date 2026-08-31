@@ -85,16 +85,16 @@ export default function PartiesTable() {
   return (
     <>
       <DataTable
-        title={t('orva_party.page.title', 'Parties')}
+        title={t('orva_party.page.title', 'Vendors')}
         emptyState={(
           <OrvaEmptyState
-            title={t('orva_party.parties.empty.title', "No parties yet")}
-            description={t('orva_party.parties.empty.description', "People and companies live here once, then act as customers, vendors or employees.")}
+            title={t('orva_party.parties.empty.title', 'No vendors yet')}
+            description={t('orva_party.parties.empty.description', 'Record vendors here, then bill and pay them from the Finance menu. Customers live in the Customers menu.')}
           />
         )}
         actions={(
           <Button asChild>
-            <Link href="/backend/parties/create">{t('orva_party.table.actions.create', 'Create party')}</Link>
+            <Link href="/backend/parties/create">{t('orva_party.table.actions.create', 'Add vendor')}</Link>
           </Button>
         )}
         columns={columns}

@@ -1,7 +1,7 @@
 export const metadata = {
   requireAuth: true,
   requireFeatures: ['orva_party.parties.view'],
-  pageTitle: 'Parties',
+  pageTitle: 'Vendors',
   pageTitleKey: 'orva_party.page.title',
   pageGroup: 'Orva',
   pageGroupKey: 'orva_party.nav.group',
