@@ -73,5 +73,8 @@
   "orva_documents.quoteWidget.review": "ตรวจดูเอกสาร",
   "orva_documents.review.title": "ตรวจดูเอกสาร",
   "orva_documents.review.templateDefault": "ตามที่ตั้งค่าไว้",
-  "orva_documents.review.openFull": "เปิดหน้าเต็ม / พิมพ์ / ส่งอีเมล"
+  "orva_documents.review.openFull": "เปิดหน้าเต็ม / พิมพ์ / ส่งอีเมล",
+  "orva_documents.rowAction.review": "ตรวจดูเอกสาร",
+  "orva_documents.rowAction.invoice": "ออกใบแจ้งหนี้",
+  "orva_documents.rowAction.receipt": "ออกใบกำกับภาษี/ใบเสร็จ"
 }

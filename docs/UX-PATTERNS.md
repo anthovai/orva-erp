@@ -41,6 +41,11 @@ record นั้น** ไม่ใช่ในเมนูเครื่อง�
   สลับประเภท/เทมเพลตได้ ดาวน์โหลด PDF ได้ พร้อมคำเตือนเลขผู้เสียภาษี
   (`orva_documents/widgets/injection/quote-documents` +
   `components/DocumentReviewDialog.tsx`)
+- แถวในรายการใบเสนอราคา → เมนู kebab มี ตรวจดูเอกสาร / ออกใบแจ้งหนี้ /
+  ออกใบกำกับภาษี/ใบเสร็จ — แต่ละอันเปิด preview ที่ผูกกับ record นั้นแล้ว
+  ตามลำดับเอกสารแบบ FlowAccount
+  (`orva_documents/widgets/injection/quote-row-documents`, spot
+  `data-table:sales.quotes:row-actions`)
 
 Sources: [Odoo — Create and send quotations](https://www.odoo.com/documentation/19.0/applications/sales/crm/acquire_leads/send_quotes.html),
 [QuickBooks — invoice preview](https://quickbooks.intuit.com/learn-support/en-us/reports-and-accounting/does-anyone-know-what-happened-to-the-invoice-preview-before/00/228739),

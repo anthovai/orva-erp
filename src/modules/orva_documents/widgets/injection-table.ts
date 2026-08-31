@@ -10,6 +10,14 @@ export const injectionTable: ModuleInjectionTable = {
       priority: 30,
     },
   ],
+  // FlowAccount-style follow-on documents on the quote list row: each entry
+  // opens the preview already scoped to that record.
+  'data-table:sales.quotes:row-actions': [
+    {
+      widgetId: 'orva_documents.injection.quote-row-documents',
+      priority: 30,
+    },
+  ],
 }
 
 export default injectionTable

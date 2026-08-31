@@ -73,5 +73,8 @@
   "orva_documents.quoteWidget.review": "Review documents",
   "orva_documents.review.title": "Review documents",
   "orva_documents.review.templateDefault": "As configured",
-  "orva_documents.review.openFull": "Full page / print / email"
+  "orva_documents.review.openFull": "Full page / print / email",
+  "orva_documents.rowAction.review": "Review documents",
+  "orva_documents.rowAction.invoice": "Issue invoice",
+  "orva_documents.rowAction.receipt": "Issue tax invoice / receipt"
 }
