@@ -72,7 +72,29 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'dashboards', from: '@open-mercato/core' },
   { id: 'auth', from: '@open-mercato/core' },
   { id: 'directory', from: '@open-mercato/core' },
-  { id: 'customers', from: '@open-mercato/core' },
+  {
+    id: 'customers',
+    from: '@open-mercato/core',
+    overrides: {
+      routes: {
+        pages: {
+          // Orva owns the company create screen: the installed one asks for
+          // western-B2B attributes (domain, size bucket, annual revenue,
+          // social handles) that a Thai SME never fills, and buries the
+          // taxpayer id / branch code a Thai tax invoice requires. Field
+          // removal has no extension seam, so the route is replaced. The page
+          // still imports upstream's schema, field definitions and payload
+          // builder — only the asked-for subset and group order are ours.
+          // Metadata is intentionally omitted so the installed guards
+          // (customers.companies.manage), title and breadcrumb still apply.
+          '/backend/customers/companies/create': {
+            // the manifest expects the component itself, not the module namespace
+            load: () => import('@/modules/orva/components/CompanyCreatePage').then((mod) => mod.default),
+          },
+        },
+      },
+    },
+  },
   { id: 'perspectives', from: '@open-mercato/core' },
   { id: 'entities', from: '@open-mercato/core' },
   { id: 'configs', from: '@open-mercato/core' },
