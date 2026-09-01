@@ -117,6 +117,17 @@ function readSelectedTenantCookie(): TenantCookieState {
   return { value: '', hasCookie: false, raw: null }
 }
 
+function countSelectable(nodes: OrganizationMenuNode[] | undefined): number {
+  if (!Array.isArray(nodes)) return 0
+  let count = 0
+  for (const node of nodes) {
+    if (!node) continue
+    if (node.selectable !== false && typeof node.id === 'string' && node.id) count += 1
+    count += countSelectable(node.children)
+  }
+  return count
+}
+
 function findFirstSelectable(nodes: OrganizationMenuNode[] | undefined): string | null {
   if (!Array.isArray(nodes)) return null
   for (const node of nodes) {
@@ -238,7 +249,17 @@ export default function OrganizationSwitcher({ compact }: OrganizationSwitcherEx
           !cookieInfo.hasCookie
           || (cookieInfo.raw !== null && cookieInfo.raw !== ALL_ORGANIZATIONS_COOKIE_VALUE)
         )
-      const fallbackSelected = selected ?? (shouldFallbackToFirst ? findFirstSelectable(rawItems) : null)
+      // A single-organization tenant has no meaningful "all organizations"
+      // scope: it shows the same data as the one org but blocks every
+      // mutation with "Organization context is required". If exactly one
+      // org is selectable, select it — even over an explicit all-orgs
+      // cookie left behind by the picker.
+      const onlyOrg = countSelectable(rawItems as OrganizationMenuNode[]) === 1
+        ? findFirstSelectable(rawItems as OrganizationMenuNode[])
+        : null
+      const fallbackSelected = selected
+        ?? (shouldFallbackToFirst ? findFirstSelectable(rawItems as OrganizationMenuNode[]) : null)
+        ?? onlyOrg
       const isSuperAdmin = Boolean(json.isSuperAdmin)
       const canViewAllOrganizations = Boolean(json.canViewAllOrganizations)
       if (!rawItems.length && !manage && !isSuperAdmin && tenantList.length === 0) {

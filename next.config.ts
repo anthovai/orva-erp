@@ -25,6 +25,10 @@ const nextConfig: NextConfig & { agentRules?: boolean } = {
   // from the template, so let Next 16.3+ leave them alone rather than
   // appending its managed agent-rules block on every `next dev`.
   agentRules: false,
+  // The floating dev-tools "N issues" pill covers real UI in the corner and
+  // reads as a product defect to non-developers using the dev build; errors
+  // still land in the console where they belong.
+  devIndicators: false,
   experimental: {
     serverMinification: false,
     turbopackMinify: false,
