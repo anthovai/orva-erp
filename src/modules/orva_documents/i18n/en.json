@@ -98,5 +98,10 @@
   "orva_documents.issue.submit": "Issue invoice",
   "orva_documents.issue.done": "Invoice {number} issued",
   "orva_documents.issue.failed": "Could not issue the invoice",
-  "orva_documents.preview.typeLocked": "Documents printable from this record type"
+  "orva_documents.preview.typeLocked": "Documents printable from this record type",
+  "orva_documents.installments.title": "Invoices issued from this quotation",
+  "orva_documents.installments.empty": "No installments yet — use \"Issue installment invoice\" above when ready to bill.",
+  "orva_documents.installments.no": "Installment {n}",
+  "orva_documents.installments.paid": "Paid {date}",
+  "orva_documents.installments.due": "Due {date}"
 }

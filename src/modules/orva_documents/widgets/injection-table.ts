@@ -10,6 +10,15 @@ export const injectionTable: ModuleInjectionTable = {
       priority: 30,
     },
   ],
+  // The งวด already issued from this quote, on the quote's details surface —
+  // billing documents live on invoice records, so the quote must show the
+  // way to them.
+  'sales.document.detail.quote:details': [
+    {
+      widgetId: 'orva_documents.injection.quote-installments',
+      priority: 20,
+    },
+  ],
   // FlowAccount-style follow-on documents on the quote list row: each entry
   // opens the preview already scoped to that record.
   'data-table:sales.quotes:row-actions': [

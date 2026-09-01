@@ -16,6 +16,7 @@ import { findQuoteById, loadSettings } from '../../lib/source'
 const logger = createLogger('orva_documents').child({ component: 'issue-invoice' })
 
 export const metadata = {
+  GET: { requireAuth: true, requireFeatures: ['orva_documents.view'] },
   POST: { requireAuth: true, requireFeatures: ['sales.invoices.manage'] },
 }
 
@@ -27,6 +28,60 @@ const responseSchema = z.object({
   tax: z.number(),
   gross: z.number(),
 })
+
+const installmentSchema = z.object({
+  id: z.string().uuid(),
+  invoiceNumber: z.string(),
+  installmentNo: z.number().nullable(),
+  installmentPercent: z.number().nullable(),
+  issueDate: z.string().nullable(),
+  dueDate: z.string().nullable(),
+  paidDate: z.string().nullable(),
+  grandTotal: z.number(),
+  outstanding: z.number(),
+})
+
+/**
+ * The installments already issued from a quote — what the quote screen shows
+ * so nobody has to walk to the invoice list to find their own งวด.
+ */
+export async function GET(req: Request) {
+  const auth = await getAuthFromRequest(req)
+  if (!auth?.tenantId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const url = new URL(req.url)
+  const quoteId = url.searchParams.get('quoteId')
+  if (!quoteId || !/^[0-9a-f-]{36}$/i.test(quoteId)) {
+    return Response.json({ error: 'quoteId is required' }, { status: 400 })
+  }
+  const container = await createRequestContainer()
+  const em = container.resolve<EntityManager>('em')
+  const rows = (await em.fork().execute(
+    `select id, invoice_number,
+            (metadata->>'installmentNo')::int as installment_no,
+            (metadata->>'installmentPercent')::numeric as installment_percent,
+            metadata->>'paidDate' as paid_date,
+            to_char(issue_date, 'YYYY-MM-DD') as issue_date,
+            to_char(due_date, 'YYYY-MM-DD') as due_date,
+            grand_total_gross_amount, outstanding_amount
+     from sales_invoices
+     where deleted_at is null and tenant_id = ?::uuid and metadata->>'quoteId' = ?
+     order by created_at`,
+    [auth.tenantId, quoteId],
+  )) as Array<Record<string, unknown>>
+  return Response.json({
+    items: rows.map((row) => ({
+      id: String(row.id),
+      invoiceNumber: String(row.invoice_number),
+      installmentNo: row.installment_no == null ? null : Number(row.installment_no),
+      installmentPercent: row.installment_percent == null ? null : Number(row.installment_percent),
+      issueDate: (row.issue_date as string) ?? null,
+      dueDate: (row.due_date as string) ?? null,
+      paidDate: (row.paid_date as string) ?? null,
+      grandTotal: Number(row.grand_total_gross_amount ?? 0),
+      outstanding: Number(row.outstanding_amount ?? 0),
+    })),
+  })
+}
 
 /**
  * Issues a REAL invoice record from a quote — the FlowAccount step where the
@@ -163,6 +218,12 @@ export const openApi: OpenApiRouteDoc = {
   tag: 'Orva Documents',
   summary: 'Issue an invoice from a quote',
   methods: {
+    GET: {
+      summary: 'List installments issued from a quote',
+      tags: ['Orva Documents'],
+      responses: [{ status: 200, description: 'Installment invoices of the quote.', schema: z.object({ items: z.array(installmentSchema) }) }],
+      errors: [{ status: 400, description: 'quoteId missing', schema: z.object({ error: z.string() }) }],
+    },
     POST: {
       summary: 'Create a real sales invoice (own number series) from a quote',
       description:

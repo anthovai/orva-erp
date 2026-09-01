@@ -98,5 +98,10 @@
   "orva_documents.issue.submit": "ออกใบแจ้งหนี้",
   "orva_documents.issue.done": "ออกใบแจ้งหนี้ {number} แล้ว",
   "orva_documents.issue.failed": "ออกใบแจ้งหนี้ไม่สำเร็จ",
-  "orva_documents.preview.typeLocked": "เอกสารที่พิมพ์ได้จาก record ชนิดนี้"
+  "orva_documents.preview.typeLocked": "เอกสารที่พิมพ์ได้จาก record ชนิดนี้",
+  "orva_documents.installments.title": "ใบแจ้งหนี้ที่ออกจากใบนี้",
+  "orva_documents.installments.empty": "ยังไม่ได้ออกงวด — ใช้ปุ่ม \"ออกใบแจ้งหนี้งวด\" ด้านบนเมื่อพร้อมเรียกเก็บ",
+  "orva_documents.installments.no": "งวดที่ {n}",
+  "orva_documents.installments.paid": "รับชำระแล้ว {date}",
+  "orva_documents.installments.due": "ครบกำหนด {date}"
 }
