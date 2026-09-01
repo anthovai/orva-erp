@@ -1,4 +1,6 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
+import { findOneWithDecryption, findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
+import { SalesQuote, SalesQuoteLine } from '@open-mercato/core/modules/sales/data/entities'
 import { DocumentSettings } from '../data/entities'
 import {
   buildPrintableDocument,
@@ -20,9 +22,13 @@ import {
  * the document differently, staff would approve one sheet and the customer
  * would receive another.
  *
- * Sales data is read with raw SQL rather than its entities because a
- * cross-module ORM relation is not allowed here; the queries stay inside the
- * caller's RLS transaction, so the database enforces tenant isolation.
+ * Quotes are read through the sales entities WITH the decryption helpers —
+ * sales encrypts customer_snapshot and comments at rest, so a raw SQL read
+ * returns ciphertext and the sheet would print "ลูกค้าทั่วไป" for every real
+ * customer (exactly what happened with the first real record; the demo rows
+ * predated encryption, which hid it). No cross-module ORM relation is used:
+ * these are scalar-filtered reads of installed entities inside the caller's
+ * RLS transaction.
  */
 
 const num = (value: unknown) => Number(value ?? 0)
@@ -70,23 +76,38 @@ export function sellerFrom(settings: DocumentSettings | null): Party {
   }
 }
 
-const QUOTE_COLUMNS = `q.id, q.quote_number, q.currency_code, q.customer_entity_id, q.customer_snapshot,
-       q.tenant_id, q.organization_id,
-       to_char(coalesce(q.placed_at, q.created_at), 'YYYY-MM-DD') as issue_date,
-       to_char(q.valid_until, 'YYYY-MM-DD') as valid_until,
-       q.subtotal_net_amount, q.discount_total_amount, q.tax_total_amount, q.grand_total_gross_amount`
+/** Flattens a decrypted SalesQuote into the row shape this file consumes. */
+function rowFromQuote(quote: SalesQuote): QuoteRow {
+  return {
+    id: quote.id,
+    quote_number: quote.quoteNumber,
+    currency_code: quote.currencyCode,
+    customer_entity_id: (quote as { customerEntityId?: string | null }).customerEntityId ?? null,
+    customer_snapshot: quote.customerSnapshot ?? {},
+    tenant_id: quote.tenantId,
+    organization_id: quote.organizationId,
+    issue_date: isoDate(quote.placedAt ?? quote.createdAt),
+    valid_until: isoDate(quote.validUntil),
+    subtotal_net_amount: quote.subtotalNetAmount,
+    discount_total_amount: quote.discountTotalAmount,
+    tax_total_amount: quote.taxTotalAmount,
+    grand_total_gross_amount: quote.grandTotalGrossAmount,
+    comments: (quote as { comments?: string | null }).comments ?? null,
+  }
+}
 
 export async function findQuoteById(
   tem: EntityManager,
   args: { quoteId: string; tenantId: string },
 ): Promise<QuoteRow | null> {
-  const rows = (await tem.execute(
-    `select ${QUOTE_COLUMNS}
-     from sales_quotes q
-     where q.id = ?::uuid and q.deleted_at is null and q.tenant_id = ?::uuid`,
-    [args.quoteId, args.tenantId],
-  )) as QuoteRow[]
-  return rows[0] ?? null
+  const quote = await findOneWithDecryption(
+    tem, SalesQuote,
+    { id: args.quoteId, deletedAt: null },
+    {},
+    { tenantId: args.tenantId },
+  )
+  if (!quote || quote.tenantId !== args.tenantId) return null
+  return rowFromQuote(quote)
 }
 
 /**
@@ -98,40 +119,41 @@ export async function findQuoteByHashedToken(
   tem: EntityManager,
   hashedToken: string,
 ): Promise<QuoteRow | null> {
-  const rows = (await tem.execute(
-    `select ${QUOTE_COLUMNS}
-     from sales_quotes q
-     where q.acceptance_token = ? and q.deleted_at is null`,
-    [hashedToken],
-  )) as QuoteRow[]
-  return rows[0] ?? null
+  const quote = await findOneWithDecryption(tem, SalesQuote, { acceptanceToken: hashedToken, deletedAt: null })
+  return quote ? rowFromQuote(quote) : null
 }
 
 export async function listQuoteSources(
   tem: EntityManager,
   scope: { tenantId: string; organizationId: string | null },
 ): Promise<QuoteRow[]> {
-  return (await tem.execute(
-    `select q.id, q.quote_number, to_char(coalesce(q.placed_at, q.created_at), 'YYYY-MM-DD') as issue_date,
-            q.customer_snapshot
-     from sales_quotes q
-     where q.deleted_at is null
-       and q.tenant_id = ?::uuid
-       and (?::uuid is null or q.organization_id = ?::uuid)
-     order by q.created_at desc
-     limit 25`,
-    [scope.tenantId, scope.organizationId, scope.organizationId],
-  )) as QuoteRow[]
+  const quotes = await findWithDecryption(
+    tem, SalesQuote,
+    {
+      tenantId: scope.tenantId,
+      deletedAt: null,
+      ...(scope.organizationId ? { organizationId: scope.organizationId } : {}),
+    },
+    { orderBy: { createdAt: 'desc' }, limit: 25 },
+    { tenantId: scope.tenantId },
+  )
+  return quotes.map(rowFromQuote)
 }
 
 async function loadQuoteLines(tem: EntityManager, quoteId: string): Promise<QuoteRow[]> {
-  return (await tem.execute(
-    `select name, description, quantity, unit_price_net, total_net_amount, tax_rate
-     from sales_quote_lines
-     where quote_id = ?::uuid and deleted_at is null
-     order by line_number`,
-    [quoteId],
-  )) as QuoteRow[]
+  const lines = await findWithDecryption(
+    tem, SalesQuoteLine,
+    { quote: quoteId, deletedAt: null },
+    { orderBy: { lineNumber: 'asc' } },
+  )
+  return lines.map((line) => ({
+    name: line.name ?? null,
+    description: line.description ?? null,
+    quantity: line.quantity,
+    unit_price_net: line.unitPriceNet,
+    total_net_amount: line.totalNetAmount,
+    tax_rate: line.taxRate,
+  }))
 }
 
 /**
@@ -144,11 +166,20 @@ async function loadQuoteLines(tem: EntityManager, quoteId: string): Promise<Quot
  */
 async function loadBuyerTaxId(tem: EntityManager, customerEntityId: unknown): Promise<string | null> {
   if (!customerEntityId) return null
+  // The value can be keyed by either id: the company-profile custom entity
+  // stores record_id = customer_companies.id, while the quote carries
+  // customer_entity_id = customer_entities.id — so resolve the company id
+  // through its entity link and accept a match on either.
   const rows = (await tem.execute(
     `select value_text from custom_field_values
-     where record_id = ?::text and field_key = 'th_tax_id' and deleted_at is null
+     where field_key = 'th_tax_id' and deleted_at is null
+       and record_id in (
+         ?::text,
+         (select c.id::text from customer_companies c
+          where c.entity_id = ?::uuid limit 1)
+       )
      limit 1`,
-    [String(customerEntityId)],
+    [String(customerEntityId), String(customerEntityId)],
   )) as QuoteRow[]
   return rows[0]?.value_text ? String(rows[0].value_text) : null
 }
@@ -203,10 +234,9 @@ function sourceFromQuote(row: QuoteRow, lines: QuoteRow[]): DocumentSource {
     taxRate: unanimousTaxRate(lines),
     taxAmount,
     grandTotal: num(row.grand_total_gross_amount),
-    // sales encrypts `comments` at rest and this raw read bypasses the
-    // decryption helpers, so the stored value is ciphertext. Printing it
-    // would put garbage on the sheet.
-    note: null,
+    // comments arrive decrypted now that the quote is read through the
+    // encryption helpers, so the operator's note prints on the sheet.
+    note: typeof row.comments === 'string' && row.comments.trim() ? row.comments : null,
     paymentMethod: null,
   }
 }
