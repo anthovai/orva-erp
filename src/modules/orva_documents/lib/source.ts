@@ -1,5 +1,6 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
 import { findOneWithDecryption, findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
+import { parseDecryptedFieldValue } from '@open-mercato/shared/lib/encryption/tenantDataEncryptionService'
 import { SalesQuote, SalesQuoteLine } from '@open-mercato/core/modules/sales/data/entities'
 import { DocumentSettings } from '../data/entities'
 import {
@@ -76,6 +77,28 @@ export function sellerFrom(settings: DocumentSettings | null): Party {
   }
 }
 
+/**
+ * A decrypted json field comes back as the ENCODED STRING of the original
+ * value, not the object — every sales reader runs it through
+ * parseDecryptedFieldValue (see sales/api/documents/factory.ts
+ * normalizeJsonRecord). Skipping the parse is exactly the bug that printed
+ * every real customer as "ลูกค้าทั่วไป" while the ciphertext looked decrypted.
+ */
+function jsonRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value as Record<string, unknown>
+  if (typeof value !== 'string') return {}
+  const parsed = parseDecryptedFieldValue(value)
+  return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+    ? (parsed as Record<string, unknown>)
+    : {}
+}
+
+function decryptedText(value: unknown): string | null {
+  if (typeof value !== 'string' || !value.trim()) return value == null ? null : String(value)
+  const parsed = parseDecryptedFieldValue(value)
+  return typeof parsed === 'string' ? parsed : String(value)
+}
+
 /** Flattens a decrypted SalesQuote into the row shape this file consumes. */
 function rowFromQuote(quote: SalesQuote): QuoteRow {
   return {
@@ -83,7 +106,8 @@ function rowFromQuote(quote: SalesQuote): QuoteRow {
     quote_number: quote.quoteNumber,
     currency_code: quote.currencyCode,
     customer_entity_id: (quote as { customerEntityId?: string | null }).customerEntityId ?? null,
-    customer_snapshot: quote.customerSnapshot ?? {},
+    customer_snapshot: jsonRecord(quote.customerSnapshot),
+    billing_address_snapshot: jsonRecord((quote as { billingAddressSnapshot?: unknown }).billingAddressSnapshot),
     tenant_id: quote.tenantId,
     organization_id: quote.organizationId,
     issue_date: isoDate(quote.placedAt ?? quote.createdAt),
@@ -92,7 +116,7 @@ function rowFromQuote(quote: SalesQuote): QuoteRow {
     discount_total_amount: quote.discountTotalAmount,
     tax_total_amount: quote.taxTotalAmount,
     grand_total_gross_amount: quote.grandTotalGrossAmount,
-    comments: (quote as { comments?: string | null }).comments ?? null,
+    comments: decryptedText((quote as { comments?: string | null }).comments ?? null),
   }
 }
 
@@ -164,37 +188,78 @@ async function loadQuoteLines(tem: EntityManager, quoteId: string): Promise<Quot
  * `custom_field_values.record_id` is TEXT, hence the explicit cast — comparing
  * it to a uuid parameter is a hard Postgres error, not a silent mismatch.
  */
-async function loadBuyerTaxId(tem: EntityManager, customerEntityId: unknown): Promise<string | null> {
-  if (!customerEntityId) return null
+async function loadBuyerThaiIdentity(
+  tem: EntityManager,
+  customerEntityId: unknown,
+): Promise<{ taxId: string | null; branch: string | null }> {
+  if (!customerEntityId) return { taxId: null, branch: null }
   // The value can be keyed by either id: the company-profile custom entity
   // stores record_id = customer_companies.id, while the quote carries
   // customer_entity_id = customer_entities.id — so resolve the company id
   // through its entity link and accept a match on either.
   const rows = (await tem.execute(
-    `select value_text from custom_field_values
-     where field_key = 'th_tax_id' and deleted_at is null
+    `select field_key, value_text from custom_field_values
+     where field_key in ('th_tax_id', 'th_branch_code') and deleted_at is null
        and record_id in (
          ?::text,
          (select c.id::text from customer_companies c
           where c.entity_id = ?::uuid limit 1)
-       )
-     limit 1`,
+       )`,
     [String(customerEntityId), String(customerEntityId)],
   )) as QuoteRow[]
-  return rows[0]?.value_text ? String(rows[0].value_text) : null
+  const byKey = new Map(rows.map((row) => [String(row.field_key), row.value_text ? String(row.value_text) : null]))
+  return { taxId: byKey.get('th_tax_id') ?? null, branch: byKey.get('th_branch_code') ?? null }
 }
 
-function partyFromSnapshot(row: QuoteRow, taxId: string | null): Party {
+/**
+ * The buyer, read from the sales customer snapshot.
+ *
+ * Sales normalizes the snapshot on every write into its canonical shape —
+ * { customer: { displayName, primaryEmail, primaryPhone, ... }, contact: {...} }
+ * — so a snapshot that starts out flat is restructured by the first update.
+ * Reading only the top level printed "ลูกค้าทั่วไป" for a real customer the
+ * moment anyone edited the quote. Mirror sales' own resolveCustomerName:
+ * canonical shape first, flat legacy keys as fallback.
+ */
+function snapshotName(snapshot: Record<string, unknown>): string | null {
+  const customer = snapshot.customer as Record<string, unknown> | undefined
+  const contact = snapshot.contact as Record<string, unknown> | undefined
+  if (typeof customer?.displayName === 'string' && customer.displayName) return customer.displayName
+  const first = typeof contact?.firstName === 'string' ? contact.firstName : null
+  const last = typeof contact?.lastName === 'string' ? contact.lastName : null
+  const joined = [first, last].filter((part) => part && part.trim()).join(' ')
+  if (joined) return joined
+  if (typeof snapshot.displayName === 'string' && snapshot.displayName) return snapshot.displayName
+  if (typeof snapshot.name === 'string' && snapshot.name) return snapshot.name
+  return null
+}
+
+/** Composes one address line from the quote's billing address snapshot. */
+function billingAddressText(row: QuoteRow): string | null {
+  const billing = (row.billing_address_snapshot ?? {}) as Record<string, unknown>
+  const parts = ['addressLine1', 'addressLine2', 'city', 'region', 'postalCode']
+    .map((key) => (typeof billing[key] === 'string' ? (billing[key] as string).trim() : ''))
+    .filter(Boolean)
+  return parts.length ? parts.join(' ') : null
+}
+
+function partyFromSnapshot(row: QuoteRow, identity: { taxId: string | null; branch: string | null }): Party {
   const snapshot = (row.customer_snapshot ?? {}) as Record<string, unknown>
+  const customer = snapshot.customer as Record<string, unknown> | undefined
   return {
-    name:
-      (typeof snapshot.displayName === 'string' && snapshot.displayName) ||
-      (typeof snapshot.name === 'string' && snapshot.name) ||
-      'ลูกค้าทั่วไป',
-    taxId,
-    branch: null,
-    address: typeof snapshot.address === 'string' ? snapshot.address : null,
-    email: typeof snapshot.primaryEmail === 'string' ? snapshot.primaryEmail : null,
+    name: snapshotName(snapshot) ?? 'ลูกค้าทั่วไป',
+    taxId: identity.taxId,
+    branch: identity.branch,
+    // the billing address the document was issued to; legacy flat keys after
+    address:
+      billingAddressText(row) ||
+      (typeof snapshot.address === 'string' && snapshot.address) ||
+      (typeof customer?.address === 'string' && customer.address) ||
+      null,
+    email:
+      (typeof customer?.primaryEmail === 'string' && customer.primaryEmail) ||
+      (typeof snapshot.primaryEmail === 'string' && snapshot.primaryEmail) ||
+      null,
   }
 }
 
@@ -246,15 +311,15 @@ export async function documentFromQuote(
   tem: EntityManager,
   args: { row: QuoteRow; type: DocumentType; template?: TemplateId; settings: DocumentSettings | null },
 ): Promise<PrintableDocument> {
-  const [lines, buyerTaxId] = await Promise.all([
+  const [lines, buyerIdentity] = await Promise.all([
     loadQuoteLines(tem, String(args.row.id)),
-    loadBuyerTaxId(tem, args.row.customer_entity_id),
+    loadBuyerThaiIdentity(tem, args.row.customer_entity_id),
   ])
   return buildPrintableDocument({
     type: args.type,
     template: args.template ?? templateFor(args.type, args.settings),
     seller: sellerFrom(args.settings),
-    buyer: partyFromSnapshot(args.row, buyerTaxId),
+    buyer: partyFromSnapshot(args.row, buyerIdentity),
     source: sourceFromQuote(args.row, lines),
   })
 }
@@ -280,9 +345,6 @@ export function sourceOption(row: QuoteRow) {
     id: String(row.id),
     number: String(row.quote_number ?? ''),
     issueDate: isoDate(row.issue_date),
-    customerName:
-      (typeof snapshot.displayName === 'string' && snapshot.displayName) ||
-      (typeof snapshot.name === 'string' && snapshot.name) ||
-      null,
+    customerName: snapshotName(snapshot),
   }
 }

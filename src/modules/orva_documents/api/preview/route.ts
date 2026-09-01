@@ -61,10 +61,17 @@ export async function GET(req: Request) {
   const tenantId = auth.tenantId
 
   try {
+    // Quote reads run OUTSIDE withTenantRls, mirroring the sales module's own
+    // routes: the encryption subscriber does not decrypt inside our RLS
+    // transaction (empirically — the same read decrypts on a plain fork and
+    // returns ciphertext inside the transaction), and a sheet printing
+    // ciphertext is worse than app-level scoping. Every query still filters
+    // by tenantId explicitly, exactly as sales' public route does.
+    const forked = em.fork()
+    const sourceRows = await listQuoteSources(forked, { tenantId, organizationId })
+    const row = documentId ? await findQuoteById(forked, { quoteId: documentId, tenantId }) : null
     const { document, sources, usedSample } = await withTenantRls(em, tenantId, async (tem) => {
       const settings = await loadSettings(tem, { tenantId, organizationId })
-      const sourceRows = await listQuoteSources(tem, { tenantId, organizationId })
-      const row = documentId ? await findQuoteById(tem, { quoteId: documentId, tenantId }) : null
       return {
         sources: sourceRows,
         usedSample: !row,
