@@ -76,5 +76,13 @@
   "orva_documents.review.openFull": "เปิดหน้าเต็ม / พิมพ์ / ส่งอีเมล",
   "orva_documents.rowAction.review": "ตรวจดูเอกสาร",
   "orva_documents.rowAction.invoice": "ออกใบแจ้งหนี้",
-  "orva_documents.rowAction.receipt": "ออกใบกำกับภาษี/ใบเสร็จ"
+  "orva_documents.rowAction.receipt": "ออกใบกำกับภาษี/ใบเสร็จ",
+  "orva_documents.invoices.page.title": "ใบแจ้งหนี้",
+  "orva_documents.invoices.column.number": "เลขที่ใบแจ้งหนี้",
+  "orva_documents.invoices.column.customer": "ลูกค้า",
+  "orva_documents.invoices.column.quote": "จากใบเสนอราคา",
+  "orva_documents.invoices.refresh": "รีเฟรช",
+  "orva_documents.invoices.empty": "ยังไม่มีใบแจ้งหนี้ — ออกได้จากใบเสนอราคาที่ต้องการเรียกเก็บ",
+  "orva_documents.rowAction.issueInvoice": "ออกใบแจ้งหนี้ (สร้างเอกสารจริง)",
+  "orva_documents.settings.invoiceNumberFormat": "รูปแบบเลขที่ใบแจ้งหนี้"
 }

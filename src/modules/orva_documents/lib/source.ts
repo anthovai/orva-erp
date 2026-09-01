@@ -1,7 +1,7 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
 import { findOneWithDecryption, findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import { parseDecryptedFieldValue } from '@open-mercato/shared/lib/encryption/tenantDataEncryptionService'
-import { SalesQuote, SalesQuoteLine } from '@open-mercato/core/modules/sales/data/entities'
+import { SalesInvoice, SalesInvoiceLine, SalesQuote, SalesQuoteLine } from '@open-mercato/core/modules/sales/data/entities'
 import { DocumentSettings } from '../data/entities'
 import {
   buildPrintableDocument,
@@ -132,6 +132,61 @@ export async function findQuoteById(
   )
   if (!quote || quote.tenantId !== args.tenantId) return null
   return rowFromQuote(quote)
+}
+
+/**
+ * An invoice issued from a quote (see api/issue-invoice). Upstream's invoice
+ * carries no customer link; the context this module wrote into metadata at
+ * issue time is the buyer. Only invoice-family documents can be printed from
+ * it — a quotation cannot be derived from an invoice record.
+ */
+export async function findInvoiceById(
+  tem: EntityManager,
+  args: { invoiceId: string; tenantId: string },
+): Promise<QuoteRow | null> {
+  const invoice = await findOneWithDecryption(
+    tem, SalesInvoice,
+    { id: args.invoiceId, deletedAt: null },
+    {},
+    { tenantId: args.tenantId },
+  )
+  if (!invoice || invoice.tenantId !== args.tenantId) return null
+  const metadata = jsonRecord(invoice.metadata)
+  return {
+    id: invoice.id,
+    kind: 'invoice',
+    quote_number: invoice.invoiceNumber,
+    currency_code: invoice.currencyCode,
+    customer_entity_id: metadata.customerEntityId ?? null,
+    customer_snapshot: jsonRecord(metadata.customerSnapshot),
+    billing_address_snapshot: jsonRecord(metadata.billingAddressSnapshot),
+    tenant_id: invoice.tenantId,
+    organization_id: invoice.organizationId,
+    issue_date: isoDate(invoice.issueDate ?? invoice.createdAt),
+    valid_until: isoDate(metadata.paidDate ?? invoice.dueDate),
+    subtotal_net_amount: invoice.subtotalNetAmount,
+    discount_total_amount: invoice.discountTotalAmount,
+    tax_total_amount: invoice.taxTotalAmount,
+    grand_total_gross_amount: invoice.grandTotalGrossAmount,
+    comments: typeof metadata.note === 'string' ? metadata.note : null,
+  }
+}
+
+async function loadInvoiceLines(tem: EntityManager, invoiceId: string): Promise<QuoteRow[]> {
+  const lines = await findWithDecryption(
+    tem, SalesInvoiceLine,
+    // invoice lines carry no soft-delete column; the invoice's own does
+    { invoice: invoiceId },
+    { orderBy: { lineNumber: 'asc' } },
+  )
+  return lines.map((line) => ({
+    name: line.name ?? null,
+    description: line.description ?? null,
+    quantity: line.quantity,
+    unit_price_net: line.unitPriceNet,
+    total_net_amount: line.totalNetAmount,
+    tax_rate: line.taxRate,
+  }))
 }
 
 /**
@@ -312,7 +367,9 @@ export async function documentFromQuote(
   args: { row: QuoteRow; type: DocumentType; template?: TemplateId; settings: DocumentSettings | null },
 ): Promise<PrintableDocument> {
   const [lines, buyerIdentity] = await Promise.all([
-    loadQuoteLines(tem, String(args.row.id)),
+    args.row.kind === 'invoice'
+      ? loadInvoiceLines(tem, String(args.row.id))
+      : loadQuoteLines(tem, String(args.row.id)),
     loadBuyerThaiIdentity(tem, args.row.customer_entity_id),
   ])
   return buildPrintableDocument({

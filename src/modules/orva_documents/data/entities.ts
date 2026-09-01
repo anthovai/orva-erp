@@ -52,6 +52,15 @@ export class DocumentSettings {
   @Property({ name: 'template_receipt', type: 'text', default: 'classic' })
   templateReceipt: string = 'classic'
 
+  /**
+   * Auto-number format for invoices issued from quotes. Lives here because
+   * upstream's number settings expose order+quote formats only — its invoice
+   * command hardcodes the default — while the generator itself accepts any
+   * format. Tokens are upstream's (see sales documentNumberTokens).
+   */
+  @Property({ name: 'invoice_number_format', type: 'text', default: 'INV-{yyyy}{mm}{dd}-{seq:5}' })
+  invoiceNumberFormat: string = 'INV-{yyyy}{mm}{dd}-{seq:5}'
+
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()
 

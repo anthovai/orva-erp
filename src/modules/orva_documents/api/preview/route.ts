@@ -13,6 +13,7 @@ import { previewQuerySchema } from '../../data/validators'
 import type { TemplateId } from '../../lib/document'
 import {
   documentFromQuote,
+  findInvoiceById,
   findQuoteById,
   listQuoteSources,
   loadSettings,
@@ -69,7 +70,15 @@ export async function GET(req: Request) {
     // by tenantId explicitly, exactly as sales' public route does.
     const forked = em.fork()
     const sourceRows = await listQuoteSources(forked, { tenantId, organizationId })
-    const row = documentId ? await findQuoteById(forked, { quoteId: documentId, tenantId }) : null
+    // documentId may name a quote or an issued invoice — try in that order
+    const row = documentId
+      ? (await findQuoteById(forked, { quoteId: documentId, tenantId }))
+        ?? (await findInvoiceById(forked, { invoiceId: documentId, tenantId }))
+      : null
+    if (row?.kind === 'invoice' && type === 'quotation') {
+      // an invoice record cannot be re-presented as the quotation it came from
+      return Response.json({ error: 'A quotation cannot be printed from an invoice record' }, { status: 400 })
+    }
     const { document, sources, usedSample } = await withTenantRls(em, tenantId, async (tem) => {
       const settings = await loadSettings(tem, { tenantId, organizationId })
       return {

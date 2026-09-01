@@ -26,6 +26,7 @@ export const settingsPutSchema = z.object({
   templateInvoice: templateSchema.optional(),
   templateTaxInvoice: templateSchema.optional(),
   templateReceipt: templateSchema.optional(),
+  invoiceNumberFormat: z.string().trim().min(1).max(120).optional(),
 })
 
 export const previewQuerySchema = z.object({
@@ -34,6 +35,23 @@ export const previewQuerySchema = z.object({
   /** Sales document to render; sample data is used when absent. */
   documentId: z.string().uuid().optional(),
 })
+
+/**
+ * Issuing a real invoice record from a quote. Either a fixed amount or a
+ * percentage of the quote's pre-VAT subtotal; the line always carries 7% VAT
+ * like the quote lines it derives from.
+ */
+export const issueInvoiceSchema = z
+  .object({
+    quoteId: z.string().uuid(),
+    amount: z.coerce.number().positive().optional(),
+    percent: z.coerce.number().positive().max(100).optional(),
+    description: z.string().trim().max(500).optional(),
+    dueInDays: z.coerce.number().int().min(0).max(365).optional(),
+  })
+  .refine((value) => (value.amount != null) !== (value.percent != null), {
+    message: 'Provide exactly one of amount or percent',
+  })
 
 /** Emailing a document: the recipient plus the same selector the preview uses. */
 export const sendSchema = z.object({

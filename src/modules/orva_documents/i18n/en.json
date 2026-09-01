@@ -76,5 +76,13 @@
   "orva_documents.review.openFull": "Full page / print / email",
   "orva_documents.rowAction.review": "Review documents",
   "orva_documents.rowAction.invoice": "Issue invoice",
-  "orva_documents.rowAction.receipt": "Issue tax invoice / receipt"
+  "orva_documents.rowAction.receipt": "Issue tax invoice / receipt",
+  "orva_documents.invoices.page.title": "Invoices",
+  "orva_documents.invoices.column.number": "Invoice no.",
+  "orva_documents.invoices.column.customer": "Customer",
+  "orva_documents.invoices.column.quote": "From quotation",
+  "orva_documents.invoices.refresh": "Refresh",
+  "orva_documents.invoices.empty": "No invoices yet — issue one from the quotation you want to bill.",
+  "orva_documents.rowAction.issueInvoice": "Issue invoice (real record)",
+  "orva_documents.settings.invoiceNumberFormat": "Invoice number format"
 }

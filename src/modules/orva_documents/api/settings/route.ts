@@ -29,6 +29,7 @@ const settingsSchema = z.object({
   templateInvoice: z.string(),
   templateTaxInvoice: z.string(),
   templateReceipt: z.string(),
+  invoiceNumberFormat: z.string(),
   updatedAt: z.string().nullable(),
 })
 
@@ -46,6 +47,7 @@ function serialize(row: DocumentSettings | null) {
       templateInvoice: 'classic',
       templateTaxInvoice: 'classic',
       templateReceipt: 'classic',
+      invoiceNumberFormat: 'INV-{yyyy}{mm}{dd}-{seq:5}',
       updatedAt: null,
     }
   }
@@ -61,6 +63,7 @@ function serialize(row: DocumentSettings | null) {
     templateInvoice: row.templateInvoice,
     templateTaxInvoice: row.templateTaxInvoice,
     templateReceipt: row.templateReceipt,
+    invoiceNumberFormat: row.invoiceNumberFormat,
     updatedAt: row.updatedAt ? row.updatedAt.toISOString() : null,
   }
 }
@@ -103,6 +106,7 @@ export async function PUT(req: Request) {
         tenantId: auth.tenantId!,
         organizationId,
         sellerName: input.sellerName,
+        invoiceNumberFormat: 'INV-{yyyy}{mm}{dd}-{seq:5}',
         templateQuotation: 'classic',
         templateInvoice: 'classic',
         templateTaxInvoice: 'classic',
@@ -116,6 +120,7 @@ export async function PUT(req: Request) {
     target.sellerAddress = input.sellerAddress ?? null
     target.sellerPhone = input.sellerPhone ?? null
     target.sellerEmail = input.sellerEmail ?? null
+    if (input.invoiceNumberFormat) target.invoiceNumberFormat = input.invoiceNumberFormat
     if (input.templateQuotation) target.templateQuotation = input.templateQuotation
     if (input.templateInvoice) target.templateInvoice = input.templateInvoice
     if (input.templateTaxInvoice) target.templateTaxInvoice = input.templateTaxInvoice

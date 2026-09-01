@@ -134,7 +134,38 @@ is not enough.
 
 ## Status
 
-Phases 1 and 2 are shipped. Nothing outstanding.
+Phases 1–2 shipped. Phase 3 in progress (2026-09-01).
+
+### Phase 3 — invoices are real records with their own number series
+
+User requirement from first real use: ใบแจ้งหนี้ and ใบเสนอราคา must be
+SEPARATE record types with SEPARATE auto-running numbers in one scheme
+(KK-QTN-{yyyy}{seq:3} / KK-INV-{yyyy}{seq:3}). Representing the invoice as a
+second quote — the Phase 2 shortcut — put both in the ใบเสนอราคา list.
+
+Decisions:
+- **Carrier = upstream `sales_invoices`** (entity + CRUD + auto-numbering via
+  salesDocumentNumberGenerator all exist; upstream ships no UI for them).
+- SalesInvoice has no customer link (it is an order-billing artifact;
+  order_id nullable). Standalone customer invoices carry their context in
+  `metadata` — { quoteId, customerEntityId, customerSnapshot,
+  billingAddressSnapshot, paidDate?, note? }. Orders enter later if the
+  business ever uses them; no fake orders are minted.
+- **Numbering**: quote format/sequence via upstream sales settings
+  (configurable there already). Invoice format is NOT configurable upstream
+  (command hardcodes the default), so `orva_documents_settings` gains
+  `invoice_number_format`; issuance mints the number through
+  POST /api/sales/document-numbers { kind: 'invoice', format } and passes it
+  to the invoice create command.
+- **Issue flow**: POST /api/orva_documents/issue-invoice { quoteId, amount |
+  percent, description? } → creates the sales_invoice (7% VAT service line),
+  copying customer context from the quote. Surfaced from the quote screen.
+- **List UI**: /backend/sales/invoices (การขาย group) over /api/sales/invoices.
+- **Renderer**: documentId resolution tries quote then invoice; invoice
+  source allows invoice/tax_invoice/receipt types (a quotation cannot be
+  printed from an invoice record). Receipt paid date = metadata.paidDate.
+- **Data migration**: KK-INV-2026012 becomes a real invoice (paid in full via
+  the KBank slip: 24,960 + 3% WHT 720); the quote-shaped copy is soft-deleted.
 
 ## Acceptance Criteria
 
