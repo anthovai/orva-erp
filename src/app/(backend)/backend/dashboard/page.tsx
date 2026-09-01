@@ -1,13 +1,13 @@
 import { getAuthFromCookies } from '@open-mercato/shared/lib/auth/server'
 import { redirect } from 'next/navigation'
-import { OrvaHomeScreen } from '@/components/orva/HomeScreen'
+import { DashboardScreen } from '@open-mercato/ui/backend/dashboard'
 import { createRequestContainer } from '@open-mercato/shared/lib/di/container'
 import { resolvePageMiddlewareRedirect } from '@open-mercato/shared/lib/middleware/page-executor'
 import { backendMiddlewareEntries } from '@/.mercato/generated/backend-middleware.generated'
 
-export default async function BackendIndex() {
+export default async function BackendDashboard() {
   const auth = await getAuthFromCookies()
-  if (!auth) redirect('/api/auth/session/refresh?redirect=/backend')
+  if (!auth) redirect('/api/auth/session/refresh?redirect=/backend/dashboard')
   let container: Awaited<ReturnType<typeof createRequestContainer>> | null = null
   const ensureContainer = async () => {
     if (!container) {
@@ -18,7 +18,7 @@ export default async function BackendIndex() {
   const middlewareRedirect = await resolvePageMiddlewareRedirect({
     entries: backendMiddlewareEntries,
     context: {
-      pathname: '/backend',
+      pathname: '/backend/dashboard',
       mode: 'backend',
       routeMeta: { requireAuth: true },
       auth,
@@ -26,7 +26,9 @@ export default async function BackendIndex() {
     },
   })
   if (middlewareRedirect) redirect(middlewareRedirect)
-  // The task-first Orva home (design-language v2). The widget grid this
-  // replaced still lives at /backend/dashboard.
-  return <OrvaHomeScreen />
+  return (
+    <div className="p-6 space-y-6">
+      <DashboardScreen />
+    </div>
+  )
 }

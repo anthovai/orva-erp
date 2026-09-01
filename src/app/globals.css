@@ -45,9 +45,9 @@ TODO: Fix that latter to have reference by the package names
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* Orva: IBM Plex Sans Thai (loaded in app/layout.tsx via next/font) as the
-     system-wide face — Thai-first UI per docs/BRAND.md. */
-  --font-sans: var(--font-plex-thai), ui-sans-serif, system-ui, sans-serif;
+  /* Orva: Anuphan (loaded in app/layout.tsx via next/font) as the screen
+     face — Thai-first UI per docs/BRAND.md; Sarabun is the paper face. */
+  --font-sans: var(--font-anuphan), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -794,6 +794,55 @@ body[data-ai-chat-open="true"] .om-demo-feedback-floating {
 .om-mdx-editor .cm-cursor,
 .om-mdx-editor .cm-dropCursor {
   border-left-color: var(--foreground);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Orva design language v2 — rhythm and the ledger signature
+   ───────────────────────────────────────────────────────────────────────
+   Type: Anuphan on screen, Sarabun on paper (see layout.tsx). Radius steps
+   down from the stock 10px to 8px so surfaces read crisp and document-like
+   rather than app-store rounded. Money always sets tabular digits.
+
+   Signature — เส้นคู่บัญชี: the double rule that closes a total in a Thai
+   ledger and on every ใบกำกับภาษี. Reserved strictly for money totals; it is
+   an accounting mark, not a decoration.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --radius: 0.5rem;
+}
+
+/* Paper voice. Declared on body, not :root, and not in @theme inline:
+   custom properties substitute where they are DECLARED, and next/font puts
+   --font-sarabun on <body> — on html the reference would be invalid and the
+   whole property would silently compute to nothing. */
+body {
+  --font-document: var(--font-sarabun), var(--font-anuphan), ui-sans-serif, sans-serif;
+}
+
+/* Numerals in data surfaces align like a ledger */
+table, [data-slot="table"], .tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The double ledger rule under a closed total */
+.orva-ledger-total {
+  border-bottom: 3px double var(--foreground);
+  padding-bottom: 2px;
+}
+
+/* Section headings on Orva-authored screens: quiet caps, generous tracking */
+.orva-kicker {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* Printable sheets speak Sarabun — the same face as the paper they mimic */
+[data-document-sheet="true"] {
+  font-family: var(--font-document);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════

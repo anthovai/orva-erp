@@ -2,5 +2,21 @@
   "auth.login.brandName": "Orva",
   "auth.login.logoAlt": "Orva logo",
   "appShell.productName": "Orva",
-  "api.docs.title": "Orva API"
+  "api.docs.title": "Orva API",
+  "orva.home.title": "Your business today",
+  "orva.home.widgetDashboard": "Widget dashboard",
+  "orva.home.money.title": "This month",
+  "orva.home.money.income": "Income this month",
+  "orva.home.money.net": "Net profit",
+  "orva.home.money.ar": "Receivables outstanding",
+  "orva.home.money.ap": "Payables outstanding",
+  "orva.home.quotes.title": "Latest quotations",
+  "orva.home.quotes.all": "View all",
+  "orva.home.quotes.noCustomer": "No customer yet",
+  "orva.home.quotes.empty": "No quotations yet — start your first from the shortcuts.",
+  "orva.home.create.title": "Start something",
+  "orva.home.create.quote": "Create sales document",
+  "orva.home.create.customer": "Add customer",
+  "orva.home.create.bill": "Record vendor bill",
+  "orva.home.open.statements": "Financial statements"
 }
