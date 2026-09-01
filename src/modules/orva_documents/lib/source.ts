@@ -60,7 +60,7 @@ export function templateFor(type: DocumentType, settings: DocumentSettings | nul
     receipt: settings.templateReceipt,
   }
   const chosen = byType[type]
-  return chosen === 'modern' || chosen === 'compact' ? chosen : fallback
+  return chosen === 'modern' || chosen === 'compact' || chosen === 'brand' ? (chosen as TemplateId) : fallback
 }
 
 export function sellerFrom(settings: DocumentSettings | null): Party {
@@ -217,6 +217,33 @@ export async function listQuoteSources(
     { tenantId: scope.tenantId },
   )
   return quotes.map(rowFromQuote)
+}
+
+/** Invoices for the preview picker — the quote list alone left the picker blank when an invoice was open. */
+export async function listInvoiceSources(
+  tem: EntityManager,
+  scope: { tenantId: string; organizationId: string | null },
+): Promise<QuoteRow[]> {
+  const invoices = await findWithDecryption(
+    tem, SalesInvoice,
+    {
+      tenantId: scope.tenantId,
+      deletedAt: null,
+      ...(scope.organizationId ? { organizationId: scope.organizationId } : {}),
+    },
+    { orderBy: { createdAt: 'desc' }, limit: 25 },
+    { tenantId: scope.tenantId },
+  )
+  return invoices.map((invoice) => {
+    const metadata = jsonRecord(invoice.metadata)
+    return {
+      id: invoice.id,
+      kind: 'invoice',
+      quote_number: invoice.invoiceNumber,
+      issue_date: isoDate(invoice.issueDate ?? invoice.createdAt),
+      customer_snapshot: jsonRecord(metadata.customerSnapshot),
+    }
+  })
 }
 
 async function loadQuoteLines(tem: EntityManager, quoteId: string): Promise<QuoteRow[]> {
@@ -378,6 +405,7 @@ export async function documentFromQuote(
     seller: sellerFrom(args.settings),
     buyer: partyFromSnapshot(args.row, buyerIdentity),
     source: sourceFromQuote(args.row, lines),
+    accentColor: args.settings?.brandColor ?? null,
   })
 }
 
@@ -393,6 +421,7 @@ export function sampleDocument(args: {
     seller: sellerFrom(args.settings),
     buyer: sampleBuyer(),
     source: sampleSource(),
+    accentColor: args.settings?.brandColor ?? null,
   })
 }
 
@@ -400,6 +429,7 @@ export function sourceOption(row: QuoteRow) {
   const snapshot = (row.customer_snapshot ?? {}) as Record<string, unknown>
   return {
     id: String(row.id),
+    kind: row.kind === 'invoice' ? 'invoice' : 'quote',
     number: String(row.quote_number ?? ''),
     issueDate: isoDate(row.issue_date),
     customerName: snapshotName(snapshot),

@@ -15,6 +15,7 @@ import {
   documentFromQuote,
   findInvoiceById,
   findQuoteById,
+  listInvoiceSources,
   listQuoteSources,
   loadSettings,
   sampleDocument,
@@ -29,6 +30,7 @@ export const metadata = {
 
 const sourceOptionSchema = z.object({
   id: z.string(),
+  kind: z.string(),
   number: z.string(),
   issueDate: z.string().nullable(),
   customerName: z.string().nullable(),
@@ -71,7 +73,14 @@ export async function GET(req: Request) {
     // ciphertext is worse than app-level scoping. Every query still filters
     // by tenantId explicitly, exactly as sales' public route does.
     const forked = em.fork()
-    const sourceRows = await listQuoteSources(forked, { tenantId, organizationId })
+    // both record kinds appear in the picker, newest first — a lone quote
+    // list left the picker BLANK whenever an invoice was open
+    const [quoteSources, invoiceSources] = await Promise.all([
+      listQuoteSources(forked, { tenantId, organizationId }),
+      listInvoiceSources(forked, { tenantId, organizationId }),
+    ])
+    const sourceRows = [...quoteSources, ...invoiceSources].sort((a, b) =>
+      String(b.issue_date ?? '').localeCompare(String(a.issue_date ?? '')))
     // documentId may name a quote or an issued invoice — try in that order
     const row = documentId
       ? (await findQuoteById(forked, { quoteId: documentId, tenantId }))

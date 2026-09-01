@@ -18,7 +18,7 @@ import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { DOCUMENT_TYPES, TEMPLATE_IDS, typesForSourceKind, type DocumentType, type PrintableDocument, type TemplateId } from '../../../lib/document'
 import { DOCUMENT_TEMPLATES } from '../../../components/templates'
 
-type SourceOption = { id: string; number: string; issueDate: string | null; customerName: string | null }
+type SourceOption = { id: string; kind?: string; number: string; issueDate: string | null; customerName: string | null }
 type PreviewResponse = { document: PrintableDocument; sources: SourceOption[]; usedSample: boolean; sourceKind?: string }
 
 const TYPE_LABELS: Record<DocumentType, { key: string; fallback: string }> = {
@@ -47,9 +47,11 @@ export default function DocumentPreviewPage() {
     const value = searchParams.get('type')
     return isDocumentType(value) ? value : 'quotation'
   })
-  const [template, setTemplate] = React.useState<TemplateId>(() => {
+  // '' = the template configured per document type in settings — forcing
+  // 'classic' here silently overrode the tenant's configured default
+  const [template, setTemplate] = React.useState<TemplateId | ''>(() => {
     const value = searchParams.get('template')
-    return isTemplateId(value) ? value : 'classic'
+    return isTemplateId(value) ? value : ''
   })
   const [sourceId, setSourceId] = React.useState<string>(() => searchParams.get('documentId') ?? SAMPLE_VALUE)
   const [data, setData] = React.useState<PreviewResponse | null>(null)
@@ -60,7 +62,8 @@ export default function DocumentPreviewPage() {
     let cancelled = false
     setLoading(true)
     setFailed(false)
-    const params = new URLSearchParams({ type, template })
+    const params = new URLSearchParams({ type })
+    if (template) params.set('template', template)
     if (sourceId !== SAMPLE_VALUE) params.set('documentId', sourceId)
     apiCall<PreviewResponse>(`/api/orva_documents/preview?${params.toString()}`)
       .then((call) => {
@@ -77,7 +80,8 @@ export default function DocumentPreviewPage() {
   const [emailTo, setEmailTo] = React.useState('')
 
   const selectorParams = React.useCallback(() => {
-    const params = new URLSearchParams({ type, template })
+    const params = new URLSearchParams({ type })
+    if (template) params.set('template', template)
     if (sourceId !== SAMPLE_VALUE) params.set('documentId', sourceId)
     return params
   }, [type, template, sourceId])
@@ -133,7 +137,10 @@ export default function DocumentPreviewPage() {
     }
   }
   const doc = data?.document ?? null
-  const Template = DOCUMENT_TEMPLATES[template].Component
+  // with no explicit choice the server already applied the configured
+  // template — render whichever the document says it is
+  // '' must fall through too, hence || rather than ??
+  const Template = DOCUMENT_TEMPLATES[(doc?.template || template || 'classic') as TemplateId].Component
 
   return (
     <Page>
@@ -158,7 +165,9 @@ export default function DocumentPreviewPage() {
             <label className="flex flex-col gap-1">
               <span className="text-xs text-muted-foreground">{t('orva_documents.preview.templateLabel', 'เทมเพลต')}</span>
               <Select value={template} onValueChange={(value) => setTemplate(value as TemplateId)}>
-                <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-56">
+                  <SelectValue placeholder={t('orva_documents.review.templateDefault', 'ตามที่ตั้งค่าไว้')} />
+                </SelectTrigger>
                 <SelectContent>
                   {TEMPLATE_IDS.map((value) => (
                     <SelectItem key={value} value={value}>
@@ -171,7 +180,17 @@ export default function DocumentPreviewPage() {
 
             <label className="flex flex-col gap-1">
               <span className="text-xs text-muted-foreground">{t('orva_documents.preview.sourceLabel', 'ข้อมูลจากเอกสาร')}</span>
-              <Select value={sourceId} onValueChange={setSourceId}>
+              <Select
+                value={sourceId}
+                onValueChange={(next) => {
+                  // switching between record kinds snaps the type to one the
+                  // kind can print, instead of surfacing the API's 400
+                  const picked = (data?.sources ?? []).find((source) => source.id === next)
+                  if (picked?.kind === 'invoice' && type === 'quotation') setType('invoice')
+                  if (picked?.kind === 'quote' && type !== 'quotation') setType('quotation')
+                  setSourceId(next)
+                }}
+              >
                 <SelectTrigger className="w-72"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={SAMPLE_VALUE}>{t('orva_documents.preview.sample', 'ข้อมูลตัวอย่าง')}</SelectItem>

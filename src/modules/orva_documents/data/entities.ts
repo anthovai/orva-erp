@@ -61,6 +61,10 @@ export class DocumentSettings {
   @Property({ name: 'invoice_number_format', type: 'text', default: 'INV-{yyyy}{mm}{dd}-{seq:5}' })
   invoiceNumberFormat: string = 'INV-{yyyy}{mm}{dd}-{seq:5}'
 
+  /** Accent colour of the 'brand' template — the tenant's paper, their colour. */
+  @Property({ name: 'brand_color', type: 'text', default: '#11836E' })
+  brandColor: string = '#11836E'
+
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()
 

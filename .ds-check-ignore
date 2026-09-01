@@ -2004,6 +2004,54 @@
       "rule": "arbitrary-tailwind",
       "match": "w-[794px]",
       "reason": "A4 paper width at 96dpi. The customer sheet must match the printed page exactly, which is a physical measurement rather than a design-system step."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/brand.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "The brand template paints the TENANT'S configured colour (settings.brandColor), resolved at render time per tenant — runtime data no build-time design token can express, so inline style is the only vehicle."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/brand.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "The brand template paints the TENANT'S configured colour (settings.brandColor), resolved at render time per tenant — runtime data no build-time design token can express, so inline style is the only vehicle."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/brand.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "The brand template paints the TENANT'S configured colour (settings.brandColor), resolved at render time per tenant — runtime data no build-time design token can express, so inline style is the only vehicle."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/brand.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "The brand template paints the TENANT'S configured colour (settings.brandColor), resolved at render time per tenant — runtime data no build-time design token can express, so inline style is the only vehicle."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/brand.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "The brand template paints the TENANT'S configured colour (settings.brandColor), resolved at render time per tenant — runtime data no build-time design token can express, so inline style is the only vehicle."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/brand.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "The brand template paints the TENANT'S configured colour (settings.brandColor), resolved at render time per tenant — runtime data no build-time design token can express, so inline style is the only vehicle."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/brand.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "The brand template paints the TENANT'S configured colour (settings.brandColor), resolved at render time per tenant — runtime data no build-time design token can express, so inline style is the only vehicle."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/brand.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "The brand template paints the TENANT'S configured colour (settings.brandColor), resolved at render time per tenant — runtime data no build-time design token can express, so inline style is the only vehicle."
     }
   ]
 }

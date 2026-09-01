@@ -14,7 +14,7 @@ import { bahtText } from './bahtText'
 export const DOCUMENT_TYPES = ['quotation', 'invoice', 'tax_invoice', 'receipt'] as const
 export type DocumentType = (typeof DOCUMENT_TYPES)[number]
 
-export const TEMPLATE_IDS = ['classic', 'modern', 'compact'] as const
+export const TEMPLATE_IDS = ['classic', 'modern', 'compact', 'brand'] as const
 
 /**
  * Which document types a record kind may print. One bill, two record types:
@@ -96,6 +96,8 @@ export type PrintableDocument = {
   amountInWords: string | null
   note: string | null
   paymentMethod: string | null
+  /** Accent colour for the 'brand' template (tenant-configured). */
+  accentColor: string | null
   /** True for statutory documents: templates then print the tax id block. */
   isTaxDocument: boolean
   /**
@@ -126,6 +128,7 @@ export function buildPrintableDocument(input: {
   seller: Party
   buyer: Party
   source: DocumentSource
+  accentColor?: string | null
 }): PrintableDocument {
   const { type, template, seller, buyer, source } = input
   const heading = HEADINGS[type]
@@ -142,6 +145,7 @@ export function buildPrintableDocument(input: {
   return {
     type,
     template,
+    accentColor: input.accentColor ?? null,
     headingTh: heading.th,
     headingEn: heading.en,
     number: source.number,

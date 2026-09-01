@@ -1,6 +1,7 @@
 "use client"
 import * as React from 'react'
 import type { TemplateId } from '../../lib/document'
+import { BrandTemplate } from './brand'
 import {
   AmountInWords,
   LineItemsTable,
@@ -154,4 +155,5 @@ export const DOCUMENT_TEMPLATES: Record<TemplateId, { labelKey: string; fallback
   classic: { labelKey: 'orva_documents.template.classic', fallback: 'แบบราชการ (Classic)', Component: ClassicTemplate },
   modern: { labelKey: 'orva_documents.template.modern', fallback: 'แบบโมเดิร์น (Modern)', Component: ModernTemplate },
   compact: { labelKey: 'orva_documents.template.compact', fallback: 'แบบกระชับ (Compact)', Component: CompactTemplate },
+  brand: { labelKey: 'orva_documents.template.brand', fallback: 'แบบแบรนด์ (หัวจดหมายสีกิจการ)', Component: BrandTemplate },
 }

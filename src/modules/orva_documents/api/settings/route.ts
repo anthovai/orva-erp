@@ -30,6 +30,7 @@ const settingsSchema = z.object({
   templateTaxInvoice: z.string(),
   templateReceipt: z.string(),
   invoiceNumberFormat: z.string(),
+  brandColor: z.string(),
   updatedAt: z.string().nullable(),
 })
 
@@ -48,6 +49,7 @@ function serialize(row: DocumentSettings | null) {
       templateTaxInvoice: 'classic',
       templateReceipt: 'classic',
       invoiceNumberFormat: 'INV-{yyyy}{mm}{dd}-{seq:5}',
+      brandColor: '#11836E',
       updatedAt: null,
     }
   }
@@ -64,6 +66,7 @@ function serialize(row: DocumentSettings | null) {
     templateTaxInvoice: row.templateTaxInvoice,
     templateReceipt: row.templateReceipt,
     invoiceNumberFormat: row.invoiceNumberFormat,
+    brandColor: row.brandColor,
     updatedAt: row.updatedAt ? row.updatedAt.toISOString() : null,
   }
 }
@@ -107,6 +110,7 @@ export async function PUT(req: Request) {
         organizationId,
         sellerName: input.sellerName,
         invoiceNumberFormat: 'INV-{yyyy}{mm}{dd}-{seq:5}',
+        brandColor: '#11836E',
         templateQuotation: 'classic',
         templateInvoice: 'classic',
         templateTaxInvoice: 'classic',
@@ -121,6 +125,7 @@ export async function PUT(req: Request) {
     target.sellerPhone = input.sellerPhone ?? null
     target.sellerEmail = input.sellerEmail ?? null
     if (input.invoiceNumberFormat) target.invoiceNumberFormat = input.invoiceNumberFormat
+    if (input.brandColor) target.brandColor = input.brandColor
     if (input.templateQuotation) target.templateQuotation = input.templateQuotation
     if (input.templateInvoice) target.templateInvoice = input.templateInvoice
     if (input.templateTaxInvoice) target.templateTaxInvoice = input.templateTaxInvoice

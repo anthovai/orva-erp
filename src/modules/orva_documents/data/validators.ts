@@ -27,6 +27,7 @@ export const settingsPutSchema = z.object({
   templateTaxInvoice: templateSchema.optional(),
   templateReceipt: templateSchema.optional(),
   invoiceNumberFormat: z.string().trim().min(1).max(120).optional(),
+  brandColor: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/).optional(),
 })
 
 export const previewQuerySchema = z.object({

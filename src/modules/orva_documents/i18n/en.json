@@ -103,5 +103,6 @@
   "orva_documents.installments.empty": "No installments yet — use \"Issue installment invoice\" above when ready to bill.",
   "orva_documents.installments.no": "Installment {n}",
   "orva_documents.installments.paid": "Paid {date}",
-  "orva_documents.installments.due": "Due {date}"
+  "orva_documents.installments.due": "Due {date}",
+  "orva_documents.template.brand": "Branded letterhead"
 }
