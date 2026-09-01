@@ -19,7 +19,14 @@ export const metadata = {
   POST: { requireAuth: true, requireFeatures: ['sales.invoices.manage'] },
 }
 
-const responseSchema = z.object({ id: z.string().uuid(), invoiceNumber: z.string() })
+const responseSchema = z.object({
+  id: z.string().uuid(),
+  invoiceNumber: z.string(),
+  installmentNo: z.number(),
+  net: z.number(),
+  tax: z.number(),
+  gross: z.number(),
+})
 
 /**
  * Issues a REAL invoice record from a quote — the FlowAccount step where the
@@ -87,10 +94,18 @@ export async function POST(req: Request) {
     })) as { number?: string }
     if (!minted.number) return Response.json({ error: 'Could not allocate an invoice number' }, { status: 502 })
 
+    // งวดที่เท่าไร: count the invoices already issued from this quote
+    const priorRows = (await forked.execute(
+      `select count(*)::int as n from sales_invoices
+       where deleted_at is null and tenant_id = ?::uuid and metadata->>'quoteId' = ?`,
+      [tenantId, quoteId],
+    )) as Array<{ n: number }>
+    const installmentNo = (priorRows[0]?.n ?? 0) + 1
+
     // 2) the invoice itself — one 7% VAT service line, customer context in metadata
     const label =
       description?.trim() ||
-      `งวดตามใบเสนอราคา ${String(row.quote_number ?? '')}${percent != null ? ` (${percent}%)` : ''}`
+      `งวดที่ ${installmentNo}${percent != null ? ` (${percent}%)` : ''} ตามใบเสนอราคา ${String(row.quote_number ?? '')}`
     const issueDate = new Date().toISOString().slice(0, 10)
     const dueDate = dueInDays != null
       ? new Date(Date.now() + dueInDays * 86_400_000).toISOString().slice(0, 10)
@@ -109,6 +124,8 @@ export async function POST(req: Request) {
       metadata: {
         quoteId,
         quoteNumber: row.quote_number ?? null,
+        installmentNo,
+        installmentPercent: percent ?? null,
         customerEntityId: row.customer_entity_id ?? null,
         customerSnapshot: row.customer_snapshot ?? null,
         billingAddressSnapshot: row.billing_address_snapshot ?? null,
@@ -132,7 +149,7 @@ export async function POST(req: Request) {
     if (!createdId) return Response.json({ error: 'Invoice creation returned no id' }, { status: 502 })
 
     logger.info('Invoice issued from quote', { quoteId, invoiceId: createdId, invoiceNumber: minted.number, net })
-    return Response.json({ id: createdId, invoiceNumber: minted.number })
+    return Response.json({ id: createdId, invoiceNumber: minted.number, installmentNo, net, tax, gross })
   } catch (error) {
     logger.error('Issue invoice failed', {
       quoteId,

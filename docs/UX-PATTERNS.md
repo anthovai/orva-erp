@@ -44,11 +44,14 @@ record นั้น** ไม่ใช่ในเมนูเครื่อง�
   `components/DocumentReviewDialog.tsx`)
 - หน้า "ตัวอย่างเอกสาร" ถูกซ่อนจากเมนู (`navHidden`) — เข้าถึงจาก record
   เท่านั้น เหลือ "ตั้งค่าเอกสาร" ในเมนูการขายตามเดิม
-- แถวในรายการใบเสนอราคา → เมนู kebab มี ตรวจดูเอกสาร / ออกใบแจ้งหนี้ /
-  ออกใบกำกับภาษี/ใบเสร็จ — แต่ละอันเปิด preview ที่ผูกกับ record นั้นแล้ว
-  ตามลำดับเอกสารแบบ FlowAccount
-  (`orva_documents/widgets/injection/quote-row-documents`, spot
-  `data-table:sales.quotes:row-actions`)
+- แถวในรายการใบเสนอราคา → เมนู kebab มี ตรวจดูเอกสาร (พิมพ์ใบเสนอราคา)
+  และ ออกใบแจ้งหนี้งวด (เปิดใบพร้อม dialog ออกงวด)
+  (`orva_documents/widgets/injection/quote-row-documents`)
+- **หนึ่งบิล สองชนิด record**: ใบเสนอราคาพิมพ์ได้เฉพาะใบเสนอราคา;
+  เอกสารเรียกเก็บ (ใบแจ้งหนี้/ใบกำกับภาษี/ใบเสร็จ) พิมพ์จากใบแจ้งหนี้ที่
+  "ออกงวด" จากใบเสนอราคา (dialog % ของยอด → mint เลขซีรีส์ KK-INV
+  อัตโนมัติ → สร้าง record จริงผูกกลับใบเสนอราคา + งวดที่ N) — API บังคับ
+  กติกานี้ (พิมพ์ข้ามชนิด = 400)
 
 Sources: [Odoo — Create and send quotations](https://www.odoo.com/documentation/19.0/applications/sales/crm/acquire_leads/send_quotes.html),
 [QuickBooks — invoice preview](https://quickbooks.intuit.com/learn-support/en-us/reports-and-accounting/does-anyone-know-what-happened-to-the-invoice-preview-before/00/228739),

@@ -84,5 +84,19 @@
   "orva_documents.invoices.refresh": "รีเฟรช",
   "orva_documents.invoices.empty": "ยังไม่มีใบแจ้งหนี้ — ออกได้จากใบเสนอราคาที่ต้องการเรียกเก็บ",
   "orva_documents.rowAction.issueInvoice": "ออกใบแจ้งหนี้ (สร้างเอกสารจริง)",
-  "orva_documents.settings.invoiceNumberFormat": "รูปแบบเลขที่ใบแจ้งหนี้"
+  "orva_documents.settings.invoiceNumberFormat": "รูปแบบเลขที่ใบแจ้งหนี้",
+  "orva_documents.issue.title": "ออกใบแจ้งหนี้งวด",
+  "orva_documents.issue.fromQuote": "จากใบเสนอราคา {number} · ยอดก่อนภาษี {subtotal}",
+  "orva_documents.issue.percent": "% ของยอด",
+  "orva_documents.issue.amount": "จำนวนเงิน",
+  "orva_documents.issue.percentLabel": "เปอร์เซ็นต์ของยอดก่อนภาษี",
+  "orva_documents.issue.amountLabel": "ยอดก่อนภาษี (บาท)",
+  "orva_documents.issue.descriptionLabel": "รายละเอียดงวด (เว้นว่าง = งวดที่ N อัตโนมัติ)",
+  "orva_documents.issue.descriptionPlaceholder": "เช่น งวดที่ 1 (30% เมื่อเริ่มงาน)",
+  "orva_documents.issue.dueLabel": "ครบกำหนดใน (วัน)",
+  "orva_documents.issue.cancel": "ยกเลิก",
+  "orva_documents.issue.submit": "ออกใบแจ้งหนี้",
+  "orva_documents.issue.done": "ออกใบแจ้งหนี้ {number} แล้ว",
+  "orva_documents.issue.failed": "ออกใบแจ้งหนี้ไม่สำเร็จ",
+  "orva_documents.preview.typeLocked": "เอกสารที่พิมพ์ได้จาก record ชนิดนี้"
 }

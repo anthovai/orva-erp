@@ -33,15 +33,18 @@ const widget: InjectionRowActionWidget = {
       label: 'orva_documents.rowAction.review',
       onSelect: (row, context) => navigateToPreview(row, context, 'quotation'),
     },
+    // billing documents come from an ISSUED invoice, not from printing the
+    // quote — this opens the quote with the issue dialog already up
     {
-      id: 'orva_documents.quote.invoice',
-      label: 'orva_documents.rowAction.invoice',
-      onSelect: (row, context) => navigateToPreview(row, context, 'invoice'),
-    },
-    {
-      id: 'orva_documents.quote.receipt',
-      label: 'orva_documents.rowAction.receipt',
-      onSelect: (row, context) => navigateToPreview(row, context, 'receipt'),
+      id: 'orva_documents.quote.issueInvoice',
+      label: 'orva_documents.issue.title',
+      onSelect: (row, context) => {
+        if (!row || typeof row !== 'object') return
+        const id = (row as Record<string, unknown>).id
+        if (typeof id !== 'string' || !id) return
+        const navigate = (context as { navigate?: (href: string) => void }).navigate
+        if (typeof navigate === 'function') navigate(`/backend/sales/quotes/${encodeURIComponent(id)}?issueInvoice=1`)
+      },
     },
   ],
 }

@@ -15,6 +15,17 @@ export const DOCUMENT_TYPES = ['quotation', 'invoice', 'tax_invoice', 'receipt']
 export type DocumentType = (typeof DOCUMENT_TYPES)[number]
 
 export const TEMPLATE_IDS = ['classic', 'modern', 'compact'] as const
+
+/**
+ * Which document types a record kind may print. One bill, two record types:
+ * the quotation prints from the quote; every billing document prints from
+ * the invoice that was issued as a งวด of it. Sample data may show anything.
+ */
+export function typesForSourceKind(sourceKind: string | undefined): readonly DocumentType[] {
+  if (sourceKind === 'quote') return ['quotation']
+  if (sourceKind === 'invoice') return ['invoice', 'tax_invoice', 'receipt']
+  return DOCUMENT_TYPES
+}
 export type TemplateId = (typeof TEMPLATE_IDS)[number]
 
 /** Thai heading + English subtitle, as printed at the top of the sheet. */

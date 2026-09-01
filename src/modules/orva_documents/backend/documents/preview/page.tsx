@@ -15,11 +15,11 @@ import { apiCall } from '@open-mercato/ui/backend/utils/apiCall'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { Input } from '@open-mercato/ui/primitives/input'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
-import { DOCUMENT_TYPES, TEMPLATE_IDS, type DocumentType, type PrintableDocument, type TemplateId } from '../../../lib/document'
+import { DOCUMENT_TYPES, TEMPLATE_IDS, typesForSourceKind, type DocumentType, type PrintableDocument, type TemplateId } from '../../../lib/document'
 import { DOCUMENT_TEMPLATES } from '../../../components/templates'
 
 type SourceOption = { id: string; number: string; issueDate: string | null; customerName: string | null }
-type PreviewResponse = { document: PrintableDocument; sources: SourceOption[]; usedSample: boolean }
+type PreviewResponse = { document: PrintableDocument; sources: SourceOption[]; usedSample: boolean; sourceKind?: string }
 
 const TYPE_LABELS: Record<DocumentType, { key: string; fallback: string }> = {
   quotation: { key: 'orva_documents.type.quotation', fallback: 'ใบเสนอราคา' },
@@ -146,7 +146,7 @@ export default function DocumentPreviewPage() {
               <Select value={type} onValueChange={(value) => setType(value as DocumentType)}>
                 <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {DOCUMENT_TYPES.map((value) => (
+                  {typesForSourceKind(data?.sourceKind).map((value) => (
                     <SelectItem key={value} value={value}>
                       {t(TYPE_LABELS[value].key, TYPE_LABELS[value].fallback)}
                     </SelectItem>

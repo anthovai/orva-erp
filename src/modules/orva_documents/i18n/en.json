@@ -84,5 +84,19 @@
   "orva_documents.invoices.refresh": "Refresh",
   "orva_documents.invoices.empty": "No invoices yet — issue one from the quotation you want to bill.",
   "orva_documents.rowAction.issueInvoice": "Issue invoice (real record)",
-  "orva_documents.settings.invoiceNumberFormat": "Invoice number format"
+  "orva_documents.settings.invoiceNumberFormat": "Invoice number format",
+  "orva_documents.issue.title": "Issue installment invoice",
+  "orva_documents.issue.fromQuote": "From quotation {number} · pre-VAT subtotal {subtotal}",
+  "orva_documents.issue.percent": "% of subtotal",
+  "orva_documents.issue.amount": "Fixed amount",
+  "orva_documents.issue.percentLabel": "Percent of pre-VAT subtotal",
+  "orva_documents.issue.amountLabel": "Pre-VAT amount (THB)",
+  "orva_documents.issue.descriptionLabel": "Installment description (blank = auto งวดที่ N)",
+  "orva_documents.issue.descriptionPlaceholder": "e.g. งวดที่ 1 (30% on start)",
+  "orva_documents.issue.dueLabel": "Due in (days)",
+  "orva_documents.issue.cancel": "Cancel",
+  "orva_documents.issue.submit": "Issue invoice",
+  "orva_documents.issue.done": "Invoice {number} issued",
+  "orva_documents.issue.failed": "Could not issue the invoice",
+  "orva_documents.preview.typeLocked": "Documents printable from this record type"
 }

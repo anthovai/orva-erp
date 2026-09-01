@@ -21,6 +21,7 @@ import { useT } from '@open-mercato/shared/lib/i18n/context'
 import {
   DOCUMENT_TYPES,
   TEMPLATE_IDS,
+  typesForSourceKind,
   type DocumentType,
   type PrintableDocument,
   type TemplateId,
@@ -34,7 +35,7 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, { key: string; fallback:
   receipt: { key: 'orva_documents.type.receipt', fallback: 'ใบกำกับภาษี/ใบเสร็จรับเงิน' },
 }
 
-type PreviewResponse = { document: PrintableDocument; usedSample: boolean }
+type PreviewResponse = { document: PrintableDocument; usedSample: boolean; sourceKind?: string }
 
 /**
  * Review a record's Thai documents without leaving the record.
@@ -66,6 +67,7 @@ export function DocumentReviewDialog({
   const [type, setType] = React.useState<DocumentType>(initialType)
   const [template, setTemplate] = React.useState<TemplateId | ''>('')
   const [doc, setDoc] = React.useState<PrintableDocument | null>(null)
+  const [sourceKind, setSourceKind] = React.useState<string | undefined>(undefined)
   const [loading, setLoading] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
 
@@ -78,7 +80,10 @@ export function DocumentReviewDialog({
     apiCall<PreviewResponse>(`/api/orva_documents/preview?${params.toString()}`)
       .then((call) => {
         if (cancelled) return
-        if (call.ok && call.result) setDoc(call.result.document)
+        if (call.ok && call.result) {
+          setDoc(call.result.document)
+          setSourceKind(call.result.sourceKind)
+        }
         else flash(t('orva_documents.preview.failed', 'ไม่สามารถสร้างตัวอย่างเอกสารได้'), 'error')
       })
       .catch(() => {
@@ -135,7 +140,7 @@ export function DocumentReviewDialog({
             <Select value={type} onValueChange={(value) => setType(value as DocumentType)}>
               <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {DOCUMENT_TYPES.map((value) => (
+                {typesForSourceKind(sourceKind).map((value) => (
                   <SelectItem key={value} value={value}>
                     {t(DOCUMENT_TYPE_LABELS[value].key, DOCUMENT_TYPE_LABELS[value].fallback)}
                   </SelectItem>

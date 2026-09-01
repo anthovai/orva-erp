@@ -38,6 +38,8 @@ const responseSchema = z.object({
   document: z.record(z.string(), z.unknown()),
   sources: z.array(sourceOptionSchema),
   usedSample: z.boolean(),
+  /** 'quote' | 'invoice' | 'sample' — the UI narrows type choices by this. */
+  sourceKind: z.string(),
 })
 
 /**
@@ -75,9 +77,19 @@ export async function GET(req: Request) {
       ? (await findQuoteById(forked, { quoteId: documentId, tenantId }))
         ?? (await findInvoiceById(forked, { invoiceId: documentId, tenantId }))
       : null
+    // Document types belong to record kinds — the user's model, and Thai
+    // practice: a quotation prints from a quotation; billing documents
+    // (invoice, tax invoice, receipt) print from the invoice that was issued
+    // as a งวด of it. Printing a quote AS a full-total invoice was the
+    // Phase-2 shortcut that blurred the two.
     if (row?.kind === 'invoice' && type === 'quotation') {
-      // an invoice record cannot be re-presented as the quotation it came from
       return Response.json({ error: 'A quotation cannot be printed from an invoice record' }, { status: 400 })
+    }
+    if (row && row.kind !== 'invoice' && type !== 'quotation') {
+      return Response.json(
+        { error: 'Billing documents print from an issued invoice — ออกใบแจ้งหนี้งวดจากใบเสนอราคาก่อน' },
+        { status: 400 },
+      )
     }
     const { document, sources, usedSample } = await withTenantRls(em, tenantId, async (tem) => {
       const settings = await loadSettings(tem, { tenantId, organizationId })
@@ -90,7 +102,12 @@ export async function GET(req: Request) {
       }
     })
 
-    return Response.json({ document, usedSample, sources: sources.map(sourceOption) })
+    return Response.json({
+      document,
+      usedSample,
+      sourceKind: row ? (row.kind === 'invoice' ? 'invoice' : 'quote') : 'sample',
+      sources: sources.map(sourceOption),
+    })
   } catch (error) {
     // A preview must never 500 opaquely — the operator needs to know whether
     // the record or the settings are at fault.
