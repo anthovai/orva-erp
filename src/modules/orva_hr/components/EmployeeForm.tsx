@@ -9,43 +9,39 @@ import { useT } from '@open-mercato/shared/lib/i18n/context'
 const LIST_HREF = '/backend/hr/employees'
 const ENTITY_ID = 'orva_hr:hr_employee'
 
-type PartyRoleRow = { id: string; party_id: string }
-type PartyRow = { id: string; display_name: string }
+type StaffMemberRow = { id: string; display_name: string; is_active?: boolean }
 
-function useEmployeeParties() {
-  const { data: rolesData } = useQuery({
-    queryKey: ['orva_party.employee-roles'],
-    queryFn: async () => fetchCrudList<PartyRoleRow>('orva_party/party-roles', { page: 1, pageSize: 100, role: 'employee' }),
+/**
+ * People come from the installed staff registry — an employee IS a staff
+ * member wearing a payroll hat, so there is exactly one place to spell a
+ * name. Before this the picker read orva_party, a second person registry
+ * that only drifted from staff.
+ */
+function useStaffMembers() {
+  const { data } = useQuery({
+    queryKey: ['orva_hr.staff-members'],
+    queryFn: async () => fetchCrudList<StaffMemberRow>('staff/team-members', { page: 1, pageSize: 100, isActive: true }),
   })
-  const partyIds = React.useMemo(
-    () => Array.from(new Set((rolesData?.items ?? []).map((r) => r.party_id))),
-    [rolesData?.items],
-  )
-  const { data: partiesData } = useQuery({
-    queryKey: ['orva_party.employee-parties', partyIds.join(',')],
-    queryFn: async () => fetchCrudList<PartyRow>('orva_party/parties', { ids: partyIds.join(','), pageSize: 100 }),
-    enabled: partyIds.length > 0,
-  })
-  return partiesData?.items ?? []
+  return data?.items ?? []
 }
 
 export function EmployeeCreateForm() {
   const t = useT()
-  const parties = useEmployeeParties()
+  const members = useStaffMembers()
   const fields = React.useMemo<CrudField[]>(() => [
     {
-      id: 'partyId',
-      label: t('orva_hr.employees.form.party', 'Person (party with employee role)'),
+      id: 'staffMemberId',
+      label: t('orva_hr.employees.form.staffMember', 'สมาชิกทีม (staff)'),
       type: 'select',
       required: true,
-      options: parties.map((p) => ({ value: p.id, label: p.display_name })),
+      options: members.map((m) => ({ value: m.id, label: m.display_name })),
     },
     { id: 'position', label: t('orva_hr.employees.column.position', 'Position'), type: 'text' },
     { id: 'hireDate', label: t('orva_hr.employees.form.hireDate', 'Hire date'), type: 'date' },
     { id: 'monthlySalary', label: t('orva_hr.employees.form.salary', 'Monthly salary (THB)'), type: 'number', required: true },
-  ], [t, parties])
+  ], [t, members])
   const groups = React.useMemo<CrudFormGroup[]>(() => [
-    { id: 'employment', title: t('orva_hr.employees.form.group', 'Employment'), column: 1, fields: ['partyId', 'position', 'hireDate'] },
+    { id: 'employment', title: t('orva_hr.employees.form.group', 'Employment'), column: 1, fields: ['staffMemberId', 'position', 'hireDate'] },
     { id: 'compensation', title: t('orva_hr.employees.form.compGroup', 'Compensation'), column: 2, fields: ['monthlySalary'] },
   ], [t])
   return (
@@ -66,11 +62,18 @@ export function EmployeeCreateForm() {
 
 export function EmployeeEditForm({ id }: { id: string }) {
   const t = useT()
+  const members = useStaffMembers()
   const [initial, setInitial] = React.useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [err, setErr] = React.useState<string | null>(null)
   const [isNotFound, setIsNotFound] = React.useState(false)
   const fields = React.useMemo<CrudField[]>(() => [
+    {
+      id: 'staffMemberId',
+      label: t('orva_hr.employees.form.staffMember', 'สมาชิกทีม (staff)'),
+      type: 'select',
+      options: members.map((m) => ({ value: m.id, label: m.display_name })),
+    },
     { id: 'position', label: t('orva_hr.employees.column.position', 'Position'), type: 'text' },
     { id: 'hireDate', label: t('orva_hr.employees.form.hireDate', 'Hire date'), type: 'date' },
     { id: 'monthlySalary', label: t('orva_hr.employees.form.salary', 'Monthly salary (THB)'), type: 'number', required: true },
@@ -83,9 +86,9 @@ export function EmployeeEditForm({ id }: { id: string }) {
         { value: 'inactive', label: t('orva_hr.employeeStatus.inactive', 'Inactive') },
       ],
     },
-  ], [t])
+  ], [t, members])
   const groups = React.useMemo<CrudFormGroup[]>(() => [
-    { id: 'employment', title: t('orva_hr.employees.form.group', 'Employment'), column: 1, fields: ['position', 'hireDate', 'status'] },
+    { id: 'employment', title: t('orva_hr.employees.form.group', 'Employment'), column: 1, fields: ['staffMemberId', 'position', 'hireDate', 'status'] },
     { id: 'compensation', title: t('orva_hr.employees.form.compGroup', 'Compensation'), column: 2, fields: ['monthlySalary'] },
   ], [t])
 
@@ -99,6 +102,7 @@ export function EmployeeEditForm({ id }: { id: string }) {
         if (!cancelled) {
           setInitial({
             id: item.id,
+            staffMemberId: item.staff_member_id ?? '',
             position: item.position ?? '',
             hireDate: item.hire_date ?? '',
             monthlySalary: Number(item.monthly_salary ?? 0),
@@ -139,7 +143,11 @@ export function EmployeeEditForm({ id }: { id: string }) {
       submitLabel={t('orva_finance.form.edit.submit', 'Save')}
       cancelHref={LIST_HREF}
       successRedirect={`${LIST_HREF}?flash=${encodeURIComponent(t('orva_hr.employees.flash.saved', 'Employee saved'))}&type=success`}
-      onSubmit={async (vals) => { await updateCrud('orva_hr/employees', { ...vals, id }) }}
+      onSubmit={async (vals) => {
+        const { staffMemberId, ...rest } = vals as Record<string, unknown>
+        // legacy rows have no link; sending '' would fail the uuid check
+        await updateCrud('orva_hr/employees', { ...rest, ...(staffMemberId ? { staffMemberId } : {}), id })
+      }}
     />
   )
 }

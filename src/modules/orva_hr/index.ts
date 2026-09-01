@@ -5,7 +5,7 @@ export const metadata: ModuleInfo = {
   title: 'Orva HR',
   version: '0.1.0',
   description:
-    'HR and payroll: employee records on top of orva_party, payroll runs calculated by the Rust payroll engine (Thai SSO + withholding tax), posted into the Orva GL.',
+    'HR and payroll: employee records linked to staff team members, payroll runs calculated by the Rust payroll engine (Thai SSO + withholding tax), posted into the Orva GL.',
   author: 'Anthovai',
   license: 'MIT',
 }

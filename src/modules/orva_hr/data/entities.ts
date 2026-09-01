@@ -1,9 +1,9 @@
 import { Entity, Index, PrimaryKey, Property } from '@mikro-orm/decorators/legacy'
 
 /**
- * Employment record. Identity lives in orva_party (the party must hold an
- * active 'employee' role — validated at create); this row carries the
- * employment/compensation facts payroll needs.
+ * Employment record. Identity lives in the installed staff registry — an
+ * employee is a staff_team_member wearing a payroll hat (staffMemberId +
+ * display_name snapshot). party_id remains only on legacy rows.
  */
 @Entity({ tableName: 'orva_hr_employees' })
 @Index({ properties: ['tenantId', 'organizationId'] })
@@ -21,9 +21,30 @@ export class HrEmployee {
   @Property({ name: 'employee_no', type: 'text', nullable: true })
   employeeNo?: string | null
 
-  @Property({ name: 'party_id', type: 'uuid' })
+  /**
+   * Legacy link into orva_party from before employees rode on the installed
+   * staff registry. Kept nullable so history stays intact; new rows carry
+   * staffMemberId instead and never write this.
+   */
+  @Property({ name: 'party_id', type: 'uuid', nullable: true })
   @Index()
-  partyId!: string
+  partyId?: string | null
+
+  /**
+   * The staff:staff_team_member this employment record belongs to — scalar id
+   * per the no-cross-module-relations rule. One employee per member (partial
+   * unique index in the migration): payroll pays a person once.
+   */
+  @Property({ name: 'staff_member_id', type: 'uuid', nullable: true })
+  @Index()
+  staffMemberId?: string | null
+
+  /**
+   * Snapshot of the person's name at link time, so payslips and GL lines are
+   * readable without a cross-module join. Re-synced whenever the link is set.
+   */
+  @Property({ name: 'display_name', type: 'text', nullable: true })
+  displayName?: string | null
 
   @Property({ type: 'text', nullable: true })
   position?: string | null

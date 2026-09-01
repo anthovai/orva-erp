@@ -18,7 +18,9 @@ import { OrvaEmptyState } from '@/components/orva/NodeMark'
 type EmployeeRow = {
   id: string
   employee_no?: string | null
-  party_id: string
+  party_id: string | null
+  staff_member_id?: string | null
+  display_name?: string | null
   position?: string | null
   hire_date?: string | null
   monthly_salary?: string | number
@@ -27,7 +29,6 @@ type EmployeeRow = {
   updated_at?: string | null
 }
 
-type PartyRow = { id: string; display_name: string }
 
 export default function EmployeesTable() {
   const t = useT()
@@ -44,32 +45,18 @@ export default function EmployeesTable() {
       }),
   })
 
-  const partyIds = React.useMemo(
-    () => Array.from(new Set((data?.items ?? []).map((e) => e.party_id))),
-    [data?.items],
-  )
-  const { data: partiesData } = useQuery({
-    queryKey: ['orva_hr.employee-parties', partyIds.join(','), scopeVersion],
-    queryFn: async () => fetchCrudList<PartyRow>('orva_party/parties', { ids: partyIds.join(','), pageSize: 100 }),
-    enabled: partyIds.length > 0,
-  })
-  const nameMap = React.useMemo(() => {
-    const map: Record<string, string> = {}
-    for (const p of partiesData?.items ?? []) map[p.id] = p.display_name
-    return map
-  }, [partiesData?.items])
-
   const fmt = (v: string | number | undefined) =>
     Number(v ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
   const columns: ColumnDef<EmployeeRow>[] = React.useMemo(() => [
     { accessorKey: 'employee_no', header: t('orva_hr.employees.column.no', 'Employee #'), meta: { priority: 1 } },
     {
-      accessorKey: 'party_id',
+      // name snapshot taken at link time — no second fetch, no drift
+      accessorKey: 'display_name',
       header: t('orva_hr.employees.column.name', 'Name'),
       enableSorting: false,
       meta: { priority: 1 },
-      cell: ({ getValue }) => nameMap[String(getValue())] ?? '…',
+      cell: ({ getValue }) => String(getValue() ?? '') || '—',
     },
     { accessorKey: 'position', header: t('orva_hr.employees.column.position', 'Position'), meta: { priority: 3 } },
     {
@@ -91,7 +78,7 @@ export default function EmployeesTable() {
         )
       },
     },
-  ], [t, nameMap])
+  ], [t])
 
   return (
     <>
@@ -100,7 +87,7 @@ export default function EmployeesTable() {
         emptyState={(
           <OrvaEmptyState
             title={t('orva_hr.employees.empty.title', "No employees yet")}
-            description={t('orva_hr.employees.empty.description', "Add the people on your payroll — each one links to a party in the central registry.")}
+            description={t('orva_hr.employees.empty.description', 'Add the people on your payroll — each one links to a staff team member.')}
           />
         )}
         actions={(

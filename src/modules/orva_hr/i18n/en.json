@@ -24,7 +24,6 @@
   "orva_hr.employees.form.edit.title": "Edit employee",
   "orva_hr.employees.form.group": "Employment",
   "orva_hr.employees.form.compGroup": "Compensation",
-  "orva_hr.employees.form.party": "Person (party with employee role)",
   "orva_hr.employees.form.hireDate": "Hire date",
   "orva_hr.employees.form.salary": "Monthly salary (THB)",
   "orva_hr.employeeStatus.active": "Active",
@@ -54,7 +53,8 @@
   "orva_hr.settings.taxPayable": "Tax payable",
   "orva_hr.settings.netPayable": "Net salaries payable",
   "orva_hr.employees.empty.title": "No employees yet",
-  "orva_hr.employees.empty.description": "Add the people on your payroll — each one links to a party in the central registry.",
+  "orva_hr.employees.empty.description": "Add the people on your payroll — each one links to a staff team member.",
   "orva_hr.payrollRuns.empty.title": "No payroll runs yet",
-  "orva_hr.payrollRuns.empty.description": "Create a monthly run to calculate salaries, social security and withholding tax."
+  "orva_hr.payrollRuns.empty.description": "Create a monthly run to calculate salaries, social security and withholding tax.",
+  "orva_hr.employees.form.staffMember": "Staff team member"
 }

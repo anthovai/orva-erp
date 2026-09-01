@@ -5,7 +5,6 @@ import { readJsonSafe } from '@open-mercato/shared/lib/http/readJsonSafe'
 import type { OpenApiRouteDoc } from '@open-mercato/shared/lib/openapi'
 import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
-import { Party } from '@/modules/orva_party/data/entities'
 import { HrEmployee, PayrollLine, PayrollRun } from '../../../data/entities'
 import { callPayrollEngine } from '../../../lib/payroll'
 import { payrollActionSchema } from '../../../data/validators'
@@ -61,9 +60,6 @@ export async function POST(req: Request) {
         })),
       )
 
-      // Party display names for the stored lines.
-      const parties = await tem.find(Party, { id: { $in: employees.map((e) => e.partyId) } })
-      const nameByParty = new Map(parties.map((party) => [party.id, party.displayName]))
       const byEmployee = new Map(employees.map((employee) => [employee.id, employee]))
 
       const previous = await tem.find(PayrollLine, { runId: run.id })
@@ -80,7 +76,9 @@ export async function POST(req: Request) {
             runId: String(run.id),
             employeeId: employee.id,
             employeeNo: employee.employeeNo ?? null,
-            employeeName: nameByParty.get(employee.partyId) ?? employee.employeeNo ?? employee.id,
+            // display_name is snapshotted on the employee (backfilled from
+            // parties for legacy rows), so no cross-module lookup is needed.
+            employeeName: employee.displayName ?? employee.employeeNo ?? employee.id,
             gross: line.gross.toFixed(4),
             ssoEmployee: line.ssoEmployee.toFixed(4),
             ssoEmployer: line.ssoEmployer.toFixed(4),

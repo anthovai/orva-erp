@@ -15,7 +15,6 @@
   "orva_hr.employees.form.edit.title": "แก้ไขข้อมูลพนักงาน",
   "orva_hr.employees.form.group": "การจ้างงาน",
   "orva_hr.employees.form.compGroup": "ค่าตอบแทน",
-  "orva_hr.employees.form.party": "บุคคล (รายชื่อที่ถือบทบาทพนักงาน)",
   "orva_hr.employees.form.hireDate": "วันที่เริ่มงาน",
   "orva_hr.employees.form.salary": "เงินเดือน (บาท)",
   "orva_hr.employeeStatus.active": "ทำงานอยู่",
@@ -54,7 +53,8 @@
   "orva_hr.payroll.detail.totals": "รวม",
   "orva_hr.payroll.detail.people": "คน",
   "orva_hr.employees.empty.title": "ยังไม่มีพนักงาน",
-  "orva_hr.employees.empty.description": "เพิ่มพนักงานที่อยู่ในระบบเงินเดือน — แต่ละคนเชื่อมกับทะเบียนกลาง",
+  "orva_hr.employees.empty.description": "เพิ่มคนในบัญชีเงินเดือน — แต่ละคนเชื่อมกับสมาชิกทีมในเมนูพนักงาน",
   "orva_hr.payrollRuns.empty.title": "ยังไม่มีรอบเงินเดือน",
-  "orva_hr.payrollRuns.empty.description": "สร้างรอบประจำเดือนเพื่อคำนวณเงินเดือน ประกันสังคม และภาษีหัก ณ ที่จ่าย"
+  "orva_hr.payrollRuns.empty.description": "สร้างรอบประจำเดือนเพื่อคำนวณเงินเดือน ประกันสังคม และภาษีหัก ณ ที่จ่าย",
+  "orva_hr.employees.form.staffMember": "สมาชิกทีม (staff)"
 }

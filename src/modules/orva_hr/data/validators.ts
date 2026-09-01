@@ -20,7 +20,8 @@ export const employeeListSchema = z
   .passthrough()
 
 export const employeeCreateSchema = z.object({
-  partyId: z.string().uuid(),
+  /** The staff:staff_team_member this employment record belongs to. */
+  staffMemberId: z.string().uuid(),
   position: z.string().optional().nullable(),
   hireDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   monthlySalary: z.coerce.number().positive(),
@@ -28,6 +29,8 @@ export const employeeCreateSchema = z.object({
 
 export const employeeUpdateSchema = z.object({
   id: z.string().uuid(),
+  /** Relink to a different staff member; the name snapshot follows. */
+  staffMemberId: z.string().uuid().optional(),
   position: z.string().optional().nullable(),
   hireDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
   monthlySalary: z.coerce.number().positive().optional(),
