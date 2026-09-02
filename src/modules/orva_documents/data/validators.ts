@@ -14,6 +14,19 @@ const taxIdSchema = z
   .optional()
   .nullable()
 
+/**
+ * A logo travels as an image data URI so the printed sheet is self-contained
+ * (headless Chromium needs no authenticated fetch). ~400 KB keeps the
+ * settings row and every preview payload reasonable.
+ */
+const logoSchema = z
+  .string()
+  .regex(/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/)
+  .max(400_000)
+  .optional()
+  .nullable()
+  .or(z.literal('').transform(() => null))
+
 export const settingsPutSchema = z.object({
   sellerName: z.string().trim().min(1),
   sellerLegalName: z.string().trim().max(300).optional().nullable(),
@@ -29,6 +42,8 @@ export const settingsPutSchema = z.object({
   invoiceNumberFormat: z.string().trim().min(1).max(120).optional(),
   brandColor: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   paymentDetails: z.string().trim().max(1000).optional().nullable(),
+  logoHeader: logoSchema,
+  logoFooter: logoSchema,
 })
 
 export const previewQuerySchema = z.object({

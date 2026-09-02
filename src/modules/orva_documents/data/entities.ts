@@ -73,6 +73,18 @@ export class DocumentSettings {
   @Property({ name: 'payment_details', type: 'text', nullable: true })
   paymentDetails?: string | null
 
+  /**
+   * Logos as image data URIs — self-contained on purpose: the server-side PDF
+   * printer (headless Chromium) renders the same sheet without an authenticated
+   * fetch back into the attachments API. Bounded by the validator (~400 KB).
+   */
+  @Property({ name: 'logo_header', type: 'text', nullable: true })
+  logoHeader?: string | null
+
+  /** Footer mark, knocked out to white on the brand template's accent band. */
+  @Property({ name: 'logo_footer', type: 'text', nullable: true })
+  logoFooter?: string | null
+
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()
 

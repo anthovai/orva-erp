@@ -407,6 +407,8 @@ export async function documentFromQuote(
     source: sourceFromQuote(args.row, lines),
     accentColor: args.settings?.brandColor ?? null,
     paymentDetails: args.settings?.paymentDetails ?? null,
+    logoHeader: args.settings?.logoHeader ?? null,
+    logoFooter: args.settings?.logoFooter ?? null,
   })
 }
 
@@ -424,6 +426,8 @@ export function sampleDocument(args: {
     source: sampleSource(),
     accentColor: args.settings?.brandColor ?? null,
     paymentDetails: args.settings?.paymentDetails ?? null,
+    logoHeader: args.settings?.logoHeader ?? null,
+    logoFooter: args.settings?.logoFooter ?? null,
   })
 }
 

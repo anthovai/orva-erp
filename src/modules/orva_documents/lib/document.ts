@@ -98,6 +98,10 @@ export type PrintableDocument = {
   paymentMethod: string | null
   /** การชำระเงิน block from settings (bank account, terms) — every type. */
   paymentDetails: string | null
+  /** Header logo as an image data URI (settings), or null. */
+  logoHeader: string | null
+  /** Footer mark as an image data URI (settings), or null. */
+  logoFooter: string | null
   /** Accent colour for the 'brand' template (tenant-configured). */
   accentColor: string | null
   /** True for statutory documents: templates then print the tax id block. */
@@ -132,6 +136,8 @@ export function buildPrintableDocument(input: {
   source: DocumentSource
   accentColor?: string | null
   paymentDetails?: string | null
+  logoHeader?: string | null
+  logoFooter?: string | null
 }): PrintableDocument {
   const { type, template, seller, buyer, source } = input
   const heading = HEADINGS[type]
@@ -171,6 +177,8 @@ export function buildPrintableDocument(input: {
     note: source.note ?? null,
     paymentMethod: type === 'receipt' ? (source.paymentMethod ?? null) : null,
     paymentDetails: input.paymentDetails ?? null,
+    logoHeader: input.logoHeader ?? null,
+    logoFooter: input.logoFooter ?? null,
     isTaxDocument,
     warnings,
   }

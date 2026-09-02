@@ -25,11 +25,17 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
     <div className="flex flex-col text-foreground">
       {/* masthead */}
       <div className="flex items-start justify-between gap-6 pb-4">
-        <div className="pt-1">
-          <div className="text-xl font-extrabold uppercase leading-tight" style={{ color: accent }}>
-            {doc.seller.name}
+        <div className="flex items-start gap-4 pt-1">
+          {doc.logoHeader ? (
+            // eslint-disable-next-line @next/next/no-img-element -- data URI from tenant settings; next/image cannot optimize it
+            <img src={doc.logoHeader} alt="" className="h-20 w-20 shrink-0 object-contain" />
+          ) : null}
+          <div>
+            <div className="text-xl font-extrabold uppercase leading-tight" style={{ color: accent }}>
+              {doc.seller.name}
+            </div>
+            {doc.isTaxDocument ? <TaxIdentityLine taxId={doc.seller.taxId} branch={doc.seller.branch} t={t} /> : null}
           </div>
-          {doc.isTaxDocument ? <TaxIdentityLine taxId={doc.seller.taxId} branch={doc.seller.branch} t={t} /> : null}
         </div>
         <div className="text-right">
           <div className="text-3xl font-extrabold leading-none" style={{ color: accent }}>{doc.headingEn}</div>
@@ -154,11 +160,24 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
       </div>
 
       {/* contact footer band bleeding to the sheet edge */}
-      <div className="-mx-10 -mb-10 mt-8 px-10 py-5 text-white" style={{ backgroundColor: accent }}>
-        <div className="text-sm font-bold">{t('orva_documents.brand.contact', 'ช่องทางติดต่อ')}</div>
-        <div className="mt-1 flex flex-wrap gap-x-8 gap-y-1 text-xs">
-          {doc.seller.address ? <span className="max-w-sm">{doc.seller.address}</span> : null}
-          <span>{[doc.seller.phone, doc.seller.email].filter(Boolean).join(' · ')}</span>
+      <div className="-mx-10 -mb-10 mt-8 flex items-center gap-6 px-10 py-5 text-white" style={{ backgroundColor: accent }}>
+        {doc.logoFooter ? (
+          // The mark arrives in its own colours; brightness(0) invert(1)
+          // knocks it out to white on the accent band, like the paper.
+          // eslint-disable-next-line @next/next/no-img-element -- data URI from tenant settings
+          <img
+            src={doc.logoFooter}
+            alt=""
+            className="h-10 max-w-28 shrink-0 object-contain"
+            style={{ filter: 'brightness(0) invert(1)' }}
+          />
+        ) : null}
+        <div>
+          <div className="text-sm font-bold">{t('orva_documents.brand.contact', 'ช่องทางติดต่อ')}</div>
+          <div className="mt-1 flex flex-wrap gap-x-8 gap-y-1 text-xs">
+            {doc.seller.address ? <span className="max-w-sm">{doc.seller.address}</span> : null}
+            <span>{[doc.seller.phone, doc.seller.email].filter(Boolean).join(' · ')}</span>
+          </div>
         </div>
       </div>
     </div>

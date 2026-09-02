@@ -2052,6 +2052,12 @@
       "rule": "inline-style",
       "match": "style=",
       "reason": "The brand template paints the TENANT'S configured colour (settings.brandColor), resolved at render time per tenant — runtime data no build-time design token can express, so inline style is the only vehicle."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/brand.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "The footer mark is a tenant-uploaded logo knocked out to white with a CSS filter at render time — per-tenant runtime data, not a design-system colour."
     }
   ]
 }

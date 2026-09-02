@@ -32,6 +32,8 @@ const settingsSchema = z.object({
   invoiceNumberFormat: z.string(),
   brandColor: z.string(),
   paymentDetails: z.string().nullable(),
+  logoHeader: z.string().nullable(),
+  logoFooter: z.string().nullable(),
   updatedAt: z.string().nullable(),
 })
 
@@ -52,6 +54,8 @@ function serialize(row: DocumentSettings | null) {
       invoiceNumberFormat: 'INV-{yyyy}{mm}{dd}-{seq:5}',
       brandColor: '#11836E',
       paymentDetails: null,
+      logoHeader: null,
+      logoFooter: null,
       updatedAt: null,
     }
   }
@@ -70,6 +74,8 @@ function serialize(row: DocumentSettings | null) {
     invoiceNumberFormat: row.invoiceNumberFormat,
     brandColor: row.brandColor,
     paymentDetails: row.paymentDetails ?? null,
+    logoHeader: row.logoHeader ?? null,
+    logoFooter: row.logoFooter ?? null,
     updatedAt: row.updatedAt ? row.updatedAt.toISOString() : null,
   }
 }
@@ -128,6 +134,8 @@ export async function PUT(req: Request) {
     target.sellerPhone = input.sellerPhone ?? null
     target.sellerEmail = input.sellerEmail ?? null
     target.paymentDetails = input.paymentDetails === undefined ? (target.paymentDetails ?? null) : (input.paymentDetails || null)
+    if (input.logoHeader !== undefined) target.logoHeader = input.logoHeader
+    if (input.logoFooter !== undefined) target.logoFooter = input.logoFooter
     if (input.invoiceNumberFormat) target.invoiceNumberFormat = input.invoiceNumberFormat
     if (input.brandColor) target.brandColor = input.brandColor
     if (input.templateQuotation) target.templateQuotation = input.templateQuotation
