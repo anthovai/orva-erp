@@ -88,6 +88,11 @@ export const recordPaymentSchema = z.object({
   updatedAt: z.string().min(1),
 })
 
+/** Minting a customer link for a quotation (rotates the acceptance token). */
+export const shareSchema = z.object({
+  quoteId: z.string().uuid(),
+})
+
 /** Emailing a document: the recipient plus the same selector the preview uses. */
 export const sendSchema = z.object({
   to: z.string().trim().email(),

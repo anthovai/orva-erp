@@ -111,6 +111,34 @@ export default function DocumentPreviewPage() {
     }
   }
 
+  // Customer link: minted server-side (rotates the acceptance token), copied
+  // to the clipboard here. Rotation means an earlier link stops working — the
+  // flash says so instead of leaving the operator to find out from a customer.
+  const copyCustomerLink = async () => {
+    if (busy || sourceId === SAMPLE_VALUE) return
+    setBusy(true)
+    try {
+      const call = await apiCall<{ url: string; validUntil: string | null }>('/api/orva_documents/share', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ quoteId: sourceId }),
+      })
+      if (!call.ok || !call.result) {
+        flash(t('orva_documents.share.failed', 'สร้างลิงก์ลูกค้าไม่สำเร็จ'), 'error')
+        return
+      }
+      await navigator.clipboard.writeText(call.result.url).catch(() => {
+        window.prompt(t('orva_documents.share.copyManually', 'คัดลอกลิงก์นี้'), call.result!.url)
+      })
+      flash(
+        t('orva_documents.share.copied', 'คัดลอกลิงก์แล้ว — ลิงก์เดิมที่เคยส่งจะใช้ไม่ได้อีก'),
+        'success',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const sendPdf = async () => {
     if (busy || !emailTo.trim()) return
     setBusy(true)
@@ -209,6 +237,11 @@ export default function DocumentPreviewPage() {
             <Button type="button" onClick={downloadPdf} disabled={!doc || busy}>
               {t('orva_documents.preview.downloadPdf', 'ดาวน์โหลด PDF')}
             </Button>
+            {data?.sourceKind === 'quote' && sourceId !== SAMPLE_VALUE ? (
+              <Button type="button" variant="outline" onClick={copyCustomerLink} disabled={busy}>
+                {t('orva_documents.share.copyLink', 'คัดลอกลิงก์ลูกค้า')}
+              </Button>
+            ) : null}
           </div>
 
           {/* email the rendered PDF straight to the customer */}
