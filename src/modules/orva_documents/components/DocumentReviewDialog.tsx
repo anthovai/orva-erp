@@ -31,7 +31,7 @@ import { DOCUMENT_TEMPLATES } from './templates'
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, { key: string; fallback: string }> = {
   quotation: { key: 'orva_documents.type.quotation', fallback: 'ใบเสนอราคา' },
   invoice: { key: 'orva_documents.type.invoice', fallback: 'ใบแจ้งหนี้' },
-  tax_invoice: { key: 'orva_documents.type.tax_invoice', fallback: 'ใบกำกับภาษี' },
+  tax_invoice: { key: 'orva_documents.type.tax_invoice', fallback: 'ใบกำกับภาษี / ใบแจ้งหนี้' },
   receipt: { key: 'orva_documents.type.receipt', fallback: 'ใบกำกับภาษี/ใบเสร็จรับเงิน' },
 }
 

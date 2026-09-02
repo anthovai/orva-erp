@@ -2,7 +2,9 @@
 import * as React from 'react'
 import {
   AmountInWords,
+  CopyRoleLabel,
   TaxIdentityLine,
+  TermsBlock,
   formatThaiDate,
   type TemplateProps,
 } from './shared'
@@ -42,7 +44,7 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
             </div>
           ) : doc.isTaxDocument ? (
             <div className="pt-1">
-              <div className="text-sm font-bold">{doc.seller.name}</div>
+              <div className="text-sm font-bold">{doc.seller.legalName ?? doc.seller.name}</div>
               <TaxIdentityLine taxId={doc.seller.taxId} branch={doc.seller.branch} t={t} />
             </div>
           ) : null}
@@ -65,7 +67,7 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
               </>
             ) : null}
           </div>
-          {doc.isTaxDocument ? <div className="text-xs">{t('orva_documents.copy.original', 'ต้นฉบับ')}</div> : null}
+          {doc.isTaxDocument ? <div className="text-xs font-medium"><CopyRoleLabel doc={doc} t={t} /></div> : null}
         </div>
       </div>
 
@@ -162,11 +164,37 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
               <p className="whitespace-pre-line text-muted-foreground">{doc.note}</p>
             </div>
           ) : null}
+          <TermsBlock doc={doc} t={t} />
         </div>
-        <div className="text-center text-sm">
-          <div className="mx-8 border-b border-foreground pb-8" />
-          <div className="mt-1 font-semibold">Client</div>
-        </div>
+        {doc.isTaxDocument ? (
+          // the statutory form's three signatures: received / delivered / authorised
+          <div className="grid grid-cols-3 gap-4 text-center text-xs">
+            {[
+              t('orva_documents.sign.receiver', 'ผู้รับสินค้า/บริการ'),
+              t('orva_documents.sign.deliverer', 'ผู้ส่งสินค้า/บริการ'),
+            ].map((label) => (
+              <div key={label}>
+                <div className="mx-2 border-b border-foreground pb-8" />
+                <div className="mt-1 font-semibold">{label}</div>
+                <div className="mt-3 text-muted-foreground">
+                  {t('orva_documents.sign.date', 'วันที่')} ..........................
+                </div>
+              </div>
+            ))}
+            <div>
+              <div className="mx-2 border-b border-foreground pb-8" />
+              <div className="mt-1 font-semibold">{t('orva_documents.field.signatureSeller', 'ผู้มีอำนาจลงนาม')}</div>
+              <div className="mt-3 text-muted-foreground">
+                {t('orva_documents.sign.onBehalf', 'ในนาม')} {doc.seller.legalName ?? doc.seller.name}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center text-sm">
+            <div className="mx-8 border-b border-foreground pb-8" />
+            <div className="mt-1 font-semibold">Client</div>
+          </div>
+        )}
       </div>
 
       {/* contact footer band bleeding to the sheet edge */}

@@ -32,7 +32,9 @@ export type TemplateId = (typeof TEMPLATE_IDS)[number]
 const HEADINGS: Record<DocumentType, { th: string; en: string }> = {
   quotation: { th: 'ใบเสนอราคา', en: 'Quotation' },
   invoice: { th: 'ใบแจ้งหนี้', en: 'Invoice' },
-  tax_invoice: { th: 'ใบกำกับภาษี', en: 'Tax Invoice' },
+  // The tenant's statutory form combines them: the tax invoice doubles as
+  // the invoice when billing VAT work (ORIGINAL TAX INVOICE / INVOICE).
+  tax_invoice: { th: 'ใบกำกับภาษี / ใบแจ้งหนี้', en: 'Tax Invoice / Invoice' },
   // Thai practice issues one combined sheet when payment is taken on issue,
   // rather than a bare receipt alongside a separate tax invoice. That is why
   // this type is statutory below: it carries both parties' taxpayer ids.
@@ -44,6 +46,8 @@ const TAX_DOCUMENT_TYPES = new Set<DocumentType>(['tax_invoice', 'receipt'])
 
 export type Party = {
   name: string
+  /** Registered name — statutory contexts print this over the display name. */
+  legalName?: string | null
   taxId?: string | null
   branch?: string | null
   address?: string | null
@@ -102,6 +106,14 @@ export type PrintableDocument = {
   logoHeader: string | null
   /** Footer mark as an image data URI (settings), or null. */
   logoFooter: string | null
+  /**
+   * Which counterpart this sheet is: ต้นฉบับ (สำหรับลูกค้า) or สำเนา
+   * (สำหรับบริษัท). Tax documents print both, Thai practice — the print page
+   * renders the copy sheet after the original.
+   */
+  copyRole: 'original' | 'copy'
+  /** Standard terms (หมายเหตุ) from settings — printed on tax documents. */
+  terms: string | null
   /** Accent colour for the 'brand' template (tenant-configured). */
   accentColor: string | null
   /** True for statutory documents: templates then print the tax id block. */
@@ -138,6 +150,7 @@ export function buildPrintableDocument(input: {
   paymentDetails?: string | null
   logoHeader?: string | null
   logoFooter?: string | null
+  terms?: string | null
 }): PrintableDocument {
   const { type, template, seller, buyer, source } = input
   const heading = HEADINGS[type]
@@ -179,6 +192,8 @@ export function buildPrintableDocument(input: {
     paymentDetails: input.paymentDetails ?? null,
     logoHeader: input.logoHeader ?? null,
     logoFooter: input.logoFooter ?? null,
+    copyRole: 'original',
+    terms: isTaxDocument ? (input.terms ?? null) : null,
     isTaxDocument,
     warnings,
   }

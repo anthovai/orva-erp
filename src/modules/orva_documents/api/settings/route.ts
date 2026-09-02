@@ -35,6 +35,7 @@ const settingsSchema = z.object({
   logoHeader: z.string().nullable(),
   logoFooter: z.string().nullable(),
   logoHeaderQuotation: z.string().nullable(),
+  documentTerms: z.string().nullable(),
   updatedAt: z.string().nullable(),
 })
 
@@ -58,6 +59,7 @@ function serialize(row: DocumentSettings | null) {
       logoHeader: null,
       logoFooter: null,
       logoHeaderQuotation: null,
+      documentTerms: null,
       updatedAt: null,
     }
   }
@@ -79,6 +81,7 @@ function serialize(row: DocumentSettings | null) {
     logoHeader: row.logoHeader ?? null,
     logoFooter: row.logoFooter ?? null,
     logoHeaderQuotation: row.logoHeaderQuotation ?? null,
+    documentTerms: row.documentTerms ?? null,
     updatedAt: row.updatedAt ? row.updatedAt.toISOString() : null,
   }
 }
@@ -140,6 +143,7 @@ export async function PUT(req: Request) {
     if (input.logoHeader !== undefined) target.logoHeader = input.logoHeader
     if (input.logoFooter !== undefined) target.logoFooter = input.logoFooter
     if (input.logoHeaderQuotation !== undefined) target.logoHeaderQuotation = input.logoHeaderQuotation
+    if (input.documentTerms !== undefined) target.documentTerms = input.documentTerms || null
     if (input.invoiceNumberFormat) target.invoiceNumberFormat = input.invoiceNumberFormat
     if (input.brandColor) target.brandColor = input.brandColor
     if (input.templateQuotation) target.templateQuotation = input.templateQuotation

@@ -45,6 +45,7 @@ export const settingsPutSchema = z.object({
   logoHeader: logoSchema,
   logoFooter: logoSchema,
   logoHeaderQuotation: logoSchema,
+  documentTerms: z.string().trim().max(2000).optional().nullable(),
 })
 
 export const previewQuerySchema = z.object({

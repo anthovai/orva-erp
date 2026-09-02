@@ -4,11 +4,13 @@ import type { TemplateId } from '../../lib/document'
 import { BrandTemplate } from './brand'
 import {
   AmountInWords,
+  CopyRoleLabel,
   LineItemsTable,
   PartyBlock,
   PaymentDetailsBlock,
   SignatureRow,
   TaxIdentityLine,
+  TermsBlock,
   TotalsBlock,
   formatThaiDate,
   type TemplateProps,
@@ -38,7 +40,7 @@ function DocumentHeader({ doc, t }: TemplateProps) {
         <div className="text-xl font-bold">{doc.headingTh}</div>
         <div className="text-xs uppercase tracking-wide text-muted-foreground">{doc.headingEn}</div>
         {doc.isTaxDocument ? (
-          <div className="mt-1 text-xs font-medium">{t('orva_documents.copy.original', 'ต้นฉบับ')}</div>
+          <div className="mt-1 text-xs font-medium"><CopyRoleLabel doc={doc} t={t} /></div>
         ) : null}
       </div>
     </div>
@@ -91,6 +93,7 @@ function ClassicTemplate({ doc, t }: TemplateProps) {
       </div>
       <PaymentDetailsBlock doc={doc} t={t} />
       {doc.note ? <p className="text-xs leading-5 text-muted-foreground">{doc.note}</p> : null}
+      <TermsBlock doc={doc} t={t} />
       <SignatureRow t={t} />
     </div>
   )
@@ -124,6 +127,7 @@ function ModernTemplate({ doc, t }: TemplateProps) {
       <AmountInWords doc={doc} t={t} />
       <PaymentDetailsBlock doc={doc} t={t} />
       {doc.note ? <p className="text-xs leading-5 text-muted-foreground">{doc.note}</p> : null}
+      <TermsBlock doc={doc} t={t} />
       <SignatureRow t={t} />
     </div>
   )

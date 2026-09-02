@@ -69,6 +69,7 @@ export function sellerFrom(settings: DocumentSettings | null): Party {
   }
   return {
     name: settings.sellerName,
+    legalName: settings.sellerLegalName ?? null,
     taxId: settings.sellerTaxId ?? null,
     branch: settings.sellerBranch ?? null,
     address: settings.sellerAddress ?? null,
@@ -409,6 +410,7 @@ export async function documentFromQuote(
     paymentDetails: args.settings?.paymentDetails ?? null,
     logoHeader: headerLogoFor(args.type, args.settings),
     logoFooter: args.settings?.logoFooter ?? null,
+    terms: args.settings?.documentTerms ?? null,
   })
 }
 
@@ -435,6 +437,7 @@ export function sampleDocument(args: {
     paymentDetails: args.settings?.paymentDetails ?? null,
     logoHeader: headerLogoFor(args.type, args.settings),
     logoFooter: args.settings?.logoFooter ?? null,
+    terms: args.settings?.documentTerms ?? null,
   })
 }
 

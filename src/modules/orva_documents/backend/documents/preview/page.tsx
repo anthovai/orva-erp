@@ -24,7 +24,7 @@ type PreviewResponse = { document: PrintableDocument; sources: SourceOption[]; u
 const TYPE_LABELS: Record<DocumentType, { key: string; fallback: string }> = {
   quotation: { key: 'orva_documents.type.quotation', fallback: 'ใบเสนอราคา' },
   invoice: { key: 'orva_documents.type.invoice', fallback: 'ใบแจ้งหนี้' },
-  tax_invoice: { key: 'orva_documents.type.tax_invoice', fallback: 'ใบกำกับภาษี' },
+  tax_invoice: { key: 'orva_documents.type.tax_invoice', fallback: 'ใบกำกับภาษี / ใบแจ้งหนี้' },
   receipt: { key: 'orva_documents.type.receipt', fallback: 'ใบกำกับภาษี/ใบเสร็จรับเงิน' },
 }
 
@@ -256,7 +256,7 @@ export default function DocumentPreviewPage() {
               {t('orva_documents.preview.failed', 'ไม่สามารถสร้างตัวอย่างเอกสารได้')}
             </p>
           ) : (
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center gap-6">
               {/* A4 sheet: fixed width so the on-screen preview matches paper */}
               <div
                 // the server-side PDF renderer waits for this marker before printing
@@ -265,6 +265,16 @@ export default function DocumentPreviewPage() {
               >
                 <Template doc={doc} t={t} />
               </div>
+              {doc.isTaxDocument ? (
+                // Thai practice prints tax documents in duplicate: ต้นฉบับ for
+                // the customer, สำเนา kept by the company — the second sheet
+                // starts a new page in print/PDF.
+                <div
+                  className="w-[794px] max-w-full break-before-page bg-card p-10 shadow-sm print:w-full print:p-0 print:shadow-none"
+                >
+                  <Template doc={{ ...doc, copyRole: 'copy' }} t={t} />
+                </div>
+              ) : null}
             </div>
           )}
         </div>

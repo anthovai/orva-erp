@@ -2058,6 +2058,12 @@
       "rule": "inline-style",
       "match": "style=",
       "reason": "The footer mark is a tenant-uploaded logo knocked out to white with a CSS filter at render time — per-tenant runtime data, not a design-system colour."
+    },
+    {
+      "file": "src/modules/orva_documents/backend/documents/preview/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "w-[794px]",
+      "reason": "A4 paper width at 96dpi — the second sheet (สำเนา for the company) must match the printed page exactly, a physical measurement rather than a design-system step."
     }
   ]
 }

@@ -144,6 +144,29 @@ export function AmountInWords({ doc, t }: TemplateProps) {
   )
 }
 
+/** ต้นฉบับ (สำหรับลูกค้า) or สำเนา (สำหรับบริษัท) — tax documents print both. */
+export function CopyRoleLabel({ doc, t }: TemplateProps) {
+  if (!doc.isTaxDocument) return null
+  return (
+    <span>
+      {doc.copyRole === 'copy'
+        ? t('orva_documents.copy.copy', 'สำเนา (สำหรับบริษัท)')
+        : t('orva_documents.copy.original', 'ต้นฉบับ (สำหรับลูกค้า)')}
+    </span>
+  )
+}
+
+/** Standard terms from settings — the statutory form's หมายเหตุ clauses. */
+export function TermsBlock({ doc, t }: TemplateProps) {
+  if (!doc.terms) return null
+  return (
+    <div className="text-xs leading-5">
+      <div className="font-semibold">{t('orva_documents.field.note', 'หมายเหตุ')}</div>
+      <p className="whitespace-pre-line text-muted-foreground">{doc.terms}</p>
+    </div>
+  )
+}
+
 /** การชำระเงิน block from settings — bank account and terms, every type. */
 export function PaymentDetailsBlock({ doc, t }: TemplateProps) {
   if (!doc.paymentDetails) return null

@@ -92,6 +92,14 @@ export class DocumentSettings {
   @Property({ name: 'logo_header_quotation', type: 'text', nullable: true })
   logoHeaderQuotation?: string | null
 
+  /**
+   * Standard terms (หมายเหตุ) printed on tax documents — cheque crossing,
+   * title retention, the 7-day correction window (E.&O.E.) — straight from
+   * the tenant's statutory form.
+   */
+  @Property({ name: 'document_terms', type: 'text', nullable: true })
+  documentTerms?: string | null
+
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()
 
