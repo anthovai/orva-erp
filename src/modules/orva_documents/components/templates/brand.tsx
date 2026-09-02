@@ -133,12 +133,18 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
 
       {/* payment terms beside the client signature line, like the paper */}
       <div className="mt-6 grid grid-cols-2 items-end gap-8">
-        <div className="text-xs leading-5">
+        <div className="space-y-2 text-xs leading-5">
+          {doc.paymentDetails ? (
+            <div>
+              <div className="font-bold">{t('orva_documents.brand.paymentDetails', 'การชำระเงิน')}</div>
+              <p className="whitespace-pre-line">{doc.paymentDetails}</p>
+            </div>
+          ) : null}
           {doc.note ? (
-            <>
-              <div className="font-bold">{t('orva_documents.brand.paymentDetails', 'รายละเอียดการชำระเงิน')}</div>
+            <div>
+              <div className="font-bold">{t('orva_documents.field.note', 'หมายเหตุ')}</div>
               <p className="whitespace-pre-line text-muted-foreground">{doc.note}</p>
-            </>
+            </div>
           ) : null}
         </div>
         <div className="text-center text-sm">

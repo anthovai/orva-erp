@@ -96,6 +96,8 @@ export type PrintableDocument = {
   amountInWords: string | null
   note: string | null
   paymentMethod: string | null
+  /** การชำระเงิน block from settings (bank account, terms) — every type. */
+  paymentDetails: string | null
   /** Accent colour for the 'brand' template (tenant-configured). */
   accentColor: string | null
   /** True for statutory documents: templates then print the tax id block. */
@@ -129,6 +131,7 @@ export function buildPrintableDocument(input: {
   buyer: Party
   source: DocumentSource
   accentColor?: string | null
+  paymentDetails?: string | null
 }): PrintableDocument {
   const { type, template, seller, buyer, source } = input
   const heading = HEADINGS[type]
@@ -167,6 +170,7 @@ export function buildPrintableDocument(input: {
     amountInWords: source.currencyCode === 'THB' ? bahtText(source.grandTotal) : null,
     note: source.note ?? null,
     paymentMethod: type === 'receipt' ? (source.paymentMethod ?? null) : null,
+    paymentDetails: input.paymentDetails ?? null,
     isTaxDocument,
     warnings,
   }

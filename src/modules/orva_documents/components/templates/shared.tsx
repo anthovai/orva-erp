@@ -144,6 +144,17 @@ export function AmountInWords({ doc, t }: TemplateProps) {
   )
 }
 
+/** การชำระเงิน block from settings — bank account and terms, every type. */
+export function PaymentDetailsBlock({ doc, t }: TemplateProps) {
+  if (!doc.paymentDetails) return null
+  return (
+    <div className="text-xs leading-5">
+      <div className="font-semibold">{t('orva_documents.brand.paymentDetails', 'การชำระเงิน')}</div>
+      <p className="whitespace-pre-line text-muted-foreground">{doc.paymentDetails}</p>
+    </div>
+  )
+}
+
 export function SignatureRow({ t }: { t: TemplateProps['t'] }) {
   const slots = [
     t('orva_documents.field.signatureBuyer', 'ผู้รับสินค้า/บริการ'),

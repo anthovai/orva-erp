@@ -406,6 +406,7 @@ export async function documentFromQuote(
     buyer: partyFromSnapshot(args.row, buyerIdentity),
     source: sourceFromQuote(args.row, lines),
     accentColor: args.settings?.brandColor ?? null,
+    paymentDetails: args.settings?.paymentDetails ?? null,
   })
 }
 
@@ -422,6 +423,7 @@ export function sampleDocument(args: {
     buyer: sampleBuyer(),
     source: sampleSource(),
     accentColor: args.settings?.brandColor ?? null,
+    paymentDetails: args.settings?.paymentDetails ?? null,
   })
 }
 

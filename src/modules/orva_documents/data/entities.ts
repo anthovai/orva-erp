@@ -65,6 +65,14 @@ export class DocumentSettings {
   @Property({ name: 'brand_color', type: 'text', default: '#11836E' })
   brandColor: string = '#11836E'
 
+  /**
+   * The การชำระเงิน block printed on every document (bank name, account name
+   * and number, payment terms) — the tenant's real paper carries this on the
+   * quotation and the invoice alike, so it lives in settings, not per record.
+   */
+  @Property({ name: 'payment_details', type: 'text', nullable: true })
+  paymentDetails?: string | null
+
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()
 

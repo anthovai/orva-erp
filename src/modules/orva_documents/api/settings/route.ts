@@ -31,6 +31,7 @@ const settingsSchema = z.object({
   templateReceipt: z.string(),
   invoiceNumberFormat: z.string(),
   brandColor: z.string(),
+  paymentDetails: z.string().nullable(),
   updatedAt: z.string().nullable(),
 })
 
@@ -50,6 +51,7 @@ function serialize(row: DocumentSettings | null) {
       templateReceipt: 'classic',
       invoiceNumberFormat: 'INV-{yyyy}{mm}{dd}-{seq:5}',
       brandColor: '#11836E',
+      paymentDetails: null,
       updatedAt: null,
     }
   }
@@ -67,6 +69,7 @@ function serialize(row: DocumentSettings | null) {
     templateReceipt: row.templateReceipt,
     invoiceNumberFormat: row.invoiceNumberFormat,
     brandColor: row.brandColor,
+    paymentDetails: row.paymentDetails ?? null,
     updatedAt: row.updatedAt ? row.updatedAt.toISOString() : null,
   }
 }
@@ -124,6 +127,7 @@ export async function PUT(req: Request) {
     target.sellerAddress = input.sellerAddress ?? null
     target.sellerPhone = input.sellerPhone ?? null
     target.sellerEmail = input.sellerEmail ?? null
+    target.paymentDetails = input.paymentDetails === undefined ? (target.paymentDetails ?? null) : (input.paymentDetails || null)
     if (input.invoiceNumberFormat) target.invoiceNumberFormat = input.invoiceNumberFormat
     if (input.brandColor) target.brandColor = input.brandColor
     if (input.templateQuotation) target.templateQuotation = input.templateQuotation

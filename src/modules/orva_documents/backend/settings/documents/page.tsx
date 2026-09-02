@@ -21,6 +21,9 @@ type SettingsPayload = {
   templateInvoice: string
   templateTaxInvoice: string
   templateReceipt: string
+  invoiceNumberFormat: string
+  brandColor: string
+  paymentDetails: string | null
   updatedAt: string | null
 }
 
@@ -59,6 +62,21 @@ export default function DocumentSettingsPage() {
     { id: 'sellerAddress', label: t('orva_documents.settings.sellerAddress', 'ที่อยู่'), type: 'textarea' },
     { id: 'sellerPhone', label: t('orva_documents.settings.sellerPhone', 'โทรศัพท์'), type: 'text' },
     { id: 'sellerEmail', label: t('orva_documents.settings.sellerEmail', 'อีเมล'), type: 'text' },
+    {
+      id: 'paymentDetails',
+      label: t('orva_documents.settings.paymentDetails', 'การชำระเงิน (ชื่อบัญชี/ธนาคาร/เลขบัญชี/เงื่อนไข — พิมพ์บนเอกสารทุกใบ)'),
+      type: 'textarea',
+    },
+    {
+      id: 'invoiceNumberFormat',
+      label: t('orva_documents.settings.invoiceNumberFormat', 'รูปแบบเลขที่ใบแจ้งหนี้ (เช่น KK-INV-{yyyy}{seq:3})'),
+      type: 'text',
+    },
+    {
+      id: 'brandColor',
+      label: t('orva_documents.settings.brandColor', 'สีประจำกิจการ (ใช้ในเทมเพลตแบบแบรนด์ เช่น #E8352A)'),
+      type: 'text',
+    },
     { id: 'templateQuotation', label: t('orva_documents.type.quotation', 'ใบเสนอราคา'), type: 'select', options: templateOptions },
     { id: 'templateInvoice', label: t('orva_documents.type.invoice', 'ใบแจ้งหนี้'), type: 'select', options: templateOptions },
     { id: 'templateTaxInvoice', label: t('orva_documents.type.tax_invoice', 'ใบกำกับภาษี'), type: 'select', options: templateOptions },
@@ -70,13 +88,13 @@ export default function DocumentSettingsPage() {
       id: 'seller',
       title: t('orva_documents.settings.groupSeller', 'ข้อมูลกิจการบนเอกสาร'),
       column: 1,
-      fields: ['sellerName', 'sellerLegalName', 'sellerTaxId', 'sellerBranch', 'sellerAddress', 'sellerPhone', 'sellerEmail'],
+      fields: ['sellerName', 'sellerLegalName', 'sellerTaxId', 'sellerBranch', 'sellerAddress', 'sellerPhone', 'sellerEmail', 'paymentDetails'],
     },
     {
       id: 'templates',
       title: t('orva_documents.settings.groupTemplates', 'เทมเพลตประจำเอกสารแต่ละชนิด'),
       column: 2,
-      fields: ['templateQuotation', 'templateInvoice', 'templateTaxInvoice', 'templateReceipt'],
+      fields: ['templateQuotation', 'templateInvoice', 'templateTaxInvoice', 'templateReceipt', 'invoiceNumberFormat', 'brandColor'],
     },
   ], [t])
 
