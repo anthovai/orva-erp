@@ -28,14 +28,24 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
         <div className="flex items-start gap-4 pt-1">
           {doc.logoHeader ? (
             // eslint-disable-next-line @next/next/no-img-element -- data URI from tenant settings; next/image cannot optimize it
-            <img src={doc.logoHeader} alt="" className="h-20 w-20 shrink-0 object-contain" />
+            <img src={doc.logoHeader} alt={doc.seller.name} className="h-20 max-w-52 shrink-0 object-contain" />
           ) : null}
-          <div>
-            <div className="text-xl font-extrabold uppercase leading-tight" style={{ color: accent }}>
-              {doc.seller.name}
+          {/* A logo REPLACES the display name (the tenant's call) — except on
+              statutory documents, where the seller's name is required by law,
+              so the legal name stays, smaller, beside the taxpayer id. */}
+          {!doc.logoHeader ? (
+            <div>
+              <div className="text-xl font-extrabold uppercase leading-tight" style={{ color: accent }}>
+                {doc.seller.name}
+              </div>
+              {doc.isTaxDocument ? <TaxIdentityLine taxId={doc.seller.taxId} branch={doc.seller.branch} t={t} /> : null}
             </div>
-            {doc.isTaxDocument ? <TaxIdentityLine taxId={doc.seller.taxId} branch={doc.seller.branch} t={t} /> : null}
-          </div>
+          ) : doc.isTaxDocument ? (
+            <div className="pt-1">
+              <div className="text-sm font-bold">{doc.seller.name}</div>
+              <TaxIdentityLine taxId={doc.seller.taxId} branch={doc.seller.branch} t={t} />
+            </div>
+          ) : null}
         </div>
         <div className="text-right">
           <div className="text-3xl font-extrabold leading-none" style={{ color: accent }}>{doc.headingEn}</div>

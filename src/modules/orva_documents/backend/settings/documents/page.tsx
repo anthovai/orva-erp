@@ -32,6 +32,7 @@ type SettingsPayload = {
   paymentDetails: string | null
   logoHeader: string | null
   logoFooter: string | null
+  logoHeaderQuotation: string | null
   updatedAt: string | null
 }
 
@@ -158,7 +159,13 @@ export default function DocumentSettingsPage() {
     },
     {
       id: 'logoHeader',
-      label: t('orva_documents.settings.logoHeader', 'โลโก้หัวกระดาษ (แนะนำพื้นหลังโปร่งใส)'),
+      label: t('orva_documents.settings.logoHeader', 'โลโก้หัวกระดาษ — เอกสารเรียกเก็บ (มีโลโก้แล้วไม่พิมพ์ชื่อกิจการ ยกเว้นเอกสารภาษีที่กฎหมายบังคับ)'),
+      type: 'custom',
+      component: (props) => <LogoField {...props} t={t} />,
+    },
+    {
+      id: 'logoHeaderQuotation',
+      label: t('orva_documents.settings.logoHeaderQuotation', 'โลโก้หัวกระดาษ — ใบเสนอราคา (ถ้าไม่ตั้ง ใช้โลโก้เอกสารเรียกเก็บ)'),
       type: 'custom',
       component: (props) => <LogoField {...props} t={t} />,
     },
@@ -185,7 +192,7 @@ export default function DocumentSettingsPage() {
       id: 'templates',
       title: t('orva_documents.settings.groupTemplates', 'เทมเพลตประจำเอกสารแต่ละชนิด'),
       column: 2,
-      fields: ['templateQuotation', 'templateInvoice', 'templateTaxInvoice', 'templateReceipt', 'invoiceNumberFormat', 'brandColor', 'logoHeader', 'logoFooter'],
+      fields: ['templateQuotation', 'templateInvoice', 'templateTaxInvoice', 'templateReceipt', 'invoiceNumberFormat', 'brandColor', 'logoHeader', 'logoHeaderQuotation', 'logoFooter'],
     },
   ], [t])
 

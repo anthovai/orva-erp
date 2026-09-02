@@ -85,6 +85,13 @@ export class DocumentSettings {
   @Property({ name: 'logo_footer', type: 'text', nullable: true })
   logoFooter?: string | null
 
+  /**
+   * Quotation-specific header logo — the tenant brands the quotation
+   * differently from billing documents. Falls back to logoHeader when unset.
+   */
+  @Property({ name: 'logo_header_quotation', type: 'text', nullable: true })
+  logoHeaderQuotation?: string | null
+
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()
 

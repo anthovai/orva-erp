@@ -407,9 +407,16 @@ export async function documentFromQuote(
     source: sourceFromQuote(args.row, lines),
     accentColor: args.settings?.brandColor ?? null,
     paymentDetails: args.settings?.paymentDetails ?? null,
-    logoHeader: args.settings?.logoHeader ?? null,
+    logoHeader: headerLogoFor(args.type, args.settings),
     logoFooter: args.settings?.logoFooter ?? null,
   })
+}
+
+/** The quotation may carry its own mark; billing documents share logoHeader. */
+function headerLogoFor(type: DocumentType, settings: DocumentSettings | null): string | null {
+  if (!settings) return null
+  if (type === 'quotation') return settings.logoHeaderQuotation ?? settings.logoHeader ?? null
+  return settings.logoHeader ?? null
 }
 
 /** Sample sheet for tenants with no sales records yet. */
@@ -426,7 +433,7 @@ export function sampleDocument(args: {
     source: sampleSource(),
     accentColor: args.settings?.brandColor ?? null,
     paymentDetails: args.settings?.paymentDetails ?? null,
-    logoHeader: args.settings?.logoHeader ?? null,
+    logoHeader: headerLogoFor(args.type, args.settings),
     logoFooter: args.settings?.logoFooter ?? null,
   })
 }

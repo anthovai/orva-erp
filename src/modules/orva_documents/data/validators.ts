@@ -44,6 +44,7 @@ export const settingsPutSchema = z.object({
   paymentDetails: z.string().trim().max(1000).optional().nullable(),
   logoHeader: logoSchema,
   logoFooter: logoSchema,
+  logoHeaderQuotation: logoSchema,
 })
 
 export const previewQuerySchema = z.object({
