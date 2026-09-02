@@ -33,13 +33,25 @@ export default function QuoteInstallmentsWidget({ data }: { data?: Record<string
   const [items, setItems] = React.useState<Installment[] | null>(null)
   const [paymentInvoiceId, setPaymentInvoiceId] = React.useState<string | null>(null)
   const [reloadKey, setReloadKey] = React.useState(0)
+  // first slip attachment per paid invoice — the transfer proof, one click away
+  const [slips, setSlips] = React.useState<Record<string, string>>({})
 
   React.useEffect(() => {
     if (!quoteId) return
     let cancelled = false
     apiCall<{ items: Installment[] }>(`/api/orva_documents/issue-invoice?quoteId=${quoteId}`)
-      .then((call) => {
-        if (!cancelled && call.ok && call.result) setItems(call.result.items)
+      .then(async (call) => {
+        if (cancelled || !call.ok || !call.result) return
+        setItems(call.result.items)
+        const paid = call.result.items.filter((item) => item.paidDate)
+        const entries = await Promise.all(paid.map(async (item) => {
+          const res = await apiCall<{ items?: Array<{ id: string }> }>(
+            `/api/attachments?entityId=sales:sales_invoice&recordId=${item.id}&pageSize=1`,
+          ).catch(() => null)
+          const attachmentId = res?.ok ? res.result?.items?.[0]?.id : undefined
+          return attachmentId ? ([item.id, attachmentId] as const) : null
+        }))
+        if (!cancelled) setSlips(Object.fromEntries(entries.filter((entry): entry is [string, string] => !!entry)))
       })
       .catch(() => { if (!cancelled) setItems([]) })
     return () => { cancelled = true }
@@ -87,6 +99,13 @@ export default function QuoteInstallmentsWidget({ data }: { data?: Record<string
                 {!item.paidDate ? (
                   <Button variant="outline" size="sm" onClick={() => setPaymentInvoiceId(item.id)}>
                     {t('orva_documents.payment.title', 'บันทึกรับชำระ')}
+                  </Button>
+                ) : null}
+                {slips[item.id] ? (
+                  <Button asChild variant="ghost" size="sm">
+                    <a href={`/api/attachments/file/${slips[item.id]}`} target="_blank" rel="noreferrer">
+                      {t('orva_documents.payment.viewSlip', 'ดูสลิป')}
+                    </a>
                   </Button>
                 ) : null}
                 <Button asChild variant="outline" size="sm">

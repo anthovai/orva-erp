@@ -50,6 +50,7 @@ export function RecordPaymentDialog({
   const [withWht, setWithWht] = React.useState(true)
   const [amount, setAmount] = React.useState('')
   const [note, setNote] = React.useState('')
+  const [slipFile, setSlipFile] = React.useState<File | null>(null)
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -65,6 +66,7 @@ export function RecordPaymentDialog({
     setError(null)
     setPaidDate(today())
     setNote('')
+    setSlipFile(null)
     apiCall<PaymentContext>(`/api/orva_documents/record-payment?invoiceId=${invoiceId}`)
       .then((call) => {
         if (cancelled) return
@@ -115,6 +117,23 @@ export function RecordPaymentDialog({
           : t('orva_documents.payment.saveFailed', 'บันทึกรับชำระไม่สำเร็จ'),
       )
       return
+    }
+    // the slip rides along AFTER the payment persisted — a failed upload must
+    // not roll back the recorded payment, only warn
+    if (slipFile) {
+      const form = new FormData()
+      form.set('entityId', 'sales:sales_invoice')
+      form.set('recordId', invoiceId)
+      form.set('file', slipFile)
+      const uploaded = await fetch('/api/attachments', { method: 'POST', credentials: 'include', body: form })
+        .then((res) => res.ok)
+        .catch(() => false)
+      if (!uploaded) {
+        flash(t('orva_documents.payment.slipFailed', 'บันทึกรับชำระแล้ว แต่แนบสลิปไม่สำเร็จ — ลองแนบใหม่ได้'), 'error')
+        onOpenChange(false)
+        onRecorded?.()
+        return
+      }
     }
     flash(t('orva_documents.payment.saved', 'บันทึกรับชำระแล้ว'), 'success')
     onOpenChange(false)
@@ -189,6 +208,18 @@ export function RecordPaymentDialog({
                 value={note}
                 maxLength={500}
                 onChange={(event) => setNote(event.target.value)}
+              />
+            </div>
+            <div className="grid gap-1">
+              <label htmlFor="orva-payment-slip" className="text-sm font-medium">
+                {t('orva_documents.payment.slip', 'แนบสลิปโอนเงิน (รูปหรือ PDF)')}
+              </label>
+              <input
+                id="orva-payment-slip"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,application/pdf"
+                className="text-xs"
+                onChange={(event) => setSlipFile(event.target.files?.[0] ?? null)}
               />
             </div>
             <div className="flex justify-end gap-2">
