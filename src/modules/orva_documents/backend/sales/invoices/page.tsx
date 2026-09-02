@@ -8,6 +8,7 @@ import { fetchCrudList } from '@open-mercato/ui/backend/utils/crud'
 import { useQuery } from '@tanstack/react-query'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy'
+import { RecordPaymentDialog } from '../../../components/RecordPaymentDialog'
 
 /**
  * The invoice list upstream never shipped: sales_invoices has entities, CRUD
@@ -37,6 +38,7 @@ export default function OrvaInvoicesPage() {
   const t = useT()
   const router = useRouter()
   const [page, setPage] = React.useState(1)
+  const [paymentInvoiceId, setPaymentInvoiceId] = React.useState<string | null>(null)
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['orva_documents.invoices', page],
     queryFn: async () =>
@@ -110,6 +112,11 @@ export default function OrvaInvoicesPage() {
                   href: `/backend/documents/preview?type=invoice&documentId=${row.id}`,
                 },
                 {
+                  id: 'payment',
+                  label: t('orva_documents.payment.title', 'บันทึกรับชำระ'),
+                  onSelect: () => setPaymentInvoiceId(row.id),
+                },
+                {
                   id: 'receipt',
                   label: t('orva_documents.rowAction.receipt', 'ออกใบกำกับภาษี/ใบเสร็จ'),
                   href: `/backend/documents/preview?type=receipt&documentId=${row.id}`,
@@ -123,6 +130,12 @@ export default function OrvaInvoicesPage() {
               {t('orva_documents.invoices.empty', 'ยังไม่มีใบแจ้งหนี้ — ออกได้จากใบเสนอราคาที่ต้องการเรียกเก็บ')}
             </div>
           }
+        />
+        <RecordPaymentDialog
+          invoiceId={paymentInvoiceId}
+          open={paymentInvoiceId !== null}
+          onOpenChange={(next) => { if (!next) setPaymentInvoiceId(null) }}
+          onRecorded={() => { void refetch() }}
         />
       </PageBody>
     </Page>

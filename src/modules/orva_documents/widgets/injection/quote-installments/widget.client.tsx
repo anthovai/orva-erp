@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { apiCall } from '@open-mercato/ui/backend/utils/apiCall'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { RecordPaymentDialog } from '../../../components/RecordPaymentDialog'
 
 type Installment = {
   id: string
@@ -30,6 +31,8 @@ export default function QuoteInstallmentsWidget({ data }: { data?: Record<string
   const t = useT()
   const quoteId = typeof data?.id === 'string' ? data.id : null
   const [items, setItems] = React.useState<Installment[] | null>(null)
+  const [paymentInvoiceId, setPaymentInvoiceId] = React.useState<string | null>(null)
+  const [reloadKey, setReloadKey] = React.useState(0)
 
   React.useEffect(() => {
     if (!quoteId) return
@@ -40,7 +43,7 @@ export default function QuoteInstallmentsWidget({ data }: { data?: Record<string
       })
       .catch(() => { if (!cancelled) setItems([]) })
     return () => { cancelled = true }
-  }, [quoteId])
+  }, [quoteId, reloadKey])
 
   if (!quoteId) return null
 
@@ -81,6 +84,11 @@ export default function QuoteInstallmentsWidget({ data }: { data?: Record<string
                     {t('orva_documents.type.invoice', 'ใบแจ้งหนี้')}
                   </Link>
                 </Button>
+                {!item.paidDate ? (
+                  <Button variant="outline" size="sm" onClick={() => setPaymentInvoiceId(item.id)}>
+                    {t('orva_documents.payment.title', 'บันทึกรับชำระ')}
+                  </Button>
+                ) : null}
                 <Button asChild variant="outline" size="sm">
                   <Link href={`/backend/documents/preview?type=receipt&documentId=${item.id}`}>
                     {t('orva_documents.rowAction.receipt', 'ออกใบกำกับภาษี/ใบเสร็จ')}
@@ -91,6 +99,12 @@ export default function QuoteInstallmentsWidget({ data }: { data?: Record<string
           ))}
         </ul>
       )}
+      <RecordPaymentDialog
+        invoiceId={paymentInvoiceId}
+        open={paymentInvoiceId !== null}
+        onOpenChange={(next) => { if (!next) setPaymentInvoiceId(null) }}
+        onRecorded={() => setReloadKey((k) => k + 1)}
+      />
     </div>
   )
 }

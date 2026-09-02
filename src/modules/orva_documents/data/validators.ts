@@ -70,6 +70,22 @@ export const issueInvoiceSchema = z
     message: 'Provide exactly one of amount or percent',
   })
 
+/**
+ * Recording a payment against an issued invoice. Thai service practice: the
+ * buyer withholds 3% of the pre-VAT amount (ภาษีหัก ณ ที่จ่าย) and remits it
+ * to the Revenue Department, so cash received + WHT together settle the bill.
+ */
+export const recordPaymentSchema = z.object({
+  invoiceId: z.string().uuid(),
+  /** YYYY-MM-DD */
+  paidDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  amountReceived: z.coerce.number().positive(),
+  whtAmount: z.coerce.number().min(0).default(0),
+  note: z.string().trim().max(500).optional(),
+  /** Optimistic lock: the invoice's updatedAt as read — mismatch is a 409. */
+  updatedAt: z.string().min(1),
+})
+
 /** Emailing a document: the recipient plus the same selector the preview uses. */
 export const sendSchema = z.object({
   to: z.string().trim().email(),
