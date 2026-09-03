@@ -109,3 +109,56 @@ export function buildBillJournalLines(
 export function computeBillGross(lines: BillLineAmount[], tax: number | string = 0): string {
   return (Number(computeBillTotal(lines)) + (Number(tax) || 0)).toFixed(4)
 }
+
+/**
+ * ค่าใช้จ่ายจ่ายสด (expense claim / petty cash): one payment with no vendor bill
+ * behind it — the receipt IS the document. Money leaves a cash or bank
+ * account; input VAT is claimable when the seller issued a tax invoice; a
+ * service payment may carry withholding we must remit.
+ *
+ *   Dr expense (net)            the category account
+ *   Dr input VAT                when a tax invoice was issued
+ *     Cr WHT payable            when we withheld
+ *     Cr cash/bank              what actually left the account
+ */
+export function buildExpenseJournalLines(input: {
+  expenseAccountId: string
+  net: number | string
+  vat?: number | string
+  wht?: number | string
+  cashAccountId: string
+  inputVatAccountId?: string | null
+  whtPayableAccountId?: string | null
+  description?: string | null
+}): JournalLineDraft[] {
+  const net = Number(input.net)
+  const vat = Number(input.vat ?? 0) || 0
+  const wht = Number(input.wht ?? 0) || 0
+  if (!Number.isFinite(net) || net <= 0) throw new Error('orva_ap: expense amount must be positive')
+  if (vat < 0 || wht < 0) throw new Error('orva_ap: VAT and withholding must not be negative')
+  if (!input.expenseAccountId) throw new Error('orva_ap: expense account is required')
+  if (!input.cashAccountId) throw new Error('orva_ap: cash account is required')
+  if (vat > 0 && !input.inputVatAccountId) throw new Error('orva_ap: input VAT account is not configured')
+  if (wht > 0 && !input.whtPayableAccountId) throw new Error('orva_ap: WHT payable account is not configured')
+  const gross = Math.round((net + vat) * 100) / 100
+  const paid = Math.round((gross - wht) * 100) / 100
+  if (paid <= 0) throw new Error('orva_ap: withholding cannot consume the whole payment')
+  const lines: JournalLineDraft[] = [
+    { accountId: input.expenseAccountId, debit: net.toFixed(4), credit: '0.0000', description: input.description ?? 'ค่าใช้จ่าย' },
+  ]
+  if (vat > 0 && input.inputVatAccountId) {
+    lines.push({ accountId: input.inputVatAccountId, debit: vat.toFixed(4), credit: '0.0000', description: 'ภาษีซื้อ' })
+  }
+  if (wht > 0 && input.whtPayableAccountId) {
+    lines.push({ accountId: input.whtPayableAccountId, debit: '0.0000', credit: wht.toFixed(4), description: 'ภาษีหัก ณ ที่จ่ายค้างนำส่ง' })
+  }
+  lines.push({ accountId: input.cashAccountId, debit: '0.0000', credit: paid.toFixed(4), description: 'จ่ายเงิน' })
+  return lines
+}
+
+/** VAT contained in a VAT-inclusive receipt total: 107 → { net: 100, vat: 7 }. */
+export function splitInclusiveReceipt(total: number, vatRate = 7): { net: number; vat: number } {
+  const gross = Math.round(total * 100) / 100
+  const net = Math.round((gross / (1 + vatRate / 100)) * 100) / 100
+  return { net, vat: Math.round((gross - net) * 100) / 100 }
+}

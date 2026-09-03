@@ -1,7 +1,9 @@
 import { describe, expect, test } from '@jest/globals'
 import {
   buildBillJournalLines,
+  buildExpenseJournalLines,
   buildPaymentJournalLines,
+  splitInclusiveReceipt,
   checkAllocationFits,
   computeAllocationsTotal,
   computeBillTotal,
@@ -72,5 +74,36 @@ describe('orva_finance AP posting helpers', () => {
     expect(checkAllocationFits(500, 100, 400)).toEqual({ ok: true })
     expect(checkAllocationFits(500, 100, 400.01)).toMatchObject({ ok: false })
     expect(checkAllocationFits('500.0000', '0', '500')).toEqual({ ok: true })
+  })
+})
+
+describe('expense claims (ค่าใช้จ่ายจ่ายสด)', () => {
+  test('a VAT receipt paid from the bank books expense, input VAT and the cash out', () => {
+    const lines = buildExpenseJournalLines({
+      expenseAccountId: '5700', net: 1000, vat: 70, cashAccountId: '1020', inputVatAccountId: '1300', description: 'ค่าคลาวด์',
+    })
+    expect(lines.map((l) => [l.accountId, l.debit, l.credit])).toEqual([
+      ['5700', '1000.0000', '0.0000'],
+      ['1300', '70.0000', '0.0000'],
+      ['1020', '0.0000', '1070.0000'],
+    ])
+  })
+
+  test('a service payment with 3% withholding pays less cash and books the WHT we owe', () => {
+    const lines = buildExpenseJournalLines({
+      expenseAccountId: '5600', net: 10000, vat: 700, wht: 300, cashAccountId: '1020', inputVatAccountId: '1300', whtPayableAccountId: '2400',
+    })
+    const total = lines.reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0)
+    expect(Math.round(total * 100) / 100).toBe(0)
+    expect(lines.find((l) => l.accountId === '2400')?.credit).toBe('300.0000')
+    expect(lines.find((l) => l.accountId === '1020')?.credit).toBe('10400.0000')
+  })
+
+  test('missing accounts and impossible amounts are refused; inclusive totals split', () => {
+    expect(() => buildExpenseJournalLines({ expenseAccountId: '5900', net: 100, vat: 7, cashAccountId: '1010' })).toThrow(/input VAT/)
+    expect(() => buildExpenseJournalLines({ expenseAccountId: '5900', net: 0, cashAccountId: '1010' })).toThrow(/positive/)
+    expect(() => buildExpenseJournalLines({ expenseAccountId: '5900', net: 100, wht: 200, cashAccountId: '1010', whtPayableAccountId: '2400' })).toThrow(/whole payment/)
+    expect(splitInclusiveReceipt(107)).toEqual({ net: 100, vat: 7 })
+    expect(splitInclusiveReceipt(590)).toEqual({ net: 551.4, vat: 38.6 })
   })
 })

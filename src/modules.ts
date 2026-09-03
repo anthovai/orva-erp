@@ -81,7 +81,9 @@ const NAV = {
   stock: { pageGroup: 'Stock', pageGroupKey: 'orva.nav.stock' },
   accounting: { pageGroup: 'Accounting', pageGroupKey: 'orva.nav.accounting' },
   hr: { pageGroup: 'HR', pageGroupKey: 'orva.nav.hr' },
-  it: { pageGroup: 'IT Support', pageGroupKey: 'orva.nav.it' },
+  // Support = customer support for the software we shipped (tickets, bugs),
+  // NOT internal IT admin — those pages live under the settings panel.
+  support: { pageGroup: 'Support', pageGroupKey: 'orva.nav.support' },
 } as const
 const NAV_GROUP_ORDER = Object.values(NAV).map((g) => g.pageGroupKey)
 const regroup = (group: keyof typeof NAV, pageOrder: number) => ({ metadata: { ...NAV[group], pageOrder } })
@@ -120,7 +122,6 @@ export const enabledModules: ModuleEntry[] = [
           '/backend/customers/people/create': regroup('sales', 31),
           '/backend/customer-tasks': regroup('project', 10),
           '/backend/calendar': regroup('project', 20),
-          '/backend/config/customers/deals': regroup('it', 70),
         },
       },
     },
@@ -130,8 +131,8 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'entities', from: '@open-mercato/core', overrides: { routes: { pages: { '/backend/entities/user/create': null } } } },
   { id: 'configs', from: '@open-mercato/core' },
   { id: 'query_index', from: '@open-mercato/core' },
-  { id: 'audit_logs', from: '@open-mercato/core', overrides: { routes: { pages: { '/backend/audit-logs': regroup('it', 20) } } } },
-  { id: 'attachments', from: '@open-mercato/core', overrides: { routes: { pages: { '/backend/storage/attachments': regroup('it', 10) } } } },
+  { id: 'audit_logs', from: '@open-mercato/core' },
+  { id: 'attachments', from: '@open-mercato/core' },
   {
     id: 'catalog',
     from: '@open-mercato/core',
@@ -215,7 +216,7 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'dictionaries', from: '@open-mercato/core' },
   { id: 'content', from: '@open-mercato/content' },
   { id: 'onboarding', from: '@open-mercato/onboarding' },
-  { id: 'api_docs', from: '@open-mercato/core', overrides: { routes: { pages: { '/backend/docs': regroup('it', 30) } } } },
+  { id: 'api_docs', from: '@open-mercato/core' },
   {
     id: 'business_rules',
     from: '@open-mercato/core',
@@ -284,7 +285,7 @@ export const enabledModules: ModuleEntry[] = [
     },
   },
   { id: 'events', from: '@open-mercato/events' },
-  { id: 'notifications', from: '@open-mercato/core', overrides: { routes: { pages: { '/backend/profile/notification-preferences': regroup('it', 60) } } } },
+  { id: 'notifications', from: '@open-mercato/core' },
   { id: 'progress', from: '@open-mercato/core' },
   { id: 'integrations', from: '@open-mercato/core' },
   { id: 'data_sync', from: '@open-mercato/core' },
@@ -296,7 +297,7 @@ export const enabledModules: ModuleEntry[] = [
   {
     id: 'communication_channels',
     from: '@open-mercato/core',
-    overrides: { routes: { pages: { '/backend/communication_channels/channels': regroup('marketing', 30), '/backend/profile/communication-channels': regroup('it', 50) } } },
+    overrides: { routes: { pages: { '/backend/communication_channels/channels': regroup('marketing', 30) } } },
   },
   // Push notification rails — `push` delivery strategy + delivery log + send-push worker.
   // Fans out to `devices` tokens and sends through the `communication_channels` hub.
@@ -357,6 +358,8 @@ enabledModules.push({ id: 'orva_documents', from: '@app' })
 // Marventine product line on top of WMS lots: lot costs, receive from OEM bill,
 // retail sale + stock issue, valuation, COGS posting (operating-model spec, phase E).
 enabledModules.push({ id: 'orva_stock', from: '@app' })
+// Customer support for shipped software (benchmark spec F0 gap #7).
+enabledModules.push({ id: 'orva_support', from: '@app' })
 
 // Orva branding: registered LAST so its i18n overrides every module's defaults
 // (dictionary merge is last-write-wins across enabledModules order).

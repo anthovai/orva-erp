@@ -99,8 +99,24 @@ export async function vatReport(tem: EntityManager, scope: Scope, month: string)
        and (?::uuid is null or b.organization_id = ?::uuid)
        and b.tax_amount > 0
        and to_char(b.bill_date, 'YYYY-MM') = ?
-     order by b.bill_date, b.bill_no`,
-    [scope.tenantId, ...org(scope), month],
+     union all
+     -- expenses paid straight from cash/bank: the receipt is the document
+     select to_char(j.journal_date, 'YYYY-MM-DD') as date,
+            coalesce(j.metadata->>'documentNo', j.journal_no) as document_no,
+            j.metadata->>'documentNo' as vendor_ref,
+            j.metadata->>'payee' as vendor_name,
+            j.metadata->>'payeeTaxId' as vendor_tax_id,
+            (j.metadata->>'net')::numeric::text as base,
+            (j.metadata->>'vat')::numeric::text as vat,
+            ((j.metadata->>'net')::numeric + (j.metadata->>'vat')::numeric)::text as total
+     from orva_gl_journals j
+     where j.deleted_at is null and j.status = 'posted' and j.tenant_id = ?::uuid
+       and (?::uuid is null or j.organization_id = ?::uuid)
+       and j.metadata->>'source' = 'orva_finance.expense'
+       and coalesce((j.metadata->>'vat')::numeric, 0) > 0
+       and to_char(j.journal_date, 'YYYY-MM') = ?
+     order by 1, 2`,
+    [scope.tenantId, ...org(scope), month, scope.tenantId, ...org(scope), month],
   )) as VatPurchaseRow[]
 
   const sum = (rows: Array<{ base: string; vat: string }>) =>
@@ -147,8 +163,21 @@ export async function whtReport(tem: EntityManager, scope: Scope, month: string)
        and (?::uuid is null or pm.organization_id = ?::uuid)
        and pm.wht_amount > 0
        and to_char(pm.payment_date, 'YYYY-MM') = ?
-     order by pm.payment_date, pm.payment_no`,
-    [scope.tenantId, ...org(scope), month],
+     union all
+     -- withholding taken on an expense paid straight from cash/bank
+     select to_char(j.journal_date, 'YYYY-MM-DD') as date,
+            j.journal_no as payment_no, null as cert_no,
+            j.metadata->>'payee' as vendor_name, j.metadata->>'payeeTaxId' as vendor_tax_id,
+            null as income_type, (j.metadata->>'whtRate') as rate,
+            (j.metadata->>'net')::numeric::text as base, (j.metadata->>'wht')::numeric::text as wht
+     from orva_gl_journals j
+     where j.deleted_at is null and j.status = 'posted' and j.tenant_id = ?::uuid
+       and (?::uuid is null or j.organization_id = ?::uuid)
+       and j.metadata->>'source' = 'orva_finance.expense'
+       and coalesce((j.metadata->>'wht')::numeric, 0) > 0
+       and to_char(j.journal_date, 'YYYY-MM') = ?
+     order by 1, 2`,
+    [scope.tenantId, ...org(scope), month, scope.tenantId, ...org(scope), month],
   )) as WhtByUsRow[]
 
   const withheldFromUs = (await tem.execute(

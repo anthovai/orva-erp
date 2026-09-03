@@ -5,6 +5,7 @@ import { createRequestContainer } from '@open-mercato/shared/lib/di/container'
 import type { OpenApiRouteDoc } from '@open-mercato/shared/lib/openapi'
 import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
+import { whtReport } from '../../../lib/reportQueries'
 import { orvaFinanceTag } from '../../openapi'
 
 export const metadata = {
@@ -65,53 +66,7 @@ export async function GET(req: Request) {
   const container = await createRequestContainer()
   const em = container.resolve<EntityManager>('em')
 
-  const result = await withTenantRls(em, tenantId, async (tem) => {
-    const withheldByUs = (await tem.execute(
-      `select to_char(pm.payment_date, 'YYYY-MM-DD') as date,
-              pm.payment_no, pm.wht_cert_no as cert_no,
-              p.display_name as vendor_name, p.tax_id as vendor_tax_id,
-              pm.wht_type as income_type, pm.wht_rate::text as rate,
-              pm.total_amount::text as base, pm.wht_amount::text as wht
-       from orva_ap_payments pm
-       left join orva_parties p on p.id = pm.vendor_party_id
-       where pm.deleted_at is null and pm.status = 'posted' and pm.tenant_id = ?::uuid
-         and (?::uuid is null or pm.organization_id = ?::uuid)
-         and pm.wht_amount > 0
-         and to_char(pm.payment_date, 'YYYY-MM') = ?
-       order by pm.payment_date, pm.payment_no`,
-      [tenantId, organizationId ?? null, organizationId ?? null, month],
-    )) as Array<z.infer<typeof withheldByUsSchema>>
-
-    const withheldFromUs = (await tem.execute(
-      `select to_char(r.receipt_date, 'YYYY-MM-DD') as date,
-              r.receipt_no,
-              (select ip.invoice_number from orva_ar_receipt_allocations a
-                 join orva_ar_invoice_postings ip on ip.invoice_id = a.invoice_id
-                 where a.receipt_id = r.id and a.deleted_at is null limit 1) as invoice_no,
-              (select coalesce(i.metadata->'customerSnapshot'->'customer'->>'displayName',
-                               i.metadata->'customerSnapshot'->>'displayName')
-                 from orva_ar_receipt_allocations a
-                 join sales_invoices i on i.id = a.invoice_id
-                 where a.receipt_id = r.id and a.deleted_at is null limit 1) as customer_name,
-              r.wht_rate::text as rate,
-              r.total_amount::text as base, r.wht_amount::text as wht
-       from orva_ar_receipts r
-       where r.deleted_at is null and r.status = 'posted' and r.tenant_id = ?::uuid
-         and (?::uuid is null or r.organization_id = ?::uuid)
-         and r.wht_amount > 0
-         and to_char(r.receipt_date, 'YYYY-MM') = ?
-       order by r.receipt_date, r.receipt_no`,
-      [tenantId, organizationId ?? null, organizationId ?? null, month],
-    )) as Array<z.infer<typeof withheldFromUsSchema>>
-
-    const total = (rows: Array<{ wht: string }>) => rows.reduce((s, r) => s + Number(r.wht), 0)
-    return {
-      month,
-      withheldByUs,
-      withheldFromUs,
-      summary: { payable: total(withheldByUs).toFixed(2), receivable: total(withheldFromUs).toFixed(2) },
-    }
-  })
+  const result = await withTenantRls(em, tenantId, (tem) => whtReport(tem, { tenantId, organizationId }, month))
   return Response.json(result)
 }
 

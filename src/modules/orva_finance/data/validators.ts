@@ -348,3 +348,34 @@ export const bankStatementMatchSchema = z.object({
   status: z.enum(['matched', 'unmatched', 'excluded']).optional(),
 })
 
+
+/**
+ * ค่าใช้จ่ายจ่ายสด — an expense paid straight from cash/bank with no vendor
+ * bill. `vatMode: 'inclusive'` splits VAT out of a VAT-inclusive receipt
+ * total; 'exclusive' takes the VAT as given; 'none' claims no input VAT.
+ */
+export const expenseCreateSchema = z.object({
+  paidOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  payee: z.string().trim().min(1).max(200),
+  /** the seller's taxpayer id, when they issued a tax invoice */
+  payeeTaxId: z.string().trim().max(20).optional().nullable(),
+  /** their document number, for the input-VAT register */
+  documentNo: z.string().trim().max(60).optional().nullable(),
+  expenseAccountId: z.string().uuid(),
+  cashAccountId: z.string().uuid(),
+  amount: z.coerce.number().positive(),
+  vatMode: z.enum(['none', 'inclusive', 'exclusive']).default('none'),
+  /** VAT amount when vatMode = 'exclusive'; ignored otherwise */
+  vatAmount: z.coerce.number().min(0).optional().default(0),
+  whtAmount: z.coerce.number().min(0).optional().default(0),
+  whtRate: z.coerce.number().min(0).max(100).optional().nullable(),
+  memo: z.string().trim().max(500).optional().nullable(),
+})
+
+export const expenseListSchema = z
+  .object({
+    month: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+    page: z.coerce.number().int().min(1).optional().default(1),
+    pageSize: z.coerce.number().int().min(1).max(200).optional().default(50),
+  })
+  .passthrough()

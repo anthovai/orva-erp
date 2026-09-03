@@ -149,6 +149,14 @@ export class GlJournal {
   @Property({ name: 'posted_by', type: 'uuid', nullable: true })
   postedBy?: string | null
 
+  /**
+   * Free-form context for journals that have no document of their own — the
+   * expense screen stores payee, taxpayer id, document number and the VAT/WHT
+   * split here, and `source` names the screen that created the entry.
+   */
+  @Property({ type: 'jsonb', nullable: true })
+  metadata?: Record<string, unknown> | null
+
   @Property({ name: 'created_by', type: 'uuid', nullable: true })
   createdBy?: string | null
 
