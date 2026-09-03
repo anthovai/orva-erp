@@ -7,10 +7,13 @@ import type { RbacService } from '@open-mercato/core/modules/auth/services/rbacS
 import type { SalesDocumentNumberGenerator } from '@open-mercato/core/modules/sales/services/salesDocumentNumberGenerator'
 import { z } from 'zod'
 import { peekNextNumber } from './documentNumberPeek'
+import { claimBrandNumber, loadBrands, peekBrandNumber, readActiveBrandCode } from './brands'
 
 const bodySchema = z.object({
   kind: z.enum(['order', 'quote', 'invoice', 'credit_memo', 'return']),
   format: z.string().trim().min(1).max(120).optional(),
+  /** Brand series code (MRV …); defaults to the operator's active-brand cookie. */
+  brand: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{2,6}$/).optional(),
 })
 
 const KIND_FEATURE: Record<string, string> = {
@@ -51,8 +54,26 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const em = container.resolve<EntityManager>('em')
+  const scope = { tenantId: auth.tenantId, organizationId }
+
+  // Brand series: the operator switched brands (cookie set from the brands
+  // screen) or the caller named one (issue-invoice passes the quote's brand).
+  // Quotes preview, invoices claim — same split as the default series.
+  const brandCode = parsed.data.brand ?? readActiveBrandCode(req)
+  if (brandCode && (kind === 'quote' || kind === 'invoice')) {
+    const brand = (await loadBrands(em, scope)).find((b) => b.code === brandCode) ?? null
+    if (brand) {
+      if (kind === 'quote') {
+        const peek = await peekBrandNumber(em, scope, brand, 'quote')
+        if (peek) return Response.json(peek)
+      } else {
+        return Response.json(await claimBrandNumber(em, scope, brand, 'invoice', format ?? null))
+      }
+    }
+  }
+
   if ((kind === 'quote' || kind === 'order') && !format) {
-    const peek = await peekNextNumber(em, { tenantId: auth.tenantId, organizationId }, kind)
+    const peek = await peekNextNumber(em, scope, kind)
     if (peek) return Response.json(peek)
   }
   const generator = container.resolve<SalesDocumentNumberGenerator>('salesDocumentNumberGenerator')

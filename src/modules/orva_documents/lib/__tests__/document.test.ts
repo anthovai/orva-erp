@@ -62,7 +62,7 @@ describe('buildPrintableDocument', () => {
     const doc = buildPrintableDocument({
       type: 'tax_invoice', template: 'classic', seller, buyer: sampleBuyer(), source: sampleSource(),
     })
-    expect(doc.headingTh).toBe('ใบกำกับภาษี')
+    expect(doc.headingTh).toBe('ใบกำกับภาษี / ใบแจ้งหนี้')
     expect(doc.isTaxDocument).toBe(true)
     expect(doc.amountInWords).toContain('บาท')
     expect(doc.secondaryDateLabelKey).toBeNull()

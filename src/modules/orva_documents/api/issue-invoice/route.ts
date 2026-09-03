@@ -12,6 +12,7 @@ import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
 import { issueInvoiceSchema } from '../../data/validators'
 import { findQuoteById, loadSettings } from '../../lib/source'
+import { brandForNumber, loadBrands } from '../../lib/brands'
 import { resolveFinanceBridge } from '../../lib/financeBridge'
 
 const logger = createLogger('orva_documents').child({ component: 'issue-invoice' })
@@ -120,6 +121,12 @@ export async function POST(req: Request) {
     if (!row) return Response.json({ error: 'Quote not found' }, { status: 404 })
 
     const settings = await withTenantRls(em, tenantId, (tem) => loadSettings(tem, { tenantId, organizationId }))
+    // A quote in a brand series (MRV-QTN-…) bills in that brand's invoice
+    // series; the numbers route resolves the brand format and counter.
+    const brand = brandForNumber(
+      typeof row.quote_number === 'string' ? row.quote_number : null,
+      await withTenantRls(em, tenantId, (tem) => loadBrands(tem, { tenantId, organizationId })),
+    )
     const format = settings?.invoiceNumberFormat?.trim() || undefined
 
     const subtotal = Number(row.subtotal_net_amount ?? 0)
@@ -149,6 +156,7 @@ export async function POST(req: Request) {
     const minted = (await callSales('/api/sales/document-numbers', {
       kind: 'invoice',
       ...(format ? { format } : {}),
+      ...(brand ? { brand: brand.code } : {}),
     })) as { number?: string }
     if (!minted.number) return Response.json({ error: 'Could not allocate an invoice number' }, { status: 502 })
 

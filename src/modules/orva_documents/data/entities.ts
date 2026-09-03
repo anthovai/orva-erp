@@ -117,3 +117,64 @@ export class DocumentSettings {
   @Property({ name: 'deleted_at', type: Date, nullable: true })
   deletedAt?: Date | null
 }
+
+/**
+ * A trading brand under the seller's legal identity. The settings row is the
+ * default brand (Kaiser); extra brands (Marventine …) override the visual and
+ * numbering parts of a document while the seller name, tax id and address
+ * stay those of the legal entity. A document belongs to the brand whose code
+ * prefixes its number — see lib/brands.ts.
+ */
+@Entity({ tableName: 'orva_document_brands' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class DocumentBrand {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  /** Short upper-case series prefix, e.g. MRV — also the first token of every document number. */
+  @Property({ type: 'text' })
+  code!: string
+
+  @Property({ type: 'text' })
+  name!: string
+
+  @Property({ name: 'brand_color', type: 'text', nullable: true })
+  brandColor?: string | null
+
+  @Property({ name: 'logo_header', type: 'text', nullable: true })
+  logoHeader?: string | null
+
+  @Property({ name: 'logo_footer', type: 'text', nullable: true })
+  logoFooter?: string | null
+
+  @Property({ name: 'logo_header_quotation', type: 'text', nullable: true })
+  logoHeaderQuotation?: string | null
+
+  @Property({ name: 'payment_details', type: 'text', nullable: true })
+  paymentDetails?: string | null
+
+  @Property({ name: 'document_terms', type: 'text', nullable: true })
+  documentTerms?: string | null
+
+  /** e.g. MRV-QTN-{yyyy}{seq:3}; null = the settings format with this code as prefix. */
+  @Property({ name: 'quote_number_format', type: 'text', nullable: true })
+  quoteNumberFormat?: string | null
+
+  @Property({ name: 'invoice_number_format', type: 'text', nullable: true })
+  invoiceNumberFormat?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+
+  @Property({ name: 'deleted_at', type: Date, nullable: true })
+  deletedAt?: Date | null
+}

@@ -3,6 +3,7 @@ import type { CommandInterceptor } from '@open-mercato/shared/lib/commands/comma
 import type { SalesDocumentNumberGenerator } from '@open-mercato/core/modules/sales/services/salesDocumentNumberGenerator'
 import { createLogger } from '@open-mercato/shared/lib/logger'
 import { peekNextNumber, type PeekKind } from '../lib/documentNumberPeek'
+import { brandForNumber, claimBrandNumber, loadBrands, peekBrandNumber } from '../lib/brands'
 
 const logger = createLogger('orva_documents').child({ interceptor: 'document-numbers' })
 
@@ -38,6 +39,20 @@ function makeInterceptor(kind: PeekKind, field: 'quoteNumber' | 'orderNumber'): 
           peekNextNumber(em, scope, 'order'),
         ])
         const previewed = new Set([quotePeek?.number, orderPeek?.number].filter(Boolean))
+        if (kind === 'quote' && submitted) {
+          // A brand-series preview (MRV-QTN-…) is claimed from that brand's
+          // own counter; the brand is recognised by the number's prefix.
+          const brands = await loadBrands(em, scope)
+          const brand = brandForNumber(submitted, brands)
+          if (brand) {
+            const brandPeek = await peekBrandNumber(em, scope, brand, 'quote')
+            if (brandPeek?.number === submitted) {
+              const claimed = await claimBrandNumber(em, scope, brand, 'quote')
+              return { ok: true, modifiedInput: { [field]: claimed.number } }
+            }
+            return { ok: true } // hand-typed brand number: respect it
+          }
+        }
         if (submitted && !previewed.has(submitted)) return { ok: true } // custom number: respect it
         const generator = context.container.resolve<SalesDocumentNumberGenerator>('salesDocumentNumberGenerator')
         const claimed = await generator.generate({ kind, organizationId, tenantId, format: null })

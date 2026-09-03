@@ -3,6 +3,7 @@ import { findOneWithDecryption, findWithDecryption } from '@open-mercato/shared/
 import { parseDecryptedFieldValue } from '@open-mercato/shared/lib/encryption/tenantDataEncryptionService'
 import { SalesInvoice, SalesInvoiceLine, SalesQuote, SalesQuoteLine } from '@open-mercato/core/modules/sales/data/entities'
 import { DocumentSettings } from '../data/entities'
+import { brandForNumber, loadBrands, settingsWithBrand } from './brands'
 import {
   buildPrintableDocument,
   sampleBuyer,
@@ -394,24 +395,36 @@ export async function documentFromQuote(
   tem: EntityManager,
   args: { row: QuoteRow; type: DocumentType; template?: TemplateId; settings: DocumentSettings | null },
 ): Promise<PrintableDocument> {
-  const [lines, buyerIdentity] = await Promise.all([
+  const [lines, buyerIdentity, settings] = await Promise.all([
     args.row.kind === 'invoice'
       ? loadInvoiceLines(tem, String(args.row.id))
       : loadQuoteLines(tem, String(args.row.id)),
     loadBuyerThaiIdentity(tem, args.row.customer_entity_id),
+    brandedSettings(tem, args.settings, args.row.quote_number),
   ])
   return buildPrintableDocument({
     type: args.type,
-    template: args.template ?? templateFor(args.type, args.settings),
-    seller: sellerFrom(args.settings),
+    template: args.template ?? templateFor(args.type, settings),
+    seller: sellerFrom(settings),
     buyer: partyFromSnapshot(args.row, buyerIdentity),
     source: sourceFromQuote(args.row, lines),
-    accentColor: args.settings?.brandColor ?? null,
-    paymentDetails: args.settings?.paymentDetails ?? null,
-    logoHeader: headerLogoFor(args.type, args.settings),
-    logoFooter: args.settings?.logoFooter ?? null,
-    terms: args.settings?.documentTerms ?? null,
+    accentColor: settings?.brandColor ?? null,
+    paymentDetails: settings?.paymentDetails ?? null,
+    logoHeader: headerLogoFor(args.type, settings),
+    logoFooter: settings?.logoFooter ?? null,
+    terms: settings?.documentTerms ?? null,
   })
+}
+
+/**
+ * The settings a document should print with: the legal entity's identity,
+ * plus the brand's colour/logos/terms when the number belongs to a brand
+ * series (MRV-… → Marventine). Default-series documents print unchanged.
+ */
+async function brandedSettings(tem: EntityManager, settings: DocumentSettings | null, number: unknown): Promise<DocumentSettings | null> {
+  if (!settings || typeof number !== 'string' || !number.includes('-')) return settings
+  const brands = await loadBrands(tem, { tenantId: settings.tenantId, organizationId: settings.organizationId })
+  return settingsWithBrand(settings, brandForNumber(number, brands))
 }
 
 /** The quotation may carry its own mark; billing documents share logoHeader. */

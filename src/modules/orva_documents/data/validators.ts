@@ -108,3 +108,25 @@ export const sendSchema = z.object({
    */
   etax: z.boolean().optional(),
 })
+
+/** Brand profile upsert (matched by `code`); logos share the settings logo rule. */
+export const brandUpsertSchema = z.object({
+  id: z.string().uuid().optional(),
+  code: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{2,6}$/, 'รหัสแบรนด์ใช้ A-Z/0-9 ยาว 2–6 ตัว'),
+  name: z.string().trim().min(1).max(120),
+  brandColor: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/).optional().nullable().or(z.literal('').transform(() => null)),
+  logoHeader: logoSchema,
+  logoFooter: logoSchema,
+  logoHeaderQuotation: logoSchema,
+  paymentDetails: z.string().trim().max(2000).optional().nullable(),
+  documentTerms: z.string().trim().max(4000).optional().nullable(),
+  quoteNumberFormat: z.string().trim().max(120).optional().nullable(),
+  invoiceNumberFormat: z.string().trim().max(120).optional().nullable(),
+})
+
+export const brandDeleteSchema = z.object({ id: z.string().uuid() })
+
+/** Switch the operator's active brand for the next documents; null = back to the default (settings) brand. */
+export const brandActivateSchema = z.object({
+  code: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{2,6}$/).nullable(),
+})
