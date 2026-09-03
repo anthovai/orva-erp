@@ -106,7 +106,7 @@ export const journalPostSchema = z.object({ id: z.string().uuid() })
 /** Reverse a posted journal on a date inside an open period. */
 export const journalReverseSchema = z.object({
   id: z.string().uuid(),
-  reversalDate: z.string().regex(/^d{4}-d{2}-d{2}$/),
+  reversalDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   memo: z.string().trim().max(500).optional(),
 })
 

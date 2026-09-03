@@ -58,7 +58,8 @@ export async function POST(req: Request) {
                 grand_total_gross_amount::text, tax_total_amount::text
          from sales_invoices
          where id = any(?::uuid[]) and tenant_id = ?::uuid and deleted_at is null`,
-        [parsed.data.invoiceIds, tenantId],
+        // knex passes a JS array as separate values — Postgres wants an array literal
+        [`{${parsed.data.invoiceIds.join(",")}}`, tenantId],
       )) as InvoiceRow[]
       if (invoices.length !== parsed.data.invoiceIds.length) {
         throw Object.assign(new Error('One or more invoices not found'), { status: 400 })

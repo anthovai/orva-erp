@@ -11,6 +11,7 @@ import type { OpenApiRouteDoc } from '@open-mercato/shared/lib/openapi'
 import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
 import { recordPaymentSchema } from '../../data/validators'
+import { resolveFinanceBridge } from '../../lib/financeBridge'
 
 const logger = createLogger('orva_documents').child({ component: 'record-payment' })
 
@@ -37,6 +38,8 @@ const resultSchema = z.object({
   paidDate: z.string(),
   paidTotal: z.number(),
   outstanding: z.number(),
+  /** ledger outcome: receipt + journal numbers, or why the books were not updated */
+  accounting: z.object({ ok: z.boolean(), journalNo: z.string().optional(), receiptNo: z.string().nullable().optional(), reason: z.string().optional() }).optional(),
 })
 
 type InvoiceRow = {
@@ -155,7 +158,27 @@ export async function POST(req: Request) {
       return Response.json({ error: 'Conflict — reload and retry' }, { status: 409 })
     }
 
-    return Response.json({ id: invoiceId, paidDate, paidTotal, outstanding })
+    // Books: Dr bank (cash received) / Dr WHT receivable / Cr AR. If the
+    // invoice was never posted (e.g. issued before finance was configured)
+    // the bridge posts it first on the same date, then books the receipt.
+    const bridge = resolveFinanceBridge(container)
+    const scope = { tenantId: auth.tenantId, organizationId, userId: auth.sub ?? null }
+    let accounting: { ok: true; journalNo: string; receiptNo?: string | null } | { ok: false; reason: string } =
+      { ok: false, reason: 'finance module not connected' }
+    if (bridge) {
+      const posted = await bridge.postInvoice(em, scope, { invoiceId, date: paidDate })
+      accounting = posted.ok
+        ? await bridge.recordReceipt(em, scope, { invoiceId, date: paidDate, cashReceived: amountReceived, wht: whtAmount, note })
+        : posted
+    }
+    if (!accounting.ok) logger.warn('Receipt not booked to ledger', { invoiceId, reason: accounting.reason })
+
+    return Response.json({
+      id: invoiceId, paidDate, paidTotal, outstanding,
+      accounting: accounting.ok
+        ? { ok: true, journalNo: accounting.journalNo, receiptNo: accounting.receiptNo ?? null }
+        : { ok: false, reason: accounting.reason },
+    })
   } catch (error) {
     logger.error('Record payment failed', {
       invoiceId,

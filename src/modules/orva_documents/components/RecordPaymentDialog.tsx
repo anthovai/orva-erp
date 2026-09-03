@@ -97,7 +97,7 @@ export function RecordPaymentDialog({
     }
     setBusy(true)
     setError(null)
-    const call = await apiCall<{ outstanding: number }>('/api/orva_documents/record-payment', {
+    const call = await apiCall<{ outstanding: number; accounting?: { ok: boolean; journalNo?: string; receiptNo?: string | null; reason?: string } }>('/api/orva_documents/record-payment', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
@@ -135,7 +135,15 @@ export function RecordPaymentDialog({
         return
       }
     }
-    flash(t('orva_documents.payment.saved', 'บันทึกรับชำระแล้ว'), 'success')
+    const acct = call.result?.accounting
+    if (acct?.ok) {
+      flash(t('orva_documents.payment.savedBooked', 'บันทึกรับชำระและลงบัญชีแล้ว ({receipt} · {journal})', {
+        receipt: String(acct.receiptNo ?? ''), journal: String(acct.journalNo ?? ''),
+      }), 'success')
+    } else {
+      flash(t('orva_documents.payment.saved', 'บันทึกรับชำระแล้ว'), 'success')
+      if (acct?.reason) flash(t('orva_documents.payment.notBooked', 'ยังไม่ได้ลงบัญชี: {reason}', { reason: acct.reason }), 'error')
+    }
     onOpenChange(false)
     onRecorded?.()
   }

@@ -12,6 +12,7 @@ import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
 import { issueInvoiceSchema } from '../../data/validators'
 import { findQuoteById, loadSettings } from '../../lib/source'
+import { resolveFinanceBridge } from '../../lib/financeBridge'
 
 const logger = createLogger('orva_documents').child({ component: 'issue-invoice' })
 
@@ -27,6 +28,8 @@ const responseSchema = z.object({
   net: z.number(),
   tax: z.number(),
   gross: z.number(),
+  /** ledger outcome: journal number, or why the books were not updated */
+  accounting: z.object({ ok: z.boolean(), journalNo: z.string().optional(), reason: z.string().optional() }).optional(),
 })
 
 const installmentSchema = z.object({
@@ -204,7 +207,20 @@ export async function POST(req: Request) {
     if (!createdId) return Response.json({ error: 'Invoice creation returned no id' }, { status: 502 })
 
     logger.info('Invoice issued from quote', { quoteId, invoiceId: createdId, invoiceNumber: minted.number, net })
-    return Response.json({ id: createdId, invoiceNumber: minted.number, installmentNo, net, tax, gross })
+
+    // The books hear about the invoice immediately (Dr AR / Cr revenue + VAT
+    // out). Best-effort: the invoice exists either way; a failure is reported,
+    // not thrown, so the operator can post it from AR Posting later.
+    const bridge = resolveFinanceBridge(container)
+    const accounting = bridge
+      ? await bridge.postInvoice(em, { tenantId, organizationId, userId: auth.sub ?? null }, { invoiceId: createdId, date: issueDate })
+      : { ok: false as const, reason: 'finance module not connected' }
+    if (!accounting.ok) logger.warn('Invoice not posted to ledger', { invoiceId: createdId, reason: accounting.reason })
+
+    return Response.json({
+      id: createdId, invoiceNumber: minted.number, installmentNo, net, tax, gross,
+      accounting: accounting.ok ? { ok: true, journalNo: accounting.journalNo } : { ok: false, reason: accounting.reason },
+    })
   } catch (error) {
     logger.error('Issue invoice failed', {
       quoteId,
