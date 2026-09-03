@@ -15,8 +15,10 @@ import type { EntityManager } from '@mikro-orm/postgresql'
 import type { AwilixContainer } from 'awilix'
 import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
+import type { AiToolDefinition } from '@open-mercato/ai-assistant/modules/ai_assistant/lib/types'
 import { buildBalanceSheet, buildProfitAndLoss, type AccountSums } from './lib/statements'
 import { buildAging, type AgingItemInput } from './lib/aging'
+import { kaiserPack } from './ai-tools/kaiser-pack'
 
 export interface OrvaFinanceToolContext {
   tenantId: string | null
@@ -410,13 +412,20 @@ const listPeriodsTool: OrvaFinanceAiToolDefinition = {
   },
 }
 
-export const aiTools: OrvaFinanceAiToolDefinition[] = [
-  listAccountsTool,
-  listJournalsTool,
-  listPeriodsTool,
-  trialBalanceTool,
-  statementsTool,
-  agingTool,
+/**
+ * The Kaiser operating-model pack (ai-tools/kaiser-pack.ts) adds the four-
+ * question overview, slip → receipt matching, approval-gated receipt /
+ * reminder / month-pack writes, and quote drafting. The read tools above keep
+ * their local definition type; both shapes satisfy AiToolDefinition.
+ */
+export const aiTools: AiToolDefinition[] = [
+  listAccountsTool as AiToolDefinition,
+  listJournalsTool as AiToolDefinition,
+  listPeriodsTool as AiToolDefinition,
+  trialBalanceTool as AiToolDefinition,
+  statementsTool as AiToolDefinition,
+  agingTool as AiToolDefinition,
+  ...kaiserPack,
 ]
 
 export default aiTools

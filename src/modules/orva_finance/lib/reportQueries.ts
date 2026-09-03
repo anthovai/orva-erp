@@ -284,8 +284,8 @@ export async function bookkeepingStatus(tem: EntityManager, scope: Scope, month:
 // ------------------------------------------------------ owner home queries --
 
 export type OpenInvoiceRow = {
-  id: string; invoice_number: string; customer_name: string | null; issue_date: string | null
-  due_date: string | null; total: string; remaining: string
+  id: string; invoice_number: string; customer_name: string | null; customer_entity_id: string | null; issue_date: string | null
+  due_date: string | null; net: string; total: string; remaining: string; updated_at: string
 }
 
 /** Issued invoices not yet (fully) paid — money the owner is waiting for. */
@@ -295,10 +295,13 @@ export async function openInvoices(tem: EntityManager, scope: Scope): Promise<Op
             coalesce(i.metadata->'customerSnapshot'->'customer'->>'displayName',
                      i.metadata->'customerSnapshot'->>'displayName',
                      (select ce.display_name from customer_entities ce where ce.id::text = i.metadata->>'customerEntityId')) as customer_name,
+            i.metadata->>'customerEntityId' as customer_entity_id,
             to_char(i.issue_date, 'YYYY-MM-DD') as issue_date,
             to_char(i.due_date, 'YYYY-MM-DD') as due_date,
+            i.grand_total_net_amount::text as net,
             i.grand_total_gross_amount::text as total,
-            (i.grand_total_gross_amount - coalesce(i.paid_total_amount, 0))::text as remaining
+            (i.grand_total_gross_amount - coalesce(i.paid_total_amount, 0))::text as remaining,
+            i.updated_at::text as updated_at
      from sales_invoices i
      where i.deleted_at is null and i.tenant_id = ?::uuid
        and (?::uuid is null or i.organization_id = ?::uuid)
