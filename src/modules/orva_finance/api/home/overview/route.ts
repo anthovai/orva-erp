@@ -4,6 +4,8 @@ import { resolveActiveOrganizationId } from '@open-mercato/shared/lib/auth/organ
 import { createRequestContainer } from '@open-mercato/shared/lib/di/container'
 import type { OpenApiRouteDoc } from '@open-mercato/shared/lib/openapi'
 import { z } from 'zod'
+import { findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
+import { CustomerEntity } from '@open-mercato/core/modules/customers/data/entities'
 import { withTenantRls } from '@/lib/rls'
 import { daysBetween, isoDate, monthBounds, monthOf, upcomingDeadlines } from '../../../lib/homeOverview'
 import {
@@ -110,6 +112,15 @@ export async function GET(req: Request) {
       const [vat, wht] = await Promise.all([vatReport(tem, scope, period), whtReport(tem, scope, period)])
       registers.set(period, { vat: vat.summary.netPayable, wht: wht.summary.payable })
     }
+    // Quote customers live in the encrypted customer_entities.display_name —
+    // SQL only sees ciphertext, so resolve the few names through the
+    // framework's decrypting finder.
+    const customerIds = [...new Set(quotes.map((q) => q.customer_entity_id).filter((id): id is string => Boolean(id)))]
+    const customerNames = new Map<string, string | null>()
+    if (customerIds.length) {
+      const entities = await findWithDecryption(tem, CustomerEntity, { id: { $in: customerIds } }, {}, { tenantId: scope.tenantId, organizationId: scope.organizationId ?? undefined })
+      for (const entity of entities) customerNames.set(String(entity.id), (entity as { displayName?: string | null }).displayName ?? null)
+    }
     const packs = await monthPackHistory(tem, scope)
     const sentFor = (period: string) => packs.find((p) => p.month === period && p.status === 'sent')?.sent_at ?? null
 
@@ -143,7 +154,7 @@ export async function GET(req: Request) {
         quotes: quotes.map((q) => ({
           id: q.id,
           ref: q.quote_number,
-          customer: q.customer_name,
+          customer: (q.customer_entity_id ? customerNames.get(q.customer_entity_id) : null) ?? null,
           validUntil: q.valid_until,
           daysLeft: q.valid_until ? daysBetween(today, q.valid_until) : null,
           total: Number(q.total).toFixed(2),

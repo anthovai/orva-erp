@@ -76,6 +76,9 @@ export const enabledModules: ModuleEntry[] = [
     id: 'customers',
     from: '@open-mercato/core',
     overrides: {
+      // Kaiser runs on its own records: `yarn initialize` must never seed demo
+      // customers/deals again (2026-09-03 purge). Same for sales/catalog/staff below.
+      setup: { seedExamples: false },
       routes: {
         pages: {
           // Orva owns the company create screen: the installed one asks for
@@ -101,11 +104,12 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'query_index', from: '@open-mercato/core' },
   { id: 'audit_logs', from: '@open-mercato/core' },
   { id: 'attachments', from: '@open-mercato/core' },
-  { id: 'catalog', from: '@open-mercato/core' },
+  { id: 'catalog', from: '@open-mercato/core', overrides: { setup: { seedExamples: false } } },
   {
     id: 'sales',
     from: '@open-mercato/core',
     overrides: {
+      setup: { seedExamples: false },
       routes: {
         api: {
           // Non-burning document numbers: the create screen previews the next
@@ -188,6 +192,7 @@ export const enabledModules: ModuleEntry[] = [
     // One-person company: team/leave/timesheet screens hidden; the module stays
     // enabled because orva_hr links employees to team members through its API.
     overrides: {
+      setup: { seedExamples: false },
       routes: {
         pages: {
           '/backend/staff/teams': null,
@@ -227,7 +232,7 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'channel_imap', from: '@open-mercato/channel-imap' },
   { id: 'channel_gmail', from: '@open-mercato/channel-gmail' },
   { id: 'webhooks', from: '@open-mercato/webhooks' },
-  { id: 'customer_accounts', from: '@open-mercato/core' },
+  { id: 'customer_accounts', from: '@open-mercato/core', overrides: { setup: { seedExamples: false } } },
   { id: 'portal', from: '@open-mercato/core' },
   { id: 'ratelimit_probe', from: '@app' },
 ]

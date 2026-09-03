@@ -351,15 +351,19 @@ export async function cashBalances(tem: EntityManager, scope: Scope): Promise<Ar
 }
 
 export type PendingQuoteRow = {
-  id: string; quote_number: string; customer_name: string | null; status: string | null
+  id: string; quote_number: string; customer_entity_id: string | null; status: string | null
   valid_until: string | null; total: string; invoiced: number
 }
 
-/** Quotes the customer has not answered — sent, still valid or just expired, no invoice yet. */
+/**
+ * Quotes the customer has not answered — sent, still valid or just expired,
+ * no invoice yet. The customer name is encrypted at rest (customer_entities
+ * and the quote snapshot), so callers resolve it through the decrypting
+ * finder from `customer_entity_id`.
+ */
 export async function pendingQuotes(tem: EntityManager, scope: Scope): Promise<PendingQuoteRow[]> {
   return (await tem.execute(
-    `select q.id, q.quote_number,
-            (select ce.display_name from customer_entities ce where ce.id = q.customer_entity_id) as customer_name,
+    `select q.id, q.quote_number, q.customer_entity_id,
             q.status, to_char(q.valid_until, 'YYYY-MM-DD') as valid_until,
             q.grand_total_gross_amount::text as total,
             (select count(*)::int from sales_invoices i
