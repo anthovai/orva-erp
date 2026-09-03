@@ -59,6 +59,8 @@ export function templateFor(type: DocumentType, settings: DocumentSettings | nul
     invoice: settings.templateInvoice,
     tax_invoice: settings.templateTaxInvoice,
     receipt: settings.templateReceipt,
+    // the retail slip shares the receipt's template choice
+    abbreviated_tax_invoice: settings.templateReceipt,
   }
   const chosen = byType[type]
   return chosen === 'modern' || chosen === 'compact' || chosen === 'brand' ? (chosen as TemplateId) : fallback

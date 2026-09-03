@@ -26,6 +26,7 @@ const TYPE_LABELS: Record<DocumentType, { key: string; fallback: string }> = {
   invoice: { key: 'orva_documents.type.invoice', fallback: 'ใบแจ้งหนี้' },
   tax_invoice: { key: 'orva_documents.type.tax_invoice', fallback: 'ใบกำกับภาษี / ใบแจ้งหนี้' },
   receipt: { key: 'orva_documents.type.receipt', fallback: 'ใบกำกับภาษี/ใบเสร็จรับเงิน' },
+  abbreviated_tax_invoice: { key: 'orva_documents.type.abbreviated_tax_invoice', fallback: 'ใบกำกับภาษีอย่างย่อ' },
 }
 
 const SAMPLE_VALUE = '__sample__'

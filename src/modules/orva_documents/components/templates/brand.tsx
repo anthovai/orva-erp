@@ -83,7 +83,7 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
             <span className="font-semibold" style={{ color: accent }}>{t('orva_documents.brand.address', 'ที่อยู่')}: </span>
             {doc.buyer.address ?? '-'}
           </div>
-          {doc.isTaxDocument || doc.buyer.taxId ? (
+          {(doc.isTaxDocument && !doc.isAbbreviated) || doc.buyer.taxId ? (
             <div>
               <span className="font-semibold" style={{ color: accent }}>{t('orva_documents.field.taxId', 'เลขประจำตัวผู้เสียภาษี')}: </span>
               <span className="tabular-nums">{doc.buyer.taxId ?? '-'}</span>
@@ -122,22 +122,34 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
               <td className="px-2 py-2 text-right tabular-nums">{money(line.amount)}</td>
             </tr>
           ))}
-          <tr className="border-b">
-            <td colSpan={4} className="px-2 py-2 font-semibold">{t('orva_documents.brand.subtotal', 'รวมค่าบริการทั้งสิ้น')}</td>
-            <td className="px-2 py-2 text-right font-semibold tabular-nums">{money(doc.subtotal)}</td>
-          </tr>
-          {doc.discount > 0 ? (
+          {doc.isAbbreviated ? (
+            // retail slip: amounts already include VAT; state what is contained
             <tr className="border-b">
-              <td colSpan={4} className="px-2 py-2">{t('orva_documents.field.discount', 'ส่วนลด')}</td>
-              <td className="px-2 py-2 text-right tabular-nums">-{money(doc.discount)}</td>
+              <td colSpan={4} className="px-2 py-2">
+                {t('orva_documents.field.vatIncluded', 'ราคารวมภาษีมูลค่าเพิ่มแล้ว')} · {t('orva_documents.field.vatIncludedAmount', 'ภาษีมูลค่าเพิ่มที่รวมอยู่')}{doc.taxRate !== null ? ` ${doc.taxRate}%` : ''}
+              </td>
+              <td className="px-2 py-2 text-right tabular-nums">{money(doc.taxAmount)}</td>
             </tr>
-          ) : null}
-          <tr className="border-b">
-            <td colSpan={4} className="px-2 py-2">
-              {t('orva_documents.field.vat', 'ภาษีมูลค่าเพิ่ม')}{doc.taxRate !== null ? ` ${doc.taxRate}%` : ''}
-            </td>
-            <td className="px-2 py-2 text-right tabular-nums">{money(doc.taxAmount)}</td>
-          </tr>
+          ) : (
+            <>
+              <tr className="border-b">
+                <td colSpan={4} className="px-2 py-2 font-semibold">{t('orva_documents.brand.subtotal', 'รวมค่าบริการทั้งสิ้น')}</td>
+                <td className="px-2 py-2 text-right font-semibold tabular-nums">{money(doc.subtotal)}</td>
+              </tr>
+              {doc.discount > 0 ? (
+                <tr className="border-b">
+                  <td colSpan={4} className="px-2 py-2">{t('orva_documents.field.discount', 'ส่วนลด')}</td>
+                  <td className="px-2 py-2 text-right tabular-nums">-{money(doc.discount)}</td>
+                </tr>
+              ) : null}
+              <tr className="border-b">
+                <td colSpan={4} className="px-2 py-2">
+                  {t('orva_documents.field.vat', 'ภาษีมูลค่าเพิ่ม')}{doc.taxRate !== null ? ` ${doc.taxRate}%` : ''}
+                </td>
+                <td className="px-2 py-2 text-right tabular-nums">{money(doc.taxAmount)}</td>
+              </tr>
+            </>
+          )}
           <tr>
             <td colSpan={4} className="px-2 py-2 font-bold">{t('orva_documents.brand.grand', 'จำนวนเงินสุทธิที่ต้องชำระ')}</td>
             <td className="px-2 py-2 text-right font-bold tabular-nums">

@@ -84,7 +84,7 @@ function ClassicTemplate({ doc, t }: TemplateProps) {
       </div>
       <div className="grid grid-cols-2 gap-6 border p-4">
         <PartyBlock title={t('orva_documents.field.seller', 'ผู้ขาย')} party={doc.seller} showTaxIdentity={doc.isTaxDocument} t={t} />
-        <PartyBlock title={t('orva_documents.field.buyer', 'ลูกค้า')} party={doc.buyer} showTaxIdentity={doc.isTaxDocument} t={t} />
+        <PartyBlock title={t('orva_documents.field.buyer', 'ลูกค้า')} party={doc.buyer} showTaxIdentity={doc.isTaxDocument && !doc.isAbbreviated} t={t} />
       </div>
       <LineItemsTable lines={doc.lines} t={t} />
       <div className="grid grid-cols-2 items-start gap-6">
@@ -116,7 +116,7 @@ function ModernTemplate({ doc, t }: TemplateProps) {
       <MetaRow doc={doc} t={t} />
       <div className="grid grid-cols-2 gap-6">
         <PartyBlock title={t('orva_documents.field.seller', 'ผู้ขาย')} party={doc.seller} showTaxIdentity={doc.isTaxDocument} t={t} />
-        <PartyBlock title={t('orva_documents.field.buyer', 'ลูกค้า')} party={doc.buyer} showTaxIdentity={doc.isTaxDocument} t={t} />
+        <PartyBlock title={t('orva_documents.field.buyer', 'ลูกค้า')} party={doc.buyer} showTaxIdentity={doc.isTaxDocument && !doc.isAbbreviated} t={t} />
       </div>
       <LineItemsTable lines={doc.lines} t={t} />
       <div className="flex justify-end">
@@ -149,7 +149,7 @@ function CompactTemplate({ doc, t }: TemplateProps) {
       <div className="border-y py-2 text-xs">
         <span className="text-muted-foreground">{t('orva_documents.field.buyer', 'ลูกค้า')}: </span>
         <span className="font-medium">{doc.buyer.name}</span>
-        {doc.isTaxDocument ? <TaxIdentityLine taxId={doc.buyer.taxId} branch={doc.buyer.branch} t={t} /> : null}
+        {doc.isTaxDocument && !doc.isAbbreviated ? <TaxIdentityLine taxId={doc.buyer.taxId} branch={doc.buyer.branch} t={t} /> : null}
       </div>
       <LineItemsTable lines={doc.lines} t={t} />
       <TotalsBlock doc={doc} t={t} />

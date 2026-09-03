@@ -11,7 +11,7 @@
  */
 import { bahtText } from './bahtText'
 
-export const DOCUMENT_TYPES = ['quotation', 'invoice', 'tax_invoice', 'receipt'] as const
+export const DOCUMENT_TYPES = ['quotation', 'invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice'] as const
 export type DocumentType = (typeof DOCUMENT_TYPES)[number]
 
 export const TEMPLATE_IDS = ['classic', 'modern', 'compact', 'brand'] as const
@@ -23,7 +23,7 @@ export const TEMPLATE_IDS = ['classic', 'modern', 'compact', 'brand'] as const
  */
 export function typesForSourceKind(sourceKind: string | undefined): readonly DocumentType[] {
   if (sourceKind === 'quote') return ['quotation']
-  if (sourceKind === 'invoice') return ['invoice', 'tax_invoice', 'receipt']
+  if (sourceKind === 'invoice') return ['invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice']
   return DOCUMENT_TYPES
 }
 export type TemplateId = (typeof TEMPLATE_IDS)[number]
@@ -39,10 +39,16 @@ const HEADINGS: Record<DocumentType, { th: string; en: string }> = {
   // rather than a bare receipt alongside a separate tax invoice. That is why
   // this type is statutory below: it carries both parties' taxpayer ids.
   receipt: { th: 'ใบกำกับภาษี/ใบเสร็จรับเงิน', en: 'Tax Invoice / Receipt' },
+  // Retail (B2C) slip under ป.86/2542 §6: seller identity and number, but the
+  // buyer may be anonymous and prices print VAT-inclusive with the statement
+  // "ราคารวมภาษีมูลค่าเพิ่มแล้ว". The buyer cannot claim input VAT from it.
+  abbreviated_tax_invoice: { th: 'ใบกำกับภาษีอย่างย่อ', en: 'Abbreviated Tax Invoice' },
 }
 
-/** Types that are statutory tax documents and must carry taxpayer ids. */
-const TAX_DOCUMENT_TYPES = new Set<DocumentType>(['tax_invoice', 'receipt'])
+/** Types that are statutory tax documents and must carry the SELLER's taxpayer id. */
+const TAX_DOCUMENT_TYPES = new Set<DocumentType>(['tax_invoice', 'receipt', 'abbreviated_tax_invoice'])
+/** Statutory types that also need the BUYER's taxpayer id (full tax invoices). */
+const FULL_TAX_DOCUMENT_TYPES = new Set<DocumentType>(['tax_invoice', 'receipt'])
 
 export type Party = {
   name: string
@@ -119,6 +125,11 @@ export type PrintableDocument = {
   /** True for statutory documents: templates then print the tax id block. */
   isTaxDocument: boolean
   /**
+   * ใบกำกับภาษีอย่างย่อ: buyer identity optional, line prices and amounts are
+   * VAT-INCLUSIVE and the sheet states so; `taxAmount` is the VAT contained.
+   */
+  isAbbreviated: boolean
+  /**
    * Non-empty when the document would be legally deficient — the preview
    * shows these instead of silently rendering an invalid tax invoice.
    */
@@ -155,14 +166,25 @@ export function buildPrintableDocument(input: {
   const { type, template, seller, buyer, source } = input
   const heading = HEADINGS[type]
   const isTaxDocument = TAX_DOCUMENT_TYPES.has(type)
+  const isAbbreviated = type === 'abbreviated_tax_invoice'
 
   const warnings: DocumentWarning[] = []
   if (isTaxDocument) {
     // A Thai tax invoice without the issuer's taxpayer id cannot be used by
     // the buyer to claim input VAT — surfacing this beats printing it.
     if (!seller.taxId || seller.taxId.trim().length === 0) warnings.push('seller_tax_id_missing')
-    if (!buyer.taxId || buyer.taxId.trim().length === 0) warnings.push('buyer_tax_id_missing')
+    if (FULL_TAX_DOCUMENT_TYPES.has(type) && (!buyer.taxId || buyer.taxId.trim().length === 0)) warnings.push('buyer_tax_id_missing')
   }
+
+  // Retail slip: re-express every line VAT-inclusive so the printed unit
+  // prices match the shelf price; the grand total is unchanged.
+  const lines = isAbbreviated && source.taxRate
+    ? source.lines.map((line) => ({
+        ...line,
+        unitPrice: Math.round(line.unitPrice * (1 + source.taxRate! / 100) * 100) / 100,
+        amount: Math.round(line.amount * (1 + source.taxRate! / 100) * 100) / 100,
+      }))
+    : source.lines
 
   return {
     type,
@@ -175,10 +197,11 @@ export function buildPrintableDocument(input: {
     secondaryDateLabelKey: secondaryDateLabel(type),
     secondaryDate: source.secondaryDate ?? null,
     seller,
-    buyer,
-    lines: source.lines,
+    // a retail slip may go to an anonymous walk-in customer
+    buyer: isAbbreviated && !buyer.name?.trim() ? { ...buyer, name: 'ลูกค้าทั่วไป' } : buyer,
+    lines,
     currencyCode: source.currencyCode,
-    subtotal: source.subtotal,
+    subtotal: isAbbreviated ? source.grandTotal : source.subtotal,
     discount: source.discount ?? 0,
     taxRate: source.taxRate ?? null,
     taxAmount: source.taxAmount,
@@ -195,6 +218,7 @@ export function buildPrintableDocument(input: {
     copyRole: 'original',
     terms: isTaxDocument ? (input.terms ?? null) : null,
     isTaxDocument,
+    isAbbreviated,
     warnings,
   }
 }

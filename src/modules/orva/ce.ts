@@ -12,6 +12,28 @@ import { cf } from '@open-mercato/shared/modules/dsl'
  */
 export const entities = [
   {
+    // Marventine (cosmetics): every product sold in Thailand carries an FDA
+    // notification number (เลขที่ใบรับจดแจ้ง, 10 digits) that must appear on
+    // the label; shelf life drives lot expiry when stock is received.
+    id: 'catalog:catalog_product',
+    fields: [
+      cf.text('th_fda_notification', {
+        label: 'เลขที่ใบรับจดแจ้ง (อย.)',
+        description: 'เลข 10 หลักจากใบรับจดแจ้งเครื่องสำอาง — พิมพ์บนฉลากและเอกสารขาย',
+        filterable: true,
+      }),
+      cf.integer('shelf_life_months', {
+        label: 'อายุสินค้า (เดือน)',
+        description: 'ใช้คำนวณวันหมดอายุของล็อตเมื่อรับเข้าคลัง',
+      }),
+      cf.select('product_brand', ['KKG', 'MRV'], {
+        label: 'แบรนด์',
+        description: 'KKG = Kaiser (บริการซอฟต์แวร์), MRV = Marventine (สินค้า)',
+        filterable: true,
+      }),
+    ],
+  },
+  {
     id: 'customers:customer_company_profile',
     fields: [
       cf.text('th_tax_id', {

@@ -134,10 +134,27 @@ export const enabledModules: ModuleEntry[] = [
       },
     },
   },
-  // Kaiser operating model: no warehouse, no resource planning, no storefront
-  // checkout yet. Disabled (tables untouched) — re-enable one line at a time when
-  // Marventine stock arrives:
-  //   { id: 'wms', from: '@open-mercato/core' }
+  // Marventine (phase E): lots, expiry and on-hand come from upstream WMS —
+  // one warehouse, one location, no zones/reservations/order assignment. The
+  // cost-per-lot, receive-from-OEM-bill, retail sale and COGS posting live in
+  // src/modules/orva_stock on top of it.
+  {
+    id: 'wms',
+    from: '@open-mercato/core',
+    overrides: {
+      setup: { seedExamples: false },
+      routes: {
+        pages: {
+          '/backend/wms': null,
+          '/backend/wms/zones': null,
+          '/backend/wms/reservations': null,
+          '/backend/config/wms': null,
+        },
+      },
+    },
+  },
+  // Kaiser operating model: no resource planning, no storefront checkout yet.
+  // Disabled (tables untouched) — re-enable one line at a time when needed:
   //   { id: 'planner', from: '@open-mercato/core' }
   //   { id: 'resources', from: '@open-mercato/core' }
   //   { id: 'payment_gateways', from: '@open-mercato/core' }
@@ -275,6 +292,9 @@ enabledModules.push({ id: 'orva_mfa', from: '@app' })
 enabledModules.push({ id: 'orva_sso', from: '@app' })
 // Printable Thai business documents (spec: .ai/specs/2026-08-31-orva-documents-thai-print.md).
 enabledModules.push({ id: 'orva_documents', from: '@app' })
+// Marventine product line on top of WMS lots: lot costs, receive from OEM bill,
+// retail sale + stock issue, valuation, COGS posting (operating-model spec, phase E).
+enabledModules.push({ id: 'orva_stock', from: '@app' })
 
 // Orva branding: registered LAST so its i18n overrides every module's defaults
 // (dictionary merge is last-write-wins across enabledModules order).

@@ -103,19 +103,23 @@ export function LineItemsTable({ lines, t }: { lines: DocumentLine[]; t: Templat
 }
 
 export function TotalsBlock({ doc, t }: TemplateProps) {
-  const rows: Array<[string, number]> = [
-    [t('orva_documents.field.subtotal', 'รวมเป็นเงิน'), doc.subtotal],
-  ]
-  if (doc.discount > 0) rows.push([t('orva_documents.field.discount', 'ส่วนลด'), -doc.discount])
-  rows.push([
-    doc.taxRate !== null
-      ? `${t('orva_documents.field.vat', 'ภาษีมูลค่าเพิ่ม')} ${doc.taxRate}%`
-      : t('orva_documents.field.vat', 'ภาษีมูลค่าเพิ่ม'),
-    doc.taxAmount,
-  ])
+  const rows: Array<[string, number]> = doc.isAbbreviated
+    // retail slip: amounts already include VAT; state the VAT contained
+    ? [[`${t('orva_documents.field.vatIncludedAmount', 'ภาษีมูลค่าเพิ่มที่รวมอยู่')}${doc.taxRate !== null ? ` ${doc.taxRate}%` : ''}`, doc.taxAmount]]
+    : [[t('orva_documents.field.subtotal', 'รวมเป็นเงิน'), doc.subtotal]]
+  if (!doc.isAbbreviated) {
+    if (doc.discount > 0) rows.push([t('orva_documents.field.discount', 'ส่วนลด'), -doc.discount])
+    rows.push([
+      doc.taxRate !== null
+        ? `${t('orva_documents.field.vat', 'ภาษีมูลค่าเพิ่ม')} ${doc.taxRate}%`
+        : t('orva_documents.field.vat', 'ภาษีมูลค่าเพิ่ม'),
+      doc.taxAmount,
+    ])
+  }
 
   return (
     <div className="flex flex-col gap-1 text-sm">
+      {doc.isAbbreviated ? <div className="text-xs font-medium">{t('orva_documents.field.vatIncluded', 'ราคารวมภาษีมูลค่าเพิ่มแล้ว')}</div> : null}
       {rows.map(([label, value]) => (
         <div key={label} className="flex justify-between gap-6">
           <span className="text-muted-foreground">{label}</span>

@@ -34,6 +34,7 @@ const dateFormat102 = (isoDate: string) => isoDate.replace(/-/g, '')
 export const ETAX_TYPE_CODES = {
   tax_invoice: { code: 'T02', name: 'ใบแจ้งหนี้/ใบกำกับภาษี', subjectTag: 'INV' },
   receipt: { code: 'T03', name: 'ใบเสร็จรับเงิน/ใบกำกับภาษี', subjectTag: 'RCT' },
+  abbreviated_tax_invoice: { code: 'T05', name: 'ใบกำกับภาษีอย่างย่อ', subjectTag: 'ABB' },
 } as const
 
 export type EtaxDocumentType = keyof typeof ETAX_TYPE_CODES
