@@ -18,6 +18,7 @@ type PaymentRow = {
   id: string
   payment_no?: string | null
   status: string
+  wht_amount?: string | number | null
   vendor_party_id: string
   payment_date: string
   total_amount?: string | number
@@ -110,7 +111,9 @@ export default function PaymentsTable() {
         perspective={{ tableId: 'orva_finance.ap.payments.list' }}
         rowActions={(row) => (
           <RowActions
-            items={row.status === 'draft' ? [
+            items={row.status === 'posted' && Number(row.wht_amount ?? 0) > 0 ? [
+              { label: t('orva_finance.payments.actions.certificate', 'พิมพ์ 50 ทวิ'), href: `/backend/reports/wht/certificate?paymentId=${row.id}` },
+            ] : row.status === 'draft' ? [
               {
                 label: t('orva_finance.payments.actions.post', 'Post'),
                 onSelect: async () => {

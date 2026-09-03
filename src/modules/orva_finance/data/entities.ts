@@ -727,3 +727,163 @@ export class GlSequence {
   @Property({ name: 'next_value', type: 'bigint' })
   nextValue!: string
 }
+
+/**
+ * Fixed asset (ทะเบียนทรัพย์สิน). Straight-line depreciation over
+ * useful_life_months from the acquisition month; each monthly run books one
+ * journal (Dr depreciation expense / Cr accumulated depreciation) and leaves a
+ * FaDepreciation row per asset per period — unique at the database.
+ */
+@Entity({ tableName: 'orva_fa_assets' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class FixedAsset {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  /** FA-000001, from orva_gl_sequences kind 'fa_asset'. */
+  @Property({ type: 'text', nullable: true })
+  code?: string | null
+
+  @Property({ type: 'text' })
+  name!: string
+
+  @Property({ type: 'text', nullable: true })
+  category?: string | null
+
+  @Property({ name: 'acquired_on', type: 'date' })
+  acquiredOn!: string
+
+  @Property({ type: 'numeric', precision: 18, scale: 4, default: '0' })
+  cost: string = '0.0000'
+
+  @Property({ type: 'numeric', precision: 18, scale: 4, default: '0' })
+  salvage: string = '0.0000'
+
+  @Property({ name: 'useful_life_months', type: 'int' })
+  usefulLifeMonths!: number
+
+  @Property({ name: 'asset_account_id', type: 'uuid' })
+  assetAccountId!: string
+
+  @Property({ name: 'accum_depr_account_id', type: 'uuid' })
+  accumDeprAccountId!: string
+
+  @Property({ name: 'expense_account_id', type: 'uuid' })
+  expenseAccountId!: string
+
+  /** 'active' | 'disposed' */
+  @Property({ type: 'text', default: 'active' })
+  status: string = 'active'
+
+  @Property({ name: 'disposed_on', type: 'date', nullable: true })
+  disposedOn?: string | null
+
+  @Property({ type: 'text', nullable: true })
+  notes?: string | null
+
+  @Property({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+
+  @Property({ name: 'deleted_at', type: Date, nullable: true })
+  deletedAt?: Date | null
+}
+
+/** One month of depreciation for one asset, with the journal that booked it. */
+@Entity({ tableName: 'orva_fa_depreciations' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class FaDepreciation {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ name: 'asset_id', type: 'uuid' })
+  assetId!: string
+
+  @Property({ name: 'period_id', type: 'uuid' })
+  periodId!: string
+
+  @Property({ type: 'numeric', precision: 18, scale: 4 })
+  amount!: string
+
+  @Property({ name: 'journal_id', type: 'uuid' })
+  journalId!: string
+
+  @Property({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+}
+
+/**
+ * A line from a bank statement (imported CSV) for one cash/bank account.
+ * amount is signed: deposits positive, withdrawals negative. Matching pins it
+ * to exactly one posted GL line of the same account (unique at the database).
+ */
+@Entity({ tableName: 'orva_bank_statement_lines' })
+@Index({ properties: ['tenantId', 'accountId', 'status'] })
+export class BankStatementLine {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ name: 'account_id', type: 'uuid' })
+  accountId!: string
+
+  /** all lines of one import share a batch id */
+  @Property({ name: 'batch_id', type: 'uuid' })
+  batchId!: string
+
+  @Property({ name: 'txn_date', type: 'date' })
+  txnDate!: string
+
+  @Property({ type: 'text', nullable: true })
+  description?: string | null
+
+  @Property({ type: 'text', nullable: true })
+  reference?: string | null
+
+  @Property({ type: 'numeric', precision: 18, scale: 4 })
+  amount!: string
+
+  /** 'unmatched' | 'matched' | 'excluded' */
+  @Property({ type: 'text', default: 'unmatched' })
+  status: string = 'unmatched'
+
+  @Property({ name: 'journal_line_id', type: 'uuid', nullable: true })
+  journalLineId?: string | null
+
+  @Property({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+
+  @Property({ name: 'deleted_at', type: Date, nullable: true })
+  deletedAt?: Date | null
+}

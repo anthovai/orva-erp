@@ -2064,6 +2064,12 @@
       "rule": "arbitrary-tailwind",
       "match": "w-[794px]",
       "reason": "A4 paper width at 96dpi — the second sheet (สำเนา for the company) must match the printed page exactly, a physical measurement rather than a design-system step."
+    },
+    {
+      "file": "src/modules/orva_finance/components/WhtCertificate.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "w-[794px]",
+      "reason": "A4 paper width at 96dpi — the 50 ทวิ certificate is a printed statutory form and must match the page exactly."
     }
   ]
 }

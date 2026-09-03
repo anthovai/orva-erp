@@ -256,3 +256,75 @@ export const arPostSchema = z.object({
   periodId: z.string().uuid(),
   postingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 })
+
+// ---- fixed assets
+export const assetListSchema = z
+  .object({
+    ...pagedList,
+    sortField: z.string().optional().default('code'),
+    sortDir: z.enum(['asc', 'desc']).optional().default('asc'),
+    status: z.enum(['active', 'disposed']).optional(),
+    search: z.string().optional(),
+  })
+  .passthrough()
+
+export const assetCreateSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  category: z.string().trim().max(120).optional().nullable(),
+  acquiredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  cost: z.coerce.number().positive(),
+  salvage: z.coerce.number().min(0).optional().default(0),
+  usefulLifeMonths: z.coerce.number().int().min(1).max(600),
+  assetAccountId: z.string().uuid(),
+  accumDeprAccountId: z.string().uuid(),
+  expenseAccountId: z.string().uuid(),
+  notes: z.string().trim().max(1000).optional().nullable(),
+})
+
+export const assetUpdateSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().trim().min(1).max(200).optional(),
+  category: z.string().trim().max(120).optional().nullable(),
+  notes: z.string().trim().max(1000).optional().nullable(),
+  status: z.enum(['active', 'disposed']).optional(),
+  disposedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+})
+
+/** Run straight-line depreciation for every active asset for one period. */
+export const depreciateSchema = z.object({
+  periodId: z.string().uuid(),
+  /** posting date inside the period (default: period end) */
+  postingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+})
+
+// ---- bank reconciliation
+export const bankStatementImportSchema = z.object({
+  accountId: z.string().uuid(),
+  lines: z
+    .array(
+      z.object({
+        txnDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        description: z.string().trim().max(500).optional().nullable(),
+        reference: z.string().trim().max(120).optional().nullable(),
+        /** signed: deposit +, withdrawal - */
+        amount: z.coerce.number().refine((n) => n !== 0, 'amount must not be zero'),
+      }),
+    )
+    .min(1)
+    .max(2000),
+})
+
+export const bankStatementListSchema = z.object({
+  accountId: z.string().uuid(),
+  status: z.enum(['unmatched', 'matched', 'excluded']).optional(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+})
+
+export const bankStatementMatchSchema = z.object({
+  lineId: z.string().uuid(),
+  /** the posted GL line to pin; null when unmatching or excluding */
+  journalLineId: z.string().uuid().nullable(),
+  status: z.enum(['matched', 'unmatched', 'excluded']).optional(),
+})
+

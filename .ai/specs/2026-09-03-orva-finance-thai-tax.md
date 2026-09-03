@@ -1,6 +1,6 @@
 # Orva Finance — Thai tax completeness (ภาษีหัก ณ ที่จ่าย, ภาษีซื้อ/ขาย, รายงานสรรพากร)
 
-Status: in progress (2026-09-03). Route: `module-data` + `backend-ui` + `umes` (documents → finance bridge via optional DI).
+Status: phases 1–6 shipped (2026-09-03); see commits 24143d0, 397f01e and the phase-6 commit. Route: `module-data` + `backend-ui` + `umes` (documents → finance bridge via optional DI).
 
 ## Audit (what existed before this spec)
 
@@ -23,7 +23,11 @@ orva_finance shipped GL (accounts, periods, journals, close, trial balance, P&L/
 3. **Documents → Finance bridge** — orva_finance registers `orvaFinanceBridge` in DI (optional dependency for orva_documents): `postInvoice()` at issue time and `recordReceipt()` at บันทึกรับชำระ (cash + WHT, allocated to the invoice). Failures surface as a warning on the document side; the document operation itself never rolls back.
 4. **Reports** — รายงานภาษีขาย (from posted tax documents), รายงานภาษีซื้อ (bills with tax), ภ.พ.30 summary; ภ.ง.ด.3/53 register + printable หนังสือรับรอง 50 ทวิ per payment; บัญชีแยกประเภท (per-account ledger with running balance) doubling as สมุดเงินสด/ธนาคาร for cash accounts.
 5. **Data** — Thai COA additions (1010 เงินสด, 1020 ธนาคารกสิกรไทย 217-2-81503-3, 1300 ภาษีซื้อ, 1400 ภาษีถูกหัก ณ ที่จ่าย, 1500/1590 อุปกรณ์ & ค่าเสื่อมสะสม, 5400–5700 expenses); GL/AR/AP settings; demo journals reversed; KK-INV-2026012 posted and its receipt booked.
-6. **Later** — fixed-asset register with monthly depreciation journals; bank statement import/reconciliation; cash-flow statement.
+6. **Shipped** — fixed-asset register (FA-000001 series, straight-line monthly runs, one journal per period, unique per asset/period), bank statement CSV import + match/exclude against ledger lines (unique per ledger line), indirect cash-flow statement tied to the cash accounts, printable หนังสือรับรอง 50 ทวิ per posted payment (link on the payments list).
+
+## Known data note
+
+The nine seeded demo journals were reversed on 2026-09-03 (period 2026-08 was also open). August-only statements therefore still show the demo figures netting out in September; cumulative views from 2026-08-01 to any date ≥ 2026-09-03 are correct. Re-dating posted journals is blocked by the GL guard by design; a one-time admin correction (re-date JE-000012…020 to 2026-08-31 with the trigger suspended) is the user's call.
 
 ## Contracts
 

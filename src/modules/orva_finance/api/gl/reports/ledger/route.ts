@@ -18,6 +18,7 @@ const querySchema = z.object({
 })
 
 const lineSchema = z.object({
+  journal_line_id: z.string().uuid(),
   journal_id: z.string().uuid(),
   journal_no: z.string().nullable(),
   journal_date: z.string(),
@@ -80,7 +81,7 @@ export async function GET(req: Request) {
     const openingBalance = running
 
     const rows = (await tem.execute(
-      `select j.id as journal_id, j.journal_no, to_char(j.journal_date, 'YYYY-MM-DD') as journal_date,
+      `select l.id as journal_line_id, j.id as journal_id, j.journal_no, to_char(j.journal_date, 'YYYY-MM-DD') as journal_date,
               j.journal_kind, j.memo, l.description, l.debit::text, l.credit::text
        from orva_gl_journal_lines l
        join orva_gl_journals j on j.id = l.journal_id and j.status = 'posted' and j.deleted_at is null
