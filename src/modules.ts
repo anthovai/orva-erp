@@ -117,24 +117,92 @@ export const enabledModules: ModuleEntry[] = [
               import('@/modules/orva_documents/lib/documentNumbersHandler').then((m) => m.POST(req)),
           },
         },
+        // Kaiser operating model (spec 2026-09-03-orva-for-kaiser-klowns-operating-model):
+        // a service business quoting → billing in งวด → receipts. Sales orders and
+        // sales channels are not part of that flow; hide their screens (APIs and
+        // data stay, so a tenant that sells through channels can re-enable them).
+        pages: {
+          '/backend/sales/orders': null,
+          '/backend/sales/channels': null,
+          '/backend/sales/channels/create': null,
+          '/backend/sales/channels/offers': null,
+        },
       },
     },
   },
-  { id: 'wms', from: '@open-mercato/core' },
+  // Kaiser operating model: no warehouse, no resource planning, no storefront
+  // checkout yet. Disabled (tables untouched) — re-enable one line at a time when
+  // Marventine stock arrives:
+  //   { id: 'wms', from: '@open-mercato/core' }
+  //   { id: 'planner', from: '@open-mercato/core' }
+  //   { id: 'resources', from: '@open-mercato/core' }
+  //   { id: 'payment_gateways', from: '@open-mercato/core' }
+  //   { id: 'checkout', from: '@open-mercato/checkout' }
+  //   { id: 'shipping_carriers', from: '@open-mercato/core' }
   { id: 'api_keys', from: '@open-mercato/core' },
   { id: 'devices', from: '@open-mercato/core' },
   { id: 'dictionaries', from: '@open-mercato/core' },
   { id: 'content', from: '@open-mercato/content' },
   { id: 'onboarding', from: '@open-mercato/onboarding' },
   { id: 'api_docs', from: '@open-mercato/core' },
-  { id: 'business_rules', from: '@open-mercato/core' },
+  {
+    id: 'business_rules',
+    from: '@open-mercato/core',
+    // Kaiser operating model: rule authoring is a builder's tool, not a daily
+    // screen for a one-person company — engine stays, screens hidden.
+    overrides: {
+      routes: {
+        pages: {
+          '/backend/rules': null,
+          '/backend/rules/create': null,
+          '/backend/sets': null,
+          '/backend/sets/create': null,
+        },
+      },
+    },
+  },
   { id: 'feature_toggles', from: '@open-mercato/core' },
-  { id: 'workflows', from: '@open-mercato/core' },
+  {
+    id: 'workflows',
+    from: '@open-mercato/core',
+    // Durable workflows keep running for agents; only งานผู้ใช้ (user tasks)
+    // stays on the menu — definitions/instances/events are builder screens.
+    // Detail pages ([id]) stay reachable from links inside user tasks.
+    overrides: {
+      routes: {
+        pages: {
+          '/backend/definitions': null,
+          '/backend/definitions/create': null,
+          '/backend/definitions/visual-editor': null,
+          '/backend/instances': null,
+          '/backend/events': null,
+        },
+      },
+    },
+  },
   { id: 'search', from: '@open-mercato/search' },
   { id: 'currencies', from: '@open-mercato/core' },
-  { id: 'planner', from: '@open-mercato/core' },
-  { id: 'resources', from: '@open-mercato/core' },
-  { id: 'staff', from: '@open-mercato/core' },
+  {
+    id: 'staff',
+    from: '@open-mercato/core',
+    // One-person company: team/leave/timesheet screens hidden; the module stays
+    // enabled because orva_hr links employees to team members through its API.
+    overrides: {
+      routes: {
+        pages: {
+          '/backend/staff/teams': null,
+          '/backend/staff/teams/create': null,
+          '/backend/staff/team-members': null,
+          '/backend/staff/team-roles': null,
+          '/backend/staff/timesheets': null,
+          '/backend/staff/timesheets/projects': null,
+          '/backend/staff/leave-requests': null,
+          '/backend/staff/my-leave-requests': null,
+          '/backend/staff/my-availability': null,
+        },
+      },
+    },
+  },
   { id: 'events', from: '@open-mercato/events' },
   { id: 'notifications', from: '@open-mercato/core' },
   { id: 'progress', from: '@open-mercato/core' },
@@ -153,14 +221,11 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'translations', from: '@open-mercato/core' },
   { id: 'scheduler', from: '@open-mercato/scheduler' },
   { id: 'inbox_ops', from: '@open-mercato/core' },
-  { id: 'payment_gateways', from: '@open-mercato/core' },
-  { id: 'checkout', from: '@open-mercato/checkout' },
   // Per-user email channels for the Communications Hub (SPEC-045d / email
   // integration spec). Each provider package registers its `ChannelAdapter`
   // at import time via `setup.ts`; the hub picks them up by `providerKey`.
   { id: 'channel_imap', from: '@open-mercato/channel-imap' },
   { id: 'channel_gmail', from: '@open-mercato/channel-gmail' },
-  { id: 'shipping_carriers', from: '@open-mercato/core' },
   { id: 'webhooks', from: '@open-mercato/webhooks' },
   { id: 'customer_accounts', from: '@open-mercato/core' },
   { id: 'portal', from: '@open-mercato/core' },
