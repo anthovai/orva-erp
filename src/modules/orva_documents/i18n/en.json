@@ -42,6 +42,7 @@
   "orva_documents.field.signatureSeller": "Authorised signature",
   "orva_documents.field.subtotal": "Subtotal",
   "orva_documents.field.taxId": "Taxpayer ID",
+  "orva_documents.field.terms": "Terms",
   "orva_documents.field.unitPrice": "Unit price",
   "orva_documents.field.validUntil": "Valid until",
   "orva_documents.field.vat": "VAT",

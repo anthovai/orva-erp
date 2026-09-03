@@ -161,7 +161,7 @@ export function TermsBlock({ doc, t }: TemplateProps) {
   if (!doc.terms) return null
   return (
     <div className="text-xs leading-5">
-      <div className="font-semibold">{t('orva_documents.field.note', 'หมายเหตุ')}</div>
+      <div className="font-semibold">{t('orva_documents.field.terms', 'เงื่อนไข')}</div>
       <p className="whitespace-pre-line text-muted-foreground">{doc.terms}</p>
     </div>
   )

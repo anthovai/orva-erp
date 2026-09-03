@@ -197,7 +197,9 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
         )}
       </div>
 
-      {/* contact footer band bleeding to the sheet edge */}
+      {/* contact footer band bleeding to the sheet edge — commercial paper only;
+          the statutory ใบกำกับภาษี/ใบเสร็จ end at the signatures */}
+      {!doc.isTaxDocument ? (
       <div className="-mx-10 -mb-10 mt-8 flex items-center gap-6 px-10 py-5 text-white" style={{ backgroundColor: accent }}>
         {doc.logoFooter ? (
           // The mark arrives in its own colours; brightness(0) invert(1)
@@ -218,6 +220,7 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
           </div>
         </div>
       </div>
+      ) : null}
     </div>
   )
 }

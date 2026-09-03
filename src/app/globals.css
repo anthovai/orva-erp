@@ -1098,10 +1098,32 @@ aside:has([data-sidebar-scroll]) {
    The shell is hidden by structure (rail, header, footer, floating widgets)
    rather than by adding print:hidden to upstream components we do not own. */
 @media print {
-  /* let the sheet own the page */
+  /* let the sheet own the page: zero page margin so Chrome prints no
+     header/footer (date, title, URL) — the sheet carries its own margins */
   @page {
     size: A4;
-    margin: 12mm;
+    margin: 0;
+  }
+
+  /* exact A4 geometry regardless of the app shell's columns; one sheet per
+     page (tax documents print ต้นฉบับ then สำเนา) */
+  [data-document-sheet],
+  .break-before-page {
+    width: 210mm !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 14mm 14mm 12mm !important;
+    box-sizing: border-box !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  .break-before-page {
+    break-before: page;
+  }
+  /* no gap between sheets — a stray 24px pushed the copy onto a third page */
+  [data-document-sheet] + .break-before-page,
+  :has(> [data-document-sheet]) {
+    gap: 0 !important;
   }
 
   html,

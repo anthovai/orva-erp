@@ -42,6 +42,7 @@
   "orva_documents.field.signatureSeller": "ผู้มีอำนาจลงนาม",
   "orva_documents.field.subtotal": "รวมเป็นเงิน",
   "orva_documents.field.taxId": "เลขประจำตัวผู้เสียภาษี",
+  "orva_documents.field.terms": "เงื่อนไข",
   "orva_documents.field.unitPrice": "ราคาต่อหน่วย",
   "orva_documents.field.validUntil": "ยืนราคาถึง",
   "orva_documents.field.vat": "ภาษีมูลค่าเพิ่ม",
