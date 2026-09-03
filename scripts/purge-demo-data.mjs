@@ -43,6 +43,17 @@ const DEMO_JOURNALS = [
 ]
 const KEEP_JOURNALS = { 'JE-000010': 'JE-000001', 'JE-000011': 'JE-000002' }
 
+// Say out loud which database this touches, and refuse a non-local host unless
+// the operator explicitly accepts it — a system-level env var can silently
+// override .env and point this at production.
+const target = new URL(url)
+console.log(`Target database: ${target.hostname}:${target.port || '5432'}${target.pathname} as ${target.username}`)
+const isLocal = ['localhost', '127.0.0.1', '::1'].includes(target.hostname)
+if (!isLocal && !process.argv.includes('--allow-remote-host')) {
+  console.error('Refusing: the target host is not local. Re-run with --allow-remote-host if that is really intended.')
+  process.exit(1)
+}
+
 const client = new Client({ connectionString: url })
 await client.connect()
 const count = async (sql, params = []) => Number((await client.query(sql, params)).rows[0]?.n ?? 0)
