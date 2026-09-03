@@ -78,6 +78,20 @@ export default function DocumentPreviewPage() {
 
   const [busy, setBusy] = React.useState(false)
   const [emailTo, setEmailTo] = React.useState('')
+  // e-Tax Invoice by Email: offered only when the RD-registered sender is set
+  const [etaxConfigured, setEtaxConfigured] = React.useState(false)
+  const [etax, setEtax] = React.useState(false)
+  React.useEffect(() => {
+    let cancelled = false
+    apiCall<{ etaxSenderEmail: string | null }>('/api/orva_documents/settings')
+      .then((call) => {
+        if (!cancelled && call.ok) setEtaxConfigured(!!call.result?.etaxSenderEmail)
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+  const isTaxType = type === 'tax_invoice' || type === 'receipt'
+  const etaxAvailable = etaxConfigured && isTaxType && sourceId !== SAMPLE_VALUE
 
   const selectorParams = React.useCallback(() => {
     const params = new URLSearchParams({ type })
@@ -149,11 +163,17 @@ export default function DocumentPreviewPage() {
         body: JSON.stringify({
           to: emailTo.trim(), type, template,
           documentId: params.get('documentId') ?? undefined,
+          ...(etax && etaxAvailable ? { etax: true } : {}),
         }),
       })
       const body = await res.json().catch(() => null)
       if (res.ok) {
-        flash(t('orva_documents.email.sent', 'ส่งเอกสารทางอีเมลแล้ว'), 'success')
+        flash(
+          body?.etax
+            ? t('orva_documents.etax.sent', 'ส่ง e-Tax Invoice แล้ว — สำเนาถึงระบบประทับเวลา ETDA')
+            : t('orva_documents.email.sent', 'ส่งเอกสารทางอีเมลแล้ว'),
+          'success',
+        )
         setEmailTo('')
       } else {
         flash(body?.code === 'pdf_browser_unavailable'
@@ -259,6 +279,12 @@ export default function DocumentPreviewPage() {
             <Button type="button" variant="outline" onClick={sendPdf} disabled={!doc || busy || !emailTo.trim()}>
               {t('orva_documents.preview.sendEmail', 'ส่งเอกสารทางอีเมล')}
             </Button>
+            {etaxAvailable ? (
+              <label className="flex items-center gap-2 pb-2 text-sm">
+                <input type="checkbox" checked={etax} onChange={(event) => setEtax(event.target.checked)} />
+                {t('orva_documents.etax.toggle', 'ส่งเข้าระบบ e-Tax (CC ประทับเวลา ETDA)')}
+              </label>
+            ) : null}
           </div>
 
           {data?.usedSample ? (

@@ -100,6 +100,14 @@ export class DocumentSettings {
   @Property({ name: 'document_terms', type: 'text', nullable: true })
   documentTerms?: string | null
 
+  /**
+   * e-Tax Invoice by Email (ETDA time stamp): the sender address REGISTERED
+   * with the Revenue Department. Unset = the e-Tax send option is hidden.
+   * The CC target is the program's fixed csemail@etax.teda.th.
+   */
+  @Property({ name: 'etax_sender_email', type: 'text', nullable: true })
+  etaxSenderEmail?: string | null
+
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()
 

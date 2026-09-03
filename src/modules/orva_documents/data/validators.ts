@@ -46,6 +46,7 @@ export const settingsPutSchema = z.object({
   logoFooter: logoSchema,
   logoHeaderQuotation: logoSchema,
   documentTerms: z.string().trim().max(2000).optional().nullable(),
+  etaxSenderEmail: z.string().trim().email().optional().nullable().or(z.literal('').transform(() => null)),
 })
 
 export const previewQuerySchema = z.object({
@@ -101,4 +102,9 @@ export const sendSchema = z.object({
   documentId: z.string().uuid().optional(),
   /** Optional cover note; the default copy is used when blank. */
   message: z.string().trim().max(2000).optional(),
+  /**
+   * e-Tax Invoice by Email: CC the ETDA time-stamp system and send from the
+   * RD-registered address. Only meaningful for statutory tax documents.
+   */
+  etax: z.boolean().optional(),
 })

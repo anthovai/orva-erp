@@ -34,6 +34,7 @@ type SettingsPayload = {
   logoFooter: string | null
   logoHeaderQuotation: string | null
   documentTerms: string | null
+  etaxSenderEmail: string | null
   updatedAt: string | null
 }
 
@@ -154,6 +155,11 @@ export default function DocumentSettingsPage() {
       type: 'textarea',
     },
     {
+      id: 'etaxSenderEmail',
+      label: t('orva_documents.settings.etaxSenderEmail', 'อีเมลผู้ส่ง e-Tax Invoice (ต้องลงทะเบียนกับกรมสรรพากรก่อน — เว้นว่าง = ปิดการส่ง e-Tax)'),
+      type: 'text',
+    },
+    {
       id: 'invoiceNumberFormat',
       label: t('orva_documents.settings.invoiceNumberFormat', 'รูปแบบเลขที่ใบแจ้งหนี้ (เช่น KK-INV-{yyyy}{seq:3})'),
       type: 'text',
@@ -192,7 +198,7 @@ export default function DocumentSettingsPage() {
       id: 'seller',
       title: t('orva_documents.settings.groupSeller', 'ข้อมูลกิจการบนเอกสาร'),
       column: 1,
-      fields: ['sellerName', 'sellerLegalName', 'sellerTaxId', 'sellerBranch', 'sellerAddress', 'sellerPhone', 'sellerEmail', 'paymentDetails', 'documentTerms'],
+      fields: ['sellerName', 'sellerLegalName', 'sellerTaxId', 'sellerBranch', 'sellerAddress', 'sellerPhone', 'sellerEmail', 'paymentDetails', 'documentTerms', 'etaxSenderEmail'],
     },
     {
       id: 'templates',
