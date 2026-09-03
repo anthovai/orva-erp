@@ -1,4 +1,4 @@
-import type { DocumentType, TemplateId } from './document'
+import type { DocumentType, PrintableDocument, TemplateId } from './document'
 
 /** Reads one cookie off an incoming request. */
 export function readCookie(req: Request, name: string): string | null {
@@ -33,6 +33,23 @@ export function buildDocumentUrl(requestUrl: URL, selector: DocumentSelector): s
  * endpoint over HTTP with the caller's cookies rather than duplicating the
  * build logic, so the naming can never disagree with the sheet.
  */
+/** Full presentation model for a selection — the e-Tax XML builds from it. */
+export async function resolveDocument(
+  req: Request,
+  selector: DocumentSelector,
+): Promise<PrintableDocument> {
+  const url = new URL(req.url)
+  const target = new URL('/api/orva_documents/preview', url.origin)
+  target.searchParams.set('type', selector.type)
+  if (selector.template) target.searchParams.set('template', selector.template)
+  if (selector.documentId) target.searchParams.set('documentId', selector.documentId)
+  const res = await fetch(target, { headers: { cookie: req.headers.get('cookie') ?? '' } })
+  if (!res.ok) throw new Error(`preview lookup failed (${res.status})`)
+  const body = (await res.json()) as { document?: PrintableDocument }
+  if (!body.document) throw new Error('preview returned no document')
+  return body.document
+}
+
 export async function resolveDocumentHeading(
   req: Request,
   selector: DocumentSelector,

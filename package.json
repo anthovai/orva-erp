@@ -111,6 +111,7 @@
     "mammoth": "^1.9.0",
     "newrelic": "^14.3.4",
     "next": "16.3.0",
+    "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.2.108",
     "pg": "8.22.0",
     "puppeteer-core": "^25.9.0",

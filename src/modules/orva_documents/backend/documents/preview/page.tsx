@@ -101,11 +101,14 @@ export default function DocumentPreviewPage() {
   }, [type, template, sourceId])
 
   // Server-rendered PDF: the browser downloads the same sheet it is showing.
-  const downloadPdf = async () => {
+  // etax = the PDF/A-3 variant with the ขมธอ.3-2560 XML embedded.
+  const downloadPdf = async (asEtax = false) => {
     if (busy) return
     setBusy(true)
     try {
-      const res = await fetch(`/api/orva_documents/pdf?${selectorParams().toString()}`, { credentials: 'include' })
+      const params = selectorParams()
+      if (asEtax) params.set('etax', '1')
+      const res = await fetch(`/api/orva_documents/pdf?${params.toString()}`, { credentials: 'include' })
       if (!res.ok) {
         const body = await res.json().catch(() => null)
         flash(body?.code === 'pdf_browser_unavailable'
@@ -254,9 +257,14 @@ export default function DocumentPreviewPage() {
             <Button type="button" variant="outline" onClick={() => window.print()} disabled={!doc}>
               {t('orva_documents.preview.print', 'พิมพ์')}
             </Button>
-            <Button type="button" onClick={downloadPdf} disabled={!doc || busy}>
+            <Button type="button" onClick={() => downloadPdf(false)} disabled={!doc || busy}>
               {t('orva_documents.preview.downloadPdf', 'ดาวน์โหลด PDF')}
             </Button>
+            {isTaxType && sourceId !== SAMPLE_VALUE ? (
+              <Button type="button" variant="outline" onClick={() => downloadPdf(true)} disabled={!doc || busy}>
+                {t('orva_documents.etax.downloadPdfA3', 'ดาวน์โหลด PDF/A-3 (e-Tax)')}
+              </Button>
+            ) : null}
             {data?.sourceKind === 'quote' && sourceId !== SAMPLE_VALUE ? (
               <Button type="button" variant="outline" onClick={copyCustomerLink} disabled={busy}>
                 {t('orva_documents.share.copyLink', 'คัดลอกลิงก์ลูกค้า')}

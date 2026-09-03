@@ -12,9 +12,11 @@ import { withTenantRls } from '@/lib/rls'
 import { sendSchema } from '../../data/validators'
 import { loadSettings } from '../../lib/source'
 import { sendEtaxEmail } from '../../lib/etaxEmail'
+import { buildEtaxXml, etaxSubject, type EtaxDocumentType } from '../../lib/etaxXml'
+import { toPdfA3 } from '../../lib/pdfA3'
 import { DocumentEmail } from '../../emails/DocumentEmail'
 import { BrowserUnavailableError, pdfFileName, renderDocumentPdf } from '../../lib/pdf'
-import { buildDocumentUrl, readCookie, resolveDocumentHeading } from '../../lib/request'
+import { buildDocumentUrl, readCookie, resolveDocument, resolveDocumentHeading } from '../../lib/request'
 
 export const metadata = {
   POST: { requireAuth: true, requireFeatures: ['orva_documents.view'] },
@@ -120,8 +122,27 @@ export async function POST(req: Request) {
     }
     if (etax && etaxSender) {
       // buyer in TO, ETDA time-stamp system in CC, RD-registered sender,
-      // exactly one attachment — the by-email program's rules
-      await sendEtaxEmail({ to, from: etaxSender, subject: documentLabel, react: emailBody, attachment })
+      // exactly one attachment — a PDF/A-3 with the ขมธอ.3-2560 XML embedded
+      // and the program's [date][type][number] subject
+      const etaxType = type as EtaxDocumentType
+      const fullDoc = await resolveDocument(req, selector)
+      const pdfA3 = await toPdfA3({
+        pdf,
+        xml: buildEtaxXml(fullDoc, etaxType),
+        title: documentLabel,
+        documentType: etaxType === 'receipt' ? 'Receipt' : 'Tax Invoice',
+      })
+      await sendEtaxEmail({
+        to,
+        from: etaxSender,
+        subject: etaxSubject(fullDoc, etaxType),
+        react: emailBody,
+        attachment: {
+          filename: attachment.filename,
+          content: Buffer.from(pdfA3).toString('base64'),
+          contentType: 'application/pdf',
+        },
+      })
     } else {
       await sendEmail({ to, subject: documentLabel, react: emailBody, attachments: [attachment] })
     }

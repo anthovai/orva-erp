@@ -20,6 +20,7 @@
   "orva_documents.email.intro": "เอกสารของคุณแนบมากับอีเมลฉบับนี้แล้ว",
   "orva_documents.email.sent": "ส่งเอกสารทางอีเมลแล้ว",
   "orva_documents.errors.taxId": "เลขประจำตัวผู้เสียภาษีต้องเป็นตัวเลข 13 หลัก",
+  "orva_documents.etax.downloadPdfA3": "ดาวน์โหลด PDF/A-3 (e-Tax)",
   "orva_documents.etax.sent": "ส่ง e-Tax Invoice แล้ว — สำเนาถึงระบบประทับเวลา ETDA",
   "orva_documents.etax.toggle": "ส่งเข้าระบบ e-Tax (CC ประทับเวลา ETDA)",
   "orva_documents.field.amount": "จำนวนเงิน",

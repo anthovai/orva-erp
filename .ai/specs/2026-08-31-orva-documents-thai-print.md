@@ -185,3 +185,21 @@ Decisions:
 | 2026-08-31 | Phase 1 shipped |
 | 2026-09-01 | Review fixes: no baht wording outside THB, VAT rate read from line data, receipt issued as the combined form, public PDF rate-limited. |
 | 2026-08-31 | Phase 2 shipped: server-side PDF, email attachment on Orva's own send endpoint, customer document view. Attaching to upstream's quote-send email declined — no seam, not worth owning the route. |
+
+### Phase 4 — e-Tax Invoice by Email (2026-09-03)
+
+- Program rules (ETDA PDF/A-3 workshop + RD): sender = RD-registered
+  address, buyer in TO (one), CC `csemail@etax.teda.th`, exactly one
+  attachment, subject `[ddMMyyyy พ.ศ.][INV|RCT][number]`, attachment is
+  PDF/A-3 with `ETDA-invoice.xml` (ขมธอ.3-2560 v2.0) embedded; XMP must carry
+  `pdfaid:part=3`, `pdfaid:conformance=U`, `DocumentFileName`,
+  `DocumentType`, `Version=2.0`.
+- Implemented: `lib/etaxXml.ts` (TaxInvoice_CrossIndustryInvoice; T02/T03;
+  TXID = taxid+branch), `lib/pdfA3.ts` (pdf-lib: attach XML AFRelationship
+  /Data, catalog /AF, sRGB OutputIntent from a CC0 compact profile, XMP),
+  `lib/etaxEmail.ts` (Resend with CC — upstream helper has none),
+  `settings.etax_sender_email` gate, preview checkbox + "ดาวน์โหลด PDF/A-3".
+- Open: full ISO 19005-3 conformance of Chromium output is unverified locally
+  (validate the first real file with veraPDF / RD validator); XML not yet
+  schema-validated against RD XMLSchemaV2 XSD; RD registration is the
+  tenant's step.
