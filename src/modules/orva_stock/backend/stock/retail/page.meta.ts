@@ -3,9 +3,9 @@ export const metadata = {
   requireFeatures: ['orva_stock.view'],
   pageTitle: 'Retail sale',
   pageTitleKey: 'orva_stock.retail.page.title',
-  pageGroup: 'Stock',
-  pageGroupKey: 'orva_stock.nav.group',
-  pageOrder: 10,
+  pageGroup: 'Sales',
+  pageGroupKey: 'orva.nav.sales',
+  pageOrder: 70,
   icon: 'shopping-bag',
   breadcrumb: [{ label: 'Retail sale', labelKey: 'orva_stock.retail.page.title' }],
 }

@@ -4,7 +4,7 @@ export const metadata = {
   pageTitle: 'VAT report (ภ.พ.30)',
   pageTitleKey: 'orva_finance.vat.page.title',
   pageGroup: 'Accounting',
-  pageGroupKey: 'orva_finance.nav.accounting',
+  pageGroupKey: 'orva.nav.accounting',
   pageOrder: 60,
   icon: 'receipt',
   breadcrumb: [{ label: 'VAT report', labelKey: 'orva_finance.vat.page.title' }],

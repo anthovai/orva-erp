@@ -4,7 +4,7 @@ export const metadata = {
   pageTitle: 'Cash flow statement',
   pageTitleKey: 'orva_finance.cashflow.page.title',
   pageGroup: 'Accounting',
-  pageGroupKey: 'orva_finance.nav.accounting',
+  pageGroupKey: 'orva.nav.accounting',
   pageOrder: 51,
   icon: 'hand-coins',
   breadcrumb: [{ label: 'Cash flow statement', labelKey: 'orva_finance.cashflow.page.title' }],

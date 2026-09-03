@@ -4,7 +4,7 @@
   pageTitle: 'GL Journals',
   pageTitleKey: 'orva_finance.journals.page.title',
   pageGroup: 'Accounting',
-  pageGroupKey: 'orva_finance.nav.accounting',
+  pageGroupKey: 'orva.nav.accounting',
   pageOrder: 30,
   icon: 'file-text',
   breadcrumb: [{ label: 'GL Journals', labelKey: 'orva_finance.journals.page.title' }],

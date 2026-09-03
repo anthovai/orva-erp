@@ -68,8 +68,26 @@ export const moduleOverrideExamples: ModuleOverrides = {
   },
 }
 
+/**
+ * Kaiser operating model: the sidebar is organised by the company's seven
+ * departments, not by framework module. Upstream pages are moved into these
+ * groups through page-metadata overrides below; app modules declare the same
+ * keys in their page.meta.ts. Labels live in src/modules/orva/i18n.
+ */
+const NAV = {
+  sales: { pageGroup: 'Sales', pageGroupKey: 'orva.nav.sales' },
+  marketing: { pageGroup: 'Marketing', pageGroupKey: 'orva.nav.marketing' },
+  project: { pageGroup: 'Projects', pageGroupKey: 'orva.nav.project' },
+  stock: { pageGroup: 'Stock', pageGroupKey: 'orva.nav.stock' },
+  accounting: { pageGroup: 'Accounting', pageGroupKey: 'orva.nav.accounting' },
+  hr: { pageGroup: 'HR', pageGroupKey: 'orva.nav.hr' },
+  it: { pageGroup: 'IT Support', pageGroupKey: 'orva.nav.it' },
+} as const
+const NAV_GROUP_ORDER = Object.values(NAV).map((g) => g.pageGroupKey)
+const regroup = (group: keyof typeof NAV, pageOrder: number) => ({ metadata: { ...NAV[group], pageOrder } })
+
 export const enabledModules: ModuleEntry[] = [
-  { id: 'dashboards', from: '@open-mercato/core' },
+  { id: 'dashboards', from: '@open-mercato/core', overrides: { nav: { groupOrder: NAV_GROUP_ORDER } } },
   { id: 'auth', from: '@open-mercato/core' },
   { id: 'directory', from: '@open-mercato/core' },
   {
@@ -94,17 +112,32 @@ export const enabledModules: ModuleEntry[] = [
             // the manifest expects the component itself, not the module namespace
             load: () => import('@/modules/orva/components/CompanyCreatePage').then((mod) => mod.default),
           },
+          // departments: deals/companies/people are the sales pipeline; tasks and calendar are project work
+          '/backend/customers/deals': regroup('sales', 10),
+          '/backend/customers/companies': regroup('sales', 20),
+          '/backend/customers/people': regroup('sales', 30),
+          '/backend/customer-tasks': regroup('project', 10),
+          '/backend/calendar': regroup('project', 20),
+          '/backend/config/customers/deals': regroup('it', 70),
         },
       },
     },
   },
   { id: 'perspectives', from: '@open-mercato/core' },
-  { id: 'entities', from: '@open-mercato/core' },
+  // create-only leaf in the sidebar; the designer lives under Settings → ออกแบบข้อมูล
+  { id: 'entities', from: '@open-mercato/core', overrides: { routes: { pages: { '/backend/entities/user/create': null } } } },
   { id: 'configs', from: '@open-mercato/core' },
   { id: 'query_index', from: '@open-mercato/core' },
   { id: 'audit_logs', from: '@open-mercato/core' },
-  { id: 'attachments', from: '@open-mercato/core' },
-  { id: 'catalog', from: '@open-mercato/core', overrides: { setup: { seedExamples: false } } },
+  { id: 'attachments', from: '@open-mercato/core', overrides: { routes: { pages: { '/backend/storage/attachments': regroup('it', 10) } } } },
+  {
+    id: 'catalog',
+    from: '@open-mercato/core',
+    overrides: {
+      setup: { seedExamples: false },
+      routes: { pages: { '/backend/catalog/products': regroup('stock', 10), '/backend/catalog/categories': regroup('stock', 20) } },
+    },
+  },
   {
     id: 'sales',
     from: '@open-mercato/core',
@@ -130,6 +163,9 @@ export const enabledModules: ModuleEntry[] = [
           '/backend/sales/channels': null,
           '/backend/sales/channels/create': null,
           '/backend/sales/channels/offers': null,
+          '/backend/sales/quotes': regroup('sales', 40),
+          '/backend/sales/documents/create': regroup('sales', 50),
+          '/backend/sales/invoices': regroup('sales', 60),
         },
       },
     },
@@ -149,6 +185,11 @@ export const enabledModules: ModuleEntry[] = [
           '/backend/wms/zones': null,
           '/backend/wms/reservations': null,
           '/backend/config/wms': null,
+          '/backend/wms/inventory': regroup('stock', 40),
+          '/backend/wms/lots': regroup('stock', 50),
+          '/backend/wms/movements': regroup('stock', 60),
+          '/backend/wms/warehouses': regroup('stock', 80),
+          '/backend/wms/locations': regroup('stock', 90),
         },
       },
     },
@@ -182,7 +223,7 @@ export const enabledModules: ModuleEntry[] = [
       },
     },
   },
-  { id: 'feature_toggles', from: '@open-mercato/core' },
+  { id: 'feature_toggles', from: '@open-mercato/core', overrides: { routes: { pages: { '/backend/feature-toggles/global/create': null } } } },
   {
     id: 'workflows',
     from: '@open-mercato/core',
@@ -197,6 +238,7 @@ export const enabledModules: ModuleEntry[] = [
           '/backend/definitions/visual-editor': null,
           '/backend/instances': null,
           '/backend/events': null,
+          '/backend/tasks': regroup('project', 30),
         },
       },
     },
@@ -226,23 +268,27 @@ export const enabledModules: ModuleEntry[] = [
     },
   },
   { id: 'events', from: '@open-mercato/events' },
-  { id: 'notifications', from: '@open-mercato/core' },
+  { id: 'notifications', from: '@open-mercato/core', overrides: { routes: { pages: { '/backend/profile/notification-preferences': regroup('it', 60) } } } },
   { id: 'progress', from: '@open-mercato/core' },
   { id: 'integrations', from: '@open-mercato/core' },
   { id: 'data_sync', from: '@open-mercato/core' },
   { id: 'sync_excel', from: '@open-mercato/core' },
-  { id: 'messages', from: '@open-mercato/core' },
+  { id: 'messages', from: '@open-mercato/core', overrides: { routes: { pages: { '/backend/messages': regroup('marketing', 10), '/backend/messages/compose': regroup('marketing', 20) } } } },
   // Communication channels hub (SPEC-045d) — bridges external chat/email channels
   // (Slack, WhatsApp, Email) to the unified Messages inbox. Provider packages
   // (channel-slack, channel-whatsapp, future email providers) register adapters here.
-  { id: 'communication_channels', from: '@open-mercato/core' },
+  {
+    id: 'communication_channels',
+    from: '@open-mercato/core',
+    overrides: { routes: { pages: { '/backend/communication_channels/channels': regroup('marketing', 30), '/backend/profile/communication-channels': regroup('it', 50) } } },
+  },
   // Push notification rails — `push` delivery strategy + delivery log + send-push worker.
   // Fans out to `devices` tokens and sends through the `communication_channels` hub.
   { id: 'push_notifications', from: '@open-mercato/core' },
   { id: 'ai_assistant', from: '@open-mercato/ai-assistant' },
   { id: 'translations', from: '@open-mercato/core' },
   { id: 'scheduler', from: '@open-mercato/scheduler' },
-  { id: 'inbox_ops', from: '@open-mercato/core' },
+  { id: 'inbox_ops', from: '@open-mercato/core', overrides: { routes: { pages: { '/backend/inbox-ops': regroup('marketing', 40) } } } },
   // Per-user email channels for the Communications Hub (SPEC-045d / email
   // integration spec). Each provider package registers its `ChannelAdapter`
   // at import time via `setup.ts`; the hub picks them up by `providerKey`.

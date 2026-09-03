@@ -4,7 +4,7 @@
   pageTitle: 'Fiscal Periods',
   pageTitleKey: 'orva_finance.periods.page.title',
   pageGroup: 'Accounting',
-  pageGroupKey: 'orva_finance.nav.accounting',
+  pageGroupKey: 'orva.nav.accounting',
   pageOrder: 20,
   icon: 'calendar',
   breadcrumb: [{ label: 'Fiscal Periods', labelKey: 'orva_finance.periods.page.title' }],

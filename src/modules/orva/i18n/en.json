@@ -19,5 +19,12 @@
   "orva.home.quotes.noCustomer": "No customer yet",
   "orva.home.quotes.title": "Latest quotations",
   "orva.home.title": "Your business today",
-  "orva.home.widgetDashboard": "Widget dashboard"
+  "orva.home.widgetDashboard": "Widget dashboard",
+  "orva.nav.accounting": "Accounting",
+  "orva.nav.hr": "HR",
+  "orva.nav.it": "IT Support",
+  "orva.nav.marketing": "Marketing",
+  "orva.nav.project": "Projects",
+  "orva.nav.sales": "Sales",
+  "orva.nav.stock": "Stock"
 }

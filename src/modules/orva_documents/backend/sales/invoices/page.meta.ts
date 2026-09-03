@@ -4,7 +4,7 @@ export const metadata = {
   pageTitle: 'Invoices',
   pageTitleKey: 'orva_documents.invoices.page.title',
   pageGroup: 'Sales',
-  pageGroupKey: 'customers~sales.nav.group',
+  pageGroupKey: 'orva.nav.sales',
   pageOrder: 110,
   icon: 'receipt',
   breadcrumb: [{ label: 'Invoices', labelKey: 'orva_documents.invoices.page.title' }],
