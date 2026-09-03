@@ -5,7 +5,7 @@ export const metadata = {
   pageTitleKey: 'orva_finance.aging.page.title',
   pageGroup: 'Accounting',
   pageGroupKey: 'orva.nav.accounting',
-  pageOrder: 60,
+  pageOrder: 160,
   icon: 'hourglass',
   breadcrumb: [{ label: 'AP/AR Aging', labelKey: 'orva_finance.aging.page.title' }],
 }

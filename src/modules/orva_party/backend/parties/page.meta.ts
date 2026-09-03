@@ -5,7 +5,7 @@ export const metadata = {
   pageTitleKey: 'orva_party.page.title',
   pageGroup: 'Accounting',
   pageGroupKey: 'orva.nav.accounting',
-  pageOrder: 10,
+  pageOrder: 110,
   icon: 'users',
   breadcrumb: [{ label: 'Parties', labelKey: 'orva_party.page.title' }],
 }

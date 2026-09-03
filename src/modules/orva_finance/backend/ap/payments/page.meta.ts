@@ -5,7 +5,7 @@ export const metadata = {
   pageTitleKey: 'orva_finance.payments.page.title',
   pageGroup: 'Accounting',
   pageGroupKey: 'orva.nav.accounting',
-  pageOrder: 30,
+  pageOrder: 130,
   icon: 'banknote',
   breadcrumb: [{ label: 'Vendor Payments', labelKey: 'orva_finance.payments.page.title' }],
 }

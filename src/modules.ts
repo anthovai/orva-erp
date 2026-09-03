@@ -108,14 +108,16 @@ export const enabledModules: ModuleEntry[] = [
           // builder — only the asked-for subset and group order are ours.
           // Metadata is intentionally omitted so the installed guards
           // (customers.companies.manage), title and breadcrumb still apply.
-          '/backend/customers/companies/create': {
-            // the manifest expects the component itself, not the module namespace
-            load: () => import('@/modules/orva/components/CompanyCreatePage').then((mod) => mod.default),
-          },
+          // (the company create override carries the sales group below, next to its siblings)
           // departments: deals/companies/people are the sales pipeline; tasks and calendar are project work
           '/backend/customers/deals': regroup('sales', 10),
+          '/backend/customers/deals/pipeline': regroup('sales', 11),
+          '/backend/customers/deals/map': regroup('sales', 12),
+          '/backend/customers/deals/create': regroup('sales', 13),
           '/backend/customers/companies': regroup('sales', 20),
+          '/backend/customers/companies/create': { ...regroup('sales', 21), load: () => import('@/modules/orva/components/CompanyCreatePage').then((mod) => mod.default) },
           '/backend/customers/people': regroup('sales', 30),
+          '/backend/customers/people/create': regroup('sales', 31),
           '/backend/customer-tasks': regroup('project', 10),
           '/backend/calendar': regroup('project', 20),
           '/backend/config/customers/deals': regroup('it', 70),
@@ -135,7 +137,14 @@ export const enabledModules: ModuleEntry[] = [
     from: '@open-mercato/core',
     overrides: {
       setup: { seedExamples: false },
-      routes: { pages: { '/backend/catalog/products': regroup('stock', 10), '/backend/catalog/categories': regroup('stock', 20) } },
+      routes: {
+        pages: {
+          '/backend/catalog/products': regroup('stock', 10),
+          '/backend/catalog/products/create': regroup('stock', 11),
+          '/backend/catalog/categories': regroup('stock', 20),
+          '/backend/catalog/categories/create': regroup('stock', 21),
+        },
+      },
     },
   },
   {
