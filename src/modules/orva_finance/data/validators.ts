@@ -112,6 +112,26 @@ export const journalReverseSchema = z.object({
 
 export const glSettingsPutSchema = z.object({
   retainedEarningsAccountId: z.string().uuid(),
+  /** The accounting firm that receives the monthly ชุดปิดเดือน. */
+  accountantEmail: z.string().trim().email().max(200).nullable().optional(),
+  accountantName: z.string().trim().max(200).nullable().optional(),
+})
+
+export const monthPackQuerySchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/),
+})
+
+export const monthPackDownloadSchema = monthPackQuerySchema.extend({
+  /** Include the ใบกำกับภาษี/ใบเสร็จ PDFs (needs a Chromium on the host). Default on. */
+  pdf: z.enum(['0', '1']).optional(),
+})
+
+export const monthPackSendSchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/),
+  /** Overrides the saved accountant address for this send only. */
+  to: z.string().trim().email().max(200).optional(),
+  message: z.string().trim().max(2000).optional(),
+  includePdf: z.boolean().optional(),
 })
 
 export const periodCloseSchema = z.object({ periodId: z.string().uuid() })

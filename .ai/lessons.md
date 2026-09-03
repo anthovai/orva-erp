@@ -29,6 +29,7 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 ### umes
 
 - [Upstream's sales create form claims a document number on open — preview instead, claim on save](lessons/sales-document-numbers-are-claimed-on-form-open.md) — area:umes,debugging; module:orva_documents,sales; topic:document-numbers,route-override,command-interceptor
+- [A new dashboard widget is invisible until the role allowlist includes it](lessons/dashboard-widgets-need-role-allowlist.md) — area:umes,backend-ui; module:dashboards,orva_finance; topic:dashboard-widgets,role-allowlist,default-layout
 
 ### backend-ui
 

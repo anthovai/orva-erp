@@ -17,6 +17,14 @@ export const metadata = {
 
 const settingsResponseSchema = z.object({
   retainedEarningsAccountId: z.string().uuid().nullable(),
+  accountantEmail: z.string().nullable(),
+  accountantName: z.string().nullable(),
+})
+
+const toResponse = (settings: GlSettings | null) => ({
+  retainedEarningsAccountId: settings?.retainedEarningsAccountId ?? null,
+  accountantEmail: settings?.accountantEmail ?? null,
+  accountantName: settings?.accountantName ?? null,
 })
 
 export async function GET(req: Request) {
@@ -27,7 +35,7 @@ export async function GET(req: Request) {
   const container = await createRequestContainer()
   const em = container.resolve<EntityManager>('em')
   const settings = await em.findOne(GlSettings, { tenantId: auth.tenantId, organizationId })
-  return Response.json({ retainedEarningsAccountId: settings?.retainedEarningsAccountId ?? null })
+  return Response.json(toResponse(settings))
 }
 
 export async function PUT(req: Request) {
@@ -49,21 +57,34 @@ export async function PUT(req: Request) {
         throw Object.assign(new Error('Retained earnings must be an equity account'), { status: 400 })
       }
       const existing = await tem.findOne(GlSettings, { tenantId, organizationId })
+      const accountant = {
+        // omitted = keep; null/'' = clear
+        ...(parsed.data.accountantEmail !== undefined ? { accountantEmail: parsed.data.accountantEmail || null } : {}),
+        ...(parsed.data.accountantName !== undefined ? { accountantName: parsed.data.accountantName || null } : {}),
+      }
       if (existing) {
         existing.retainedEarningsAccountId = parsed.data.retainedEarningsAccountId
-      } else {
-        const now = new Date()
-        tem.persist(tem.create(GlSettings, {
-          tenantId,
-          organizationId,
-          retainedEarningsAccountId: parsed.data.retainedEarningsAccountId,
-          createdAt: now,
-          updatedAt: now,
-        }))
+        Object.assign(existing, accountant)
+        await tem.flush()
+        return existing
       }
+      const now = new Date()
+      const created = tem.create(GlSettings, {
+        tenantId,
+        organizationId,
+        retainedEarningsAccountId: parsed.data.retainedEarningsAccountId,
+        accountantEmail: null,
+        accountantName: null,
+        ...accountant,
+        createdAt: now,
+        updatedAt: now,
+      })
+      tem.persist(created)
       await tem.flush()
+      return created
     })
-    return Response.json({ retainedEarningsAccountId: parsed.data.retainedEarningsAccountId })
+    const settings = await em.fork().findOne(GlSettings, { tenantId, organizationId })
+    return Response.json(toResponse(settings))
   } catch (error: unknown) {
     const status = (error as { status?: number }).status ?? 500
     return Response.json({ error: error instanceof Error ? error.message : 'Failed' }, { status })

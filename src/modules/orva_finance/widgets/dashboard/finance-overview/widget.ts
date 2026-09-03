@@ -16,7 +16,9 @@ const widget: DashboardWidgetModule<FinanceOverviewSettings> = {
     description: 'Revenue, net profit and outstanding receivables/payables from posted journals.',
     features: ['dashboards.view', 'orva_finance.gl.view'],
     defaultSize: 'lg',
-    defaultEnabled: true,
+    // Kaiser operating model: the owner-home widget is the default screen;
+    // this P&L/aging view stays in the picker for whoever wants both.
+    defaultEnabled: false,
     defaultSettings: DEFAULT_SETTINGS,
     tags: ['finance', 'orva'],
     category: 'orva_finance',

@@ -28,8 +28,8 @@ nothing is hard-coded to Kaiser, so the same shape becomes the SaaS offer later.
 
 | Phase | Deliverable | Why first |
 |---|---|---|
-| A (now) | Menu trimmed to the profile; home rebuilt around the four questions; quote → งวด → receipt flow already complete | daily use gets simple immediately |
-| B | ชุดปิดเดือน export + "send to accountant" (email/link) | removes the biggest recurring chore |
+| A — shipped 2026-09-03 | Menu trimmed to the profile (`src/modules.ts` overrides); home rebuilt around the four questions (`src/components/orva/HomeScreen.tsx` + `orva_finance/components/FourQuestions.tsx`, data from `GET /api/orva_finance/home/overview`; same panel as dashboard widget `orva_finance.dashboard.owner_home`) | daily use gets simple immediately |
+| B — shipped 2026-09-03 | ชุดปิดเดือน: `/backend/reports/month-pack` — pre-flight checklist, figures, zip download (`reports/month-pack/download`), email to the accountant on file (`reports/month-pack/send`, address in GL settings), history in `orva_month_packs`. Zip = 13 CSVs (ภ.พ.30 registers, ภ.ง.ด.3/53, journal, ledger, TBs, P&L, BS, cash flow, bank reco) + cover sheet + tax-document PDFs rendered through the documents PDF endpoint | removes the biggest recurring chore |
 | C | Agent tools on the assistant: slip → receipt, quote drafting, month pack, reminders | the owner is one person |
 | D | Brand profiles per document series (Kaiser / Marventine) | needed before the first Marventine document |
 | E | Marventine stock/product layer (lots, expiry, FDA no., OEM bills, B2C receipts) | when the product ships |

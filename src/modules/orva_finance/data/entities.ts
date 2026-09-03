@@ -230,6 +230,13 @@ export class GlSettings {
   @Property({ name: 'retained_earnings_account_id', type: 'uuid' })
   retainedEarningsAccountId!: string
 
+  /** Where the monthly ชุดปิดเดือน goes — the outsourced accounting firm. */
+  @Property({ name: 'accountant_email', type: 'text', nullable: true })
+  accountantEmail?: string | null
+
+  @Property({ name: 'accountant_name', type: 'text', nullable: true })
+  accountantName?: string | null
+
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()
 
@@ -874,6 +881,59 @@ export class BankStatementLine {
 
   @Property({ name: 'journal_line_id', type: 'uuid', nullable: true })
   journalLineId?: string | null
+
+  @Property({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+
+  @Property({ name: 'deleted_at', type: Date, nullable: true })
+  deletedAt?: Date | null
+}
+
+/**
+ * ชุดปิดเดือน — one generated month pack (zip of registers, statements and
+ * tax-document PDFs) handed to the accounting firm. Rows are history: a
+ * re-send after a correction is a new row, never an update of the old one.
+ */
+@Entity({ tableName: 'orva_month_packs' })
+export class MonthPack {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  /** YYYY-MM */
+  @Property({ type: 'text' })
+  month!: string
+
+  /** generated | sent | failed */
+  @Property({ type: 'text' })
+  status: string = 'generated'
+
+  @Property({ name: 'file_name', type: 'text' })
+  fileName!: string
+
+  @Property({ name: 'file_size', type: 'int' })
+  fileSize: number = 0
+
+  @Property({ name: 'sent_to', type: 'text', nullable: true })
+  sentTo?: string | null
+
+  @Property({ name: 'sent_at', type: Date, nullable: true })
+  sentAt?: Date | null
+
+  /** Headline figures at generation time, so history reads without re-running reports. */
+  @Property({ type: 'jsonb', nullable: true })
+  summary?: Record<string, unknown> | null
 
   @Property({ name: 'created_by', type: 'uuid', nullable: true })
   createdBy?: string | null
