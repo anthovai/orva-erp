@@ -31,6 +31,7 @@ export default function BillCreateForm() {
   const [billDate, setBillDate] = React.useState(() => new Date().toISOString().slice(0, 10))
   const [dueDate, setDueDate] = React.useState('')
   const [memo, setMemo] = React.useState('')
+  const [taxAmount, setTaxAmount] = React.useState('')
   const [lines, setLines] = React.useState<LineDraft[]>([{ key: 1, expenseAccountId: '', amount: '', description: '' }])
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -75,6 +76,8 @@ export default function BillCreateForm() {
   const removeLine = (key: number) => setLines((prev) => (prev.length > 1 ? prev.filter((l) => l.key !== key) : prev))
 
   const total = lines.reduce((sum, line) => sum + (Number(line.amount) || 0), 0)
+  const tax = Number(taxAmount) || 0
+  const gross = total + tax
   const linesValid = lines.every((line) => line.expenseAccountId && Number(line.amount) > 0)
   const canSubmit = Boolean(vendorPartyId && periodId && billDate && lines.length >= 1 && linesValid && !submitting)
 
@@ -90,6 +93,7 @@ export default function BillCreateForm() {
         dueDate: dueDate || null,
         currencyCode: 'THB',
         memo: memo || null,
+        taxAmount: tax,
         lines: lines.map((line) => ({
           expenseAccountId: line.expenseAccountId,
           amount: Number(line.amount),
@@ -221,6 +225,25 @@ export default function BillCreateForm() {
                   <td className="px-3 py-2 text-xs text-muted-foreground" colSpan={2}>
                     {t('orva_finance.ap.form.totalHint', 'Posting debits these expenses and credits the AP control account')}
                   </td>
+                </tr>
+                <tr className="bg-muted/30">
+                  <td className="px-3 py-2" colSpan={2}>
+                    <div className="flex flex-wrap items-center gap-2 text-sm font-normal">
+                      <span>{t('orva_finance.ap.form.tax', 'ภาษีซื้อ (VAT)')}</span>
+                      <Button variant="ghost" size="sm" disabled={total <= 0} onClick={() => setTaxAmount((Math.round(total * 7) / 100).toFixed(2))}>
+                        {t('orva_finance.ap.form.tax7', '7%')}
+                      </Button>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2">
+                    <Input type="number" min="0" step="0.01" className="text-right tabular-nums" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} />
+                  </td>
+                  <td />
+                </tr>
+                <tr className="bg-muted/30 font-medium">
+                  <td className="px-3 py-2 text-right" colSpan={2}>{t('orva_finance.ap.form.gross', 'ยอดรวมทั้งสิ้น (รวม VAT)')}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{fmt(gross)}</td>
+                  <td />
                 </tr>
               </tfoot>
             </table>

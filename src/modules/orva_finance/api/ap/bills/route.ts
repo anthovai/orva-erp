@@ -5,7 +5,7 @@ import { badRequest } from '@open-mercato/shared/lib/crud/errors'
 import { withTenantRls } from '@/lib/rls'
 import { Party, PartyRole } from '@/modules/orva_party/data/entities'
 import { ApBill, ApBillLine } from '../../../data/entities'
-import { computeBillTotal } from '../../../lib/ap'
+import { computeBillGross } from '../../../lib/ap'
 import { billCreateSchema, billListSchema, billUpdateSchema, deleteByIdSchema } from '../../../data/validators'
 import { createOrvaFinanceCrudOpenApi, createPagedListResponseSchema, createdSchema, okSchema } from '../../openapi'
 
@@ -89,6 +89,7 @@ export const { metadata, GET, POST, PUT, DELETE } = makeCrudRoute({
       dueDate: input.dueDate ?? null,
       currencyCode: input.currencyCode ?? 'THB',
       memo: input.memo ?? null,
+      taxAmount: Number(input.taxAmount ?? 0).toFixed(4),
       createdBy: ctx.auth?.sub ?? null,
     }),
     response: (entity) => ({ id: String(entity.id) }),
@@ -160,7 +161,7 @@ export const { metadata, GET, POST, PUT, DELETE } = makeCrudRoute({
           )
         })
         managed.billNo = billNo
-        managed.totalAmount = computeBillTotal(input.lines)
+        managed.totalAmount = computeBillGross(input.lines, input.taxAmount ?? 0)
         await tem.flush()
       })
     },

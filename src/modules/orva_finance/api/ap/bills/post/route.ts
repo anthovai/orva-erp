@@ -6,7 +6,7 @@ import type { OpenApiRouteDoc } from '@open-mercato/shared/lib/openapi'
 import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
 import { ApBill, ApBillLine, ApSettings, FiscalPeriod, GlJournal, GlJournalLine } from '../../../../data/entities'
-import { buildBillJournalLines, computeBillTotal } from '../../../../lib/ap'
+import { buildBillJournalLines, computeBillGross } from '../../../../lib/ap'
 import { allocateJournalNo, checkPostable } from '../../../../lib/posting'
 import { billPostSchema } from '../../../../data/validators'
 import { orvaFinanceTag } from '../../../openapi'
@@ -56,6 +56,8 @@ export async function POST(req: Request) {
       const journalLines = buildBillJournalLines(
         lines.map((line) => ({ expenseAccountId: line.expenseAccountId, amount: line.amount, description: line.description })),
         settings.apAccountId,
+        bill.taxAmount ?? 0,
+        settings.inputVatAccountId,
       )
       const verdict = checkPostable({
         journalStatus: 'draft',
@@ -68,7 +70,10 @@ export async function POST(req: Request) {
       if (!verdict.ok) throw Object.assign(new Error(verdict.reason), { status: 400 })
 
       const now = new Date()
-      const total = computeBillTotal(lines.map((line) => ({ expenseAccountId: line.expenseAccountId, amount: line.amount })))
+      const total = computeBillGross(
+        lines.map((line) => ({ expenseAccountId: line.expenseAccountId, amount: line.amount })),
+        bill.taxAmount ?? 0,
+      )
       const journalNo = await allocateJournalNo(tem, tenantId, String(bill.organizationId))
       const journal = tem.create(GlJournal, {
         tenantId,

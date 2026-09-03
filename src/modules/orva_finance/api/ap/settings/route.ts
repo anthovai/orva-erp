@@ -17,6 +17,8 @@ export const metadata = {
 
 const settingsResponseSchema = z.object({
   apAccountId: z.string().uuid().nullable(),
+  inputVatAccountId: z.string().uuid().nullable(),
+  whtPayableAccountId: z.string().uuid().nullable(),
 })
 
 export async function GET(req: Request) {
@@ -27,7 +29,11 @@ export async function GET(req: Request) {
   const container = await createRequestContainer()
   const em = container.resolve<EntityManager>('em')
   const settings = await em.findOne(ApSettings, { tenantId: auth.tenantId, organizationId })
-  return Response.json({ apAccountId: settings?.apAccountId ?? null })
+  return Response.json({
+    apAccountId: settings?.apAccountId ?? null,
+    inputVatAccountId: settings?.inputVatAccountId ?? null,
+    whtPayableAccountId: settings?.whtPayableAccountId ?? null,
+  })
 }
 
 export async function PUT(req: Request) {
@@ -48,22 +54,37 @@ export async function PUT(req: Request) {
       if (account.accountType !== 'liability') {
         throw Object.assign(new Error('AP control account must be a liability account'), { status: 400 })
       }
+      const expectType = async (id: string, type: string, label: string) => {
+        const acc = await tem.findOne(GlAccount, { id, tenantId, deletedAt: null })
+        if (!acc) throw Object.assign(new Error(label + ' account not found'), { status: 400 })
+        if (acc.accountType !== type) throw Object.assign(new Error(label + ' account must be of type ' + type), { status: 400 })
+      }
+      if (parsed.data.inputVatAccountId) await expectType(parsed.data.inputVatAccountId, 'asset', 'Input VAT')
+      if (parsed.data.whtPayableAccountId) await expectType(parsed.data.whtPayableAccountId, 'liability', 'WHT payable')
       const existing = await tem.findOne(ApSettings, { tenantId, organizationId })
       if (existing) {
         existing.apAccountId = parsed.data.apAccountId
+        existing.inputVatAccountId = parsed.data.inputVatAccountId ?? null
+        existing.whtPayableAccountId = parsed.data.whtPayableAccountId ?? null
       } else {
         const now = new Date()
         tem.persist(tem.create(ApSettings, {
           tenantId,
           organizationId,
           apAccountId: parsed.data.apAccountId,
+          inputVatAccountId: parsed.data.inputVatAccountId ?? null,
+          whtPayableAccountId: parsed.data.whtPayableAccountId ?? null,
           createdAt: now,
           updatedAt: now,
         }))
       }
       await tem.flush()
     })
-    return Response.json({ apAccountId: parsed.data.apAccountId })
+    return Response.json({
+      apAccountId: parsed.data.apAccountId,
+      inputVatAccountId: parsed.data.inputVatAccountId ?? null,
+      whtPayableAccountId: parsed.data.whtPayableAccountId ?? null,
+    })
   } catch (error: unknown) {
     const status = (error as { status?: number }).status ?? 500
     return Response.json({ error: error instanceof Error ? error.message : 'Failed' }, { status })

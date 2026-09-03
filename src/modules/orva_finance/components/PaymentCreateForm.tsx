@@ -37,6 +37,9 @@ export default function PaymentCreateForm() {
   const [periodId, setPeriodId] = React.useState('')
   const [paymentDate, setPaymentDate] = React.useState(() => new Date().toISOString().slice(0, 10))
   const [memo, setMemo] = React.useState('')
+  const [whtRate, setWhtRate] = React.useState('3')
+  const [whtAmount, setWhtAmount] = React.useState('')
+  const [whtType, setWhtType] = React.useState('ค่าบริการ')
   const [amounts, setAmounts] = React.useState<Record<string, string>>({})
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -93,12 +96,14 @@ export default function PaymentCreateForm() {
     [amounts],
   )
   const total = allocations.reduce((sum, a) => sum + a.amount, 0)
+  const wht = Number(whtAmount) || 0
+  const cashOut = total - wht
   const overAllocated = allocations.some((a) => {
     const bill = openBills.find((b) => b.id === a.billId)
     return !bill || a.amount > remaining(bill) + 0.00005
   })
   const canSubmit = Boolean(
-    vendorPartyId && cashAccountId && periodId && paymentDate && allocations.length >= 1 && !overAllocated && !submitting,
+    vendorPartyId && cashAccountId && periodId && paymentDate && allocations.length >= 1 && !overAllocated && wht >= 0 && wht < total && !submitting,
   )
 
   const submit = async () => {
@@ -113,6 +118,9 @@ export default function PaymentCreateForm() {
         currencyCode: 'THB',
         memo: memo || null,
         allocations,
+        whtAmount: wht,
+        whtRate: wht > 0 && whtRate ? Number(whtRate) : null,
+        whtType: wht > 0 ? whtType || null : null,
       })
       flash(t('orva_finance.payments.flash.created', 'Draft payment created'), 'success')
       router.push(LIST_HREF)
@@ -237,7 +245,31 @@ export default function PaymentCreateForm() {
                     <td className="px-3 py-2 text-right">{t('orva_finance.payments.form.total', 'Payment total')}</td>
                     <td className={`px-3 py-2 text-right tabular-nums ${overAllocated ? 'text-destructive' : ''}`}>{fmt(total)}</td>
                   </tr>
-                </tfoot>
+                                  <tr className="bg-muted/30">
+                    <td className="px-3 py-2" colSpan={4}>
+                      <div className="flex flex-wrap items-center gap-2 text-sm font-normal">
+                        <span>{t('orva_finance.payments.form.wht', 'หักภาษี ณ ที่จ่าย')}</span>
+                        <Input type="number" min="0" max="100" step="0.5" className="w-20 text-right" value={whtRate} onChange={(e) => setWhtRate(e.target.value)} aria-label="%" />
+                        <span>%</span>
+                        <Input className="w-40" value={whtType} onChange={(e) => setWhtType(e.target.value)} placeholder={t('orva_finance.payments.form.whtType', 'ประเภทเงินได้ เช่น ค่าบริการ')} />
+                        <Button
+                          variant="ghost" size="sm" disabled={total <= 0}
+                          onClick={() => setWhtAmount((Math.round((total / 1.07) * (Number(whtRate) || 0)) / 100).toFixed(2))}
+                        >
+                          {t('orva_finance.receipts.form.whtCompute', 'คำนวณจากยอดก่อน VAT')}
+                        </Button>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-right">{t('orva_finance.receipts.form.whtAmount', 'หัก ณ ที่จ่าย')}</td>
+                    <td className="px-3 py-2">
+                      <Input type="number" min="0" step="0.01" className={`text-right tabular-nums ${wht >= total && total > 0 ? 'border-destructive' : ''}`} value={whtAmount} onChange={(e) => setWhtAmount(e.target.value)} />
+                    </td>
+                  </tr>
+                  <tr className="bg-muted/30 font-medium">
+                    <td className="px-3 py-2 text-right" colSpan={5}>{t('orva_finance.payments.form.cashOut', 'เงินออกจากบัญชีจริง')}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{fmt(cashOut)}</td>
+                  </tr>
+</tfoot>
               </table>
             </div>
           ) : null}

@@ -84,7 +84,10 @@ export async function POST(req: Request) {
         total += Number(alloc.amount)
       }
 
-      const journalLines = buildReceiptJournalLines(total, receipt.cashAccountId, settings.arAccountId)
+      const wht = Number(receipt.whtAmount ?? 0)
+      const journalLines = buildReceiptJournalLines(
+        total, receipt.cashAccountId, settings.arAccountId, wht, settings.whtReceivableAccountId,
+      )
       const verdict = checkPostable({
         journalStatus: 'draft',
         journalDate: String(receipt.receiptDate),

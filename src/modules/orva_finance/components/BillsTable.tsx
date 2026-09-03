@@ -33,56 +33,94 @@ type AccountRow = { id: string; code: string; name: string; account_type: string
 const selectClass =
   'h-9 rounded-md border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
+type ApSettingsDto = { apAccountId: string | null; inputVatAccountId?: string | null; whtPayableAccountId?: string | null }
+
 function ApSettingsBanner() {
   const t = useT()
   const queryClient = useQueryClient()
   const scopeVersion = useOrganizationScopeVersion()
-  const [selected, setSelected] = React.useState('')
+  const [open, setOpen] = React.useState(false)
+  const [ap, setAp] = React.useState('')
+  const [vatIn, setVatIn] = React.useState('')
+  const [whtPay, setWhtPay] = React.useState('')
   const [saving, setSaving] = React.useState(false)
 
   const { data: settings } = useQuery({
     queryKey: ['orva_finance.ap.settings', scopeVersion],
-    queryFn: async () => readApiResultOrThrow<{ apAccountId: string | null }>('/api/orva_finance/ap/settings'),
+    queryFn: async () => readApiResultOrThrow<ApSettingsDto>('/api/orva_finance/ap/settings'),
   })
+  React.useEffect(() => {
+    if (!settings) return
+    setAp(settings.apAccountId ?? '')
+    setVatIn(settings.inputVatAccountId ?? '')
+    setWhtPay(settings.whtPayableAccountId ?? '')
+  }, [settings])
   const { data: accountsData } = useQuery({
-    queryKey: ['orva_finance.accounts.liability', scopeVersion],
+    queryKey: ['orva_finance.accounts.all', scopeVersion],
     queryFn: async () =>
-      fetchCrudList<AccountRow>('orva_finance/gl/accounts', {
-        page: 1, pageSize: 100, sortField: 'code', sortDir: 'asc', accountType: 'liability', isActive: true,
+      fetchCrudList<AccountRow & { account_type?: string }>('orva_finance/gl/accounts', {
+        page: 1, pageSize: 100, sortField: 'code', sortDir: 'asc', isActive: true,
       }),
-    enabled: settings?.apAccountId === null,
   })
+  const accounts = accountsData?.items ?? []
+  const byType = (type: string) => accounts.filter((a) => a.account_type === type)
 
-  if (!settings || settings.apAccountId) return null
-
+  if (!settings) return null
+  const incomplete = !settings.apAccountId || !settings.inputVatAccountId || !settings.whtPayableAccountId
+  if (!incomplete && !open) {
+    return (
+      <div className="mb-4 flex justify-end">
+        <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+          {t('orva_finance.ap.settings.edit', 'บัญชีที่ใช้ลงรายการ AP')}
+        </Button>
+      </div>
+    )
+  }
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-status-warning-border bg-status-warning-bg px-4 py-3 text-sm">
-      <span>{t('orva_finance.ap.settings.missing', 'Set the AP control account (liability) before posting bills:')}</span>
-      <select className={selectClass} value={selected} onChange={(e) => setSelected(e.target.value)}>
-        <option value="">{t('orva_finance.journals.form.selectAccount', '— select account —')}</option>
-        {(accountsData?.items ?? []).map((a) => (
-          <option key={a.id} value={a.id}>{a.code} · {a.name}</option>
-        ))}
-      </select>
-      <Button
-        size="sm" disabled={!selected || saving}
-        onClick={async () => {
-          setSaving(true)
-          try {
-            await readApiResultOrThrow('/api/orva_finance/ap/settings', {
-              method: 'PUT',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ apAccountId: selected }),
-            })
-            flash(t('orva_finance.ap.settings.saved', 'AP control account saved'), 'success')
-            queryClient.invalidateQueries({ queryKey: ['orva_finance.ap.settings'] })
-          } finally {
-            setSaving(false)
-          }
-        }}
-      >
-        {t('orva_finance.form.edit.submit', 'Save')}
-      </Button>
+    <div className={`mb-4 grid gap-3 rounded-md border px-4 py-3 text-sm md:grid-cols-4 ${incomplete ? 'border-status-warning-border bg-status-warning-bg' : ''}`}>
+      <label className="flex flex-col gap-1">
+        <span className="font-medium">{t('orva_finance.ap.settings.apAccount', 'เจ้าหนี้การค้า (liability)')} *</span>
+        <select className={selectClass} value={ap} onChange={(e) => setAp(e.target.value)}>
+          <option value="">{t('orva_finance.journals.form.selectAccount', '— select account —')}</option>
+          {byType('liability').map((a) => (<option key={a.id} value={a.id}>{a.code} · {a.name}</option>))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="font-medium">{t('orva_finance.ap.settings.inputVat', 'ภาษีซื้อ (asset)')}</span>
+        <select className={selectClass} value={vatIn} onChange={(e) => setVatIn(e.target.value)}>
+          <option value="">{t('orva_finance.journals.form.selectAccount', '— select account —')}</option>
+          {byType('asset').map((a) => (<option key={a.id} value={a.id}>{a.code} · {a.name}</option>))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="font-medium">{t('orva_finance.ap.settings.whtPayable', 'ภาษีหัก ณ ที่จ่ายค้างนำส่ง (liability)')}</span>
+        <select className={selectClass} value={whtPay} onChange={(e) => setWhtPay(e.target.value)}>
+          <option value="">{t('orva_finance.journals.form.selectAccount', '— select account —')}</option>
+          {byType('liability').map((a) => (<option key={a.id} value={a.id}>{a.code} · {a.name}</option>))}
+        </select>
+      </label>
+      <div className="flex items-end gap-2">
+        <Button
+          size="sm" disabled={!ap || saving}
+          onClick={async () => {
+            setSaving(true)
+            try {
+              await readApiResultOrThrow('/api/orva_finance/ap/settings', {
+                method: 'PUT',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ apAccountId: ap, inputVatAccountId: vatIn || null, whtPayableAccountId: whtPay || null }),
+              })
+              flash(t('orva_finance.ap.settings.saved', 'AP control account saved'), 'success')
+              queryClient.invalidateQueries({ queryKey: ['orva_finance.ap.settings'] })
+              setOpen(false)
+            } finally {
+              setSaving(false)
+            }
+          }}
+        >
+          {t('orva_finance.form.edit.submit', 'Save')}
+        </Button>
+      </div>
     </div>
   )
 }

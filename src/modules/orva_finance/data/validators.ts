@@ -103,6 +103,13 @@ export const journalUpdateSchema = z.object({
 
 export const journalPostSchema = z.object({ id: z.string().uuid() })
 
+/** Reverse a posted journal on a date inside an open period. */
+export const journalReverseSchema = z.object({
+  id: z.string().uuid(),
+  reversalDate: z.string().regex(/^d{4}-d{2}-d{2}$/),
+  memo: z.string().trim().max(500).optional(),
+})
+
 export const glSettingsPutSchema = z.object({
   retainedEarningsAccountId: z.string().uuid(),
 })
@@ -137,6 +144,8 @@ export const billCreateSchema = z.object({
   currencyCode: z.string().min(3).max(3).default('THB'),
   memo: z.string().optional().nullable(),
   lines: z.array(billLineInputSchema).min(1),
+  /** ภาษีซื้อ on the bill (added on top of the expense lines). */
+  taxAmount: z.coerce.number().min(0).optional().default(0),
 })
 
 export const billUpdateSchema = z.object({
@@ -150,7 +159,11 @@ export const billUpdateSchema = z.object({
 
 export const billPostSchema = z.object({ id: z.string().uuid() })
 
-export const apSettingsPutSchema = z.object({ apAccountId: z.string().uuid() })
+export const apSettingsPutSchema = z.object({
+  apAccountId: z.string().uuid(),
+  inputVatAccountId: z.string().uuid().optional().nullable(),
+  whtPayableAccountId: z.string().uuid().optional().nullable(),
+})
 
 export const paymentAllocationInputSchema = z.object({
   billId: z.string().uuid(),
@@ -176,6 +189,10 @@ export const paymentCreateSchema = z.object({
   currencyCode: z.string().min(3).max(3).default('THB'),
   memo: z.string().optional().nullable(),
   allocations: z.array(paymentAllocationInputSchema).min(1),
+  /** Tax withheld from the vendor — reduces cash, credits WHT payable. */
+  whtAmount: z.coerce.number().min(0).optional().default(0),
+  whtRate: z.coerce.number().min(0).max(100).optional().nullable(),
+  whtType: z.string().trim().max(120).optional().nullable(),
 })
 
 export const paymentUpdateSchema = z.object({
@@ -192,6 +209,8 @@ export const arSettingsPutSchema = z.object({
   arAccountId: z.string().uuid(),
   revenueAccountId: z.string().uuid(),
   taxAccountId: z.string().uuid().optional().nullable(),
+  whtReceivableAccountId: z.string().uuid().optional().nullable(),
+  defaultCashAccountId: z.string().uuid().optional().nullable(),
 })
 
 export const receiptAllocationInputSchema = z.object({
@@ -217,6 +236,9 @@ export const receiptCreateSchema = z.object({
   memo: z.string().optional().nullable(),
   customerPartyId: z.string().uuid().optional().nullable(),
   allocations: z.array(receiptAllocationInputSchema).min(1),
+  /** Withheld by the customer — part of the allocations, not of the cash. */
+  whtAmount: z.coerce.number().min(0).optional().default(0),
+  whtRate: z.coerce.number().min(0).max(100).optional().nullable(),
 })
 
 export const receiptUpdateSchema = z.object({

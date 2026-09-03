@@ -35,18 +35,35 @@ export function computeAllocationsTotal(allocations: AllocationAmount[]): string
 }
 
 /**
- * A payment books: debit the AP control account (reducing the liability),
- * credit the cash/bank asset account.
+ * A payment books:
+ *   debit  AP control (liability)   total        (bills settled in full)
+ *   credit cash/bank (asset)        total - wht
+ *   credit WHT payable (liability)  wht          (ภ.ง.ด.3/53 — withheld from the
+ *                                                 vendor, remitted to the RD next month)
  */
-export function buildPaymentJournalLines(total: number | string, apAccountId: string, cashAccountId: string): JournalLineDraft[] {
+export function buildPaymentJournalLines(
+  total: number | string,
+  apAccountId: string,
+  cashAccountId: string,
+  wht: number | string = 0,
+  whtPayableAccountId?: string | null,
+): JournalLineDraft[] {
   const amount = Number(total)
+  const withheld = Number(wht) || 0
   if (!Number.isFinite(amount) || amount <= 0) throw new Error('orva_ap: payment total must be positive')
+  if (!Number.isFinite(withheld) || withheld < 0) throw new Error('orva_ap: withholding must not be negative')
+  if (withheld >= amount) throw new Error('orva_ap: withholding must be less than the payment total')
   if (!apAccountId) throw new Error('orva_ap: AP control account is not configured')
   if (!cashAccountId) throw new Error('orva_ap: cash account is required')
-  return [
+  if (withheld > 0 && !whtPayableAccountId) throw new Error('orva_ap: WHT payable account is not configured')
+  const lines: JournalLineDraft[] = [
     { accountId: apAccountId, debit: amount.toFixed(4), credit: '0.0000', description: 'Accounts payable settlement' },
-    { accountId: cashAccountId, debit: '0.0000', credit: amount.toFixed(4), description: 'Cash out' },
+    { accountId: cashAccountId, debit: '0.0000', credit: (amount - withheld).toFixed(4), description: 'Cash out' },
   ]
+  if (withheld > 0 && whtPayableAccountId) {
+    lines.push({ accountId: whtPayableAccountId, debit: '0.0000', credit: withheld.toFixed(4), description: 'Withholding tax payable' })
+  }
+  return lines
 }
 
 /** remaining = total - paid; an allocation may not exceed it. */
@@ -59,16 +76,36 @@ export function checkAllocationFits(billTotal: number | string, billPaid: number
   return { ok: true }
 }
 
-export function buildBillJournalLines(lines: BillLineAmount[], apAccountId: string): JournalLineDraft[] {
+/**
+ * A bill books: debit each expense line, debit input VAT (ภาษีซื้อ) when
+ * present, credit the AP control account with lines + tax.
+ */
+export function buildBillJournalLines(
+  lines: BillLineAmount[],
+  apAccountId: string,
+  tax: number | string = 0,
+  inputVatAccountId?: string | null,
+): JournalLineDraft[] {
   if (lines.length === 0) throw new Error('orva_ap: a bill needs at least one line')
   if (!apAccountId) throw new Error('orva_ap: AP control account is not configured')
-  const total = computeBillTotal(lines)
+  const taxAmount = Number(tax) || 0
+  if (!Number.isFinite(taxAmount) || taxAmount < 0) throw new Error('orva_ap: tax must not be negative')
+  if (taxAmount > 0 && !inputVatAccountId) throw new Error('orva_ap: input VAT account is not configured')
+  const net = Number(computeBillTotal(lines))
   const drafts: JournalLineDraft[] = lines.map((line) => ({
     accountId: line.expenseAccountId,
     debit: Number(line.amount).toFixed(4),
     credit: '0.0000',
     description: line.description ?? null,
   }))
-  drafts.push({ accountId: apAccountId, debit: '0.0000', credit: total, description: 'Accounts payable' })
+  if (taxAmount > 0 && inputVatAccountId) {
+    drafts.push({ accountId: inputVatAccountId, debit: taxAmount.toFixed(4), credit: '0.0000', description: 'Input VAT' })
+  }
+  drafts.push({ accountId: apAccountId, debit: '0.0000', credit: (net + taxAmount).toFixed(4), description: 'Accounts payable' })
   return drafts
+}
+
+/** Bill total = expense lines + input VAT. */
+export function computeBillGross(lines: BillLineAmount[], tax: number | string = 0): string {
+  return (Number(computeBillTotal(lines)) + (Number(tax) || 0)).toFixed(4)
 }

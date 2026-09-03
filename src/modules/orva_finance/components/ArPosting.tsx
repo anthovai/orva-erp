@@ -26,6 +26,8 @@ type ArSettingsDto = {
   arAccountId: string | null
   revenueAccountId: string | null
   taxAccountId: string | null
+  whtReceivableAccountId?: string | null
+  defaultCashAccountId?: string | null
 }
 
 const selectClass =
@@ -38,6 +40,8 @@ function ArSettingsCard({ settings }: { settings: ArSettingsDto }) {
   const [ar, setAr] = React.useState(settings.arAccountId ?? '')
   const [revenue, setRevenue] = React.useState(settings.revenueAccountId ?? '')
   const [tax, setTax] = React.useState(settings.taxAccountId ?? '')
+  const [whtRecv, setWhtRecv] = React.useState(settings.whtReceivableAccountId ?? '')
+  const [bank, setBank] = React.useState(settings.defaultCashAccountId ?? '')
   const [saving, setSaving] = React.useState(false)
 
   const { data: accountsData } = useQuery({
@@ -51,7 +55,7 @@ function ArSettingsCard({ settings }: { settings: ArSettingsDto }) {
   const byType = (type: string) => accounts.filter((a) => a.account_type === type)
 
   return (
-    <div className="mb-4 grid gap-3 rounded-md border px-4 py-3 text-sm md:grid-cols-4">
+    <div className="mb-4 grid gap-3 rounded-md border px-4 py-3 text-sm md:grid-cols-3 lg:grid-cols-6">
       <label className="flex flex-col gap-1">
         <span className="font-medium">{t('orva_finance.ar.settings.arAccount', 'AR control (asset)')} *</span>
         <select className={selectClass} value={ar} onChange={(e) => setAr(e.target.value)}>
@@ -73,6 +77,20 @@ function ArSettingsCard({ settings }: { settings: ArSettingsDto }) {
           {byType('liability').map((a) => (<option key={a.id} value={a.id}>{a.code} · {a.name}</option>))}
         </select>
       </label>
+      <label className="flex flex-col gap-1">
+        <span className="font-medium">{t('orva_finance.ar.settings.whtReceivable', 'ภาษีถูกหัก ณ ที่จ่าย (asset)')}</span>
+        <select className={selectClass} value={whtRecv} onChange={(e) => setWhtRecv(e.target.value)}>
+          <option value="">{t('orva_finance.journals.form.selectAccount', '— select account —')}</option>
+          {byType('asset').map((a) => (<option key={a.id} value={a.id}>{a.code} · {a.name}</option>))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="font-medium">{t('orva_finance.ar.settings.defaultBank', 'บัญชีธนาคารรับเงิน (auto จากเอกสาร)')}</span>
+        <select className={selectClass} value={bank} onChange={(e) => setBank(e.target.value)}>
+          <option value="">{t('orva_finance.journals.form.selectAccount', '— select account —')}</option>
+          {byType('asset').map((a) => (<option key={a.id} value={a.id}>{a.code} · {a.name}</option>))}
+        </select>
+      </label>
       <div className="flex items-end">
         <Button
           size="sm" disabled={!ar || !revenue || saving}
@@ -82,7 +100,7 @@ function ArSettingsCard({ settings }: { settings: ArSettingsDto }) {
               await readApiResultOrThrow('/api/orva_finance/ar/settings', {
                 method: 'PUT',
                 headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({ arAccountId: ar, revenueAccountId: revenue, taxAccountId: tax || null }),
+                body: JSON.stringify({ arAccountId: ar, revenueAccountId: revenue, taxAccountId: tax || null, whtReceivableAccountId: whtRecv || null, defaultCashAccountId: bank || null }),
               })
               flash(t('orva_finance.ar.settings.saved', 'AR accounts saved'), 'success')
               queryClient.invalidateQueries({ queryKey: ['orva_finance.ar.settings'] })

@@ -38,4 +38,19 @@ describe('orva_finance AR posting helpers', () => {
     expect(() => buildReceiptJournalLines(10, '', 'a')).toThrow(/cash account/)
     expect(() => buildReceiptJournalLines(10, 'c', '')).toThrow(/not configured/)
   })
+
+  test('receipt with 3% withholding: cash net, WHT receivable, AR gross — balanced', () => {
+    // KK-INV-2026012: 25,680 gross, customer withheld 720 (3% of 24,000 net), transferred 24,960
+    const lines = buildReceiptJournalLines(25680, 'acc-bank', 'acc-ar', 720, 'acc-wht')
+    expect(lines).toEqual([
+      expect.objectContaining({ accountId: 'acc-bank', debit: '24960.0000' }),
+      expect.objectContaining({ accountId: 'acc-wht', debit: '720.0000' }),
+      expect.objectContaining({ accountId: 'acc-ar', credit: '25680.0000' }),
+    ])
+    const debit = lines.reduce((sum, l) => sum + Number(l.debit), 0)
+    const credit = lines.reduce((sum, l) => sum + Number(l.credit), 0)
+    expect(debit.toFixed(4)).toBe(credit.toFixed(4))
+    expect(() => buildReceiptJournalLines(100, 'c', 'a', 3, null)).toThrow(/WHT receivable/)
+    expect(() => buildReceiptJournalLines(100, 'c', 'a', 100, 'w')).toThrow(/less than/)
+  })
 })

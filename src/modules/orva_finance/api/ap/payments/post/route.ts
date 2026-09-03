@@ -77,7 +77,10 @@ export async function POST(req: Request) {
         total += Number(alloc.amount)
       }
 
-      const journalLines = buildPaymentJournalLines(total, settings.apAccountId, payment.cashAccountId)
+      const wht = Number(payment.whtAmount ?? 0)
+      const journalLines = buildPaymentJournalLines(
+        total, settings.apAccountId, payment.cashAccountId, wht, settings.whtPayableAccountId,
+      )
       const verdict = checkPostable({
         journalStatus: 'draft',
         journalDate: String(payment.paymentDate),
@@ -134,6 +137,14 @@ export async function POST(req: Request) {
       journal.status = 'posted'
       journal.postedAt = now
       journal.postedBy = auth.sub ?? null
+      // a withholding certificate (50 ทวิ) number is allocated the moment tax is withheld
+      if (wht > 0 && !payment.whtCertNo) {
+        const rows = (await tem.execute(
+          "insert into orva_gl_sequences as s (tenant_id, organization_id, kind, next_value) values (?, ?, 'wht_cert', 2) on conflict (tenant_id, organization_id, kind) do update set next_value = s.next_value + 1 returning next_value - 1 as seq",
+          [tenantId, String(payment.organizationId)],
+        )) as Array<{ seq: string | number }>
+        payment.whtCertNo = 'WHT-' + String(Number(rows[0]?.seq ?? 0)).padStart(6, '0')
+      }
 
       // Settle the bills â€” the relaxed bill guard allows exactly this change.
       for (const alloc of allocations) {

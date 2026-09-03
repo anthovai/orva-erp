@@ -121,6 +121,10 @@ export class GlJournal {
   @Property({ name: 'journal_kind', type: 'text', default: 'standard' })
   journalKind: string = 'standard'
 
+  /** The posted journal this one reverses (ใบกลับรายการ); null for ordinary entries. */
+  @Property({ name: 'reversal_of_id', type: 'uuid', nullable: true })
+  reversalOfId?: string | null
+
   @Property({ name: 'period_id', type: 'uuid' })
   periodId!: string
 
@@ -251,6 +255,14 @@ export class ApSettings {
   @Property({ name: 'ap_account_id', type: 'uuid' })
   apAccountId!: string
 
+  /** ภาษีซื้อ (asset) debited from a bill's tax_amount. */
+  @Property({ name: 'input_vat_account_id', type: 'uuid', nullable: true })
+  inputVatAccountId?: string | null
+
+  /** ภาษีหัก ณ ที่จ่ายค้างนำส่ง (liability) credited when a payment withholds. */
+  @Property({ name: 'wht_payable_account_id', type: 'uuid', nullable: true })
+  whtPayableAccountId?: string | null
+
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()
 
@@ -309,6 +321,10 @@ export class ApBill {
 
   @Property({ name: 'total_amount', type: 'numeric', precision: 18, scale: 4, default: '0' })
   totalAmount: string = '0'
+
+  /** Input VAT (ภาษีซื้อ) on the bill — part of total_amount, booked to its own account. */
+  @Property({ name: 'tax_amount', type: 'numeric', precision: 18, scale: 4, default: '0' })
+  taxAmount: string = '0.0000'
 
   /**
    * Sum of posted payment allocations against this bill. The only field the
@@ -387,6 +403,21 @@ export class ApPayment {
 
   @Property({ name: 'total_amount', type: 'numeric', precision: 18, scale: 4, default: '0' })
   totalAmount: string = '0'
+
+  /** Tax withheld from the vendor (ภ.ง.ด.3/53) — part of the allocations total, not paid in cash. */
+  @Property({ name: 'wht_amount', type: 'numeric', precision: 18, scale: 4, default: '0' })
+  whtAmount: string = '0.0000'
+
+  @Property({ name: 'wht_rate', type: 'numeric', precision: 6, scale: 2, nullable: true })
+  whtRate?: string | null
+
+  /** Income type on the certificate, e.g. ค่าบริการ, ค่าเช่า, ค่าโฆษณา. */
+  @Property({ name: 'wht_type', type: 'text', nullable: true })
+  whtType?: string | null
+
+  /** Running number of the หนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ). */
+  @Property({ name: 'wht_cert_no', type: 'text', nullable: true })
+  whtCertNo?: string | null
 
   @Property({ name: 'journal_id', type: 'uuid', nullable: true })
   journalId?: string | null
@@ -508,6 +539,14 @@ export class ArSettings {
   @Property({ name: 'tax_account_id', type: 'uuid', nullable: true })
   taxAccountId?: string | null
 
+  /** ภาษีถูกหัก ณ ที่จ่าย (asset) — what customers withhold and remit for us. */
+  @Property({ name: 'wht_receivable_account_id', type: 'uuid', nullable: true })
+  whtReceivableAccountId?: string | null
+
+  /** Bank account receipts land in when orva_documents records a payment. */
+  @Property({ name: 'default_cash_account_id', type: 'uuid', nullable: true })
+  defaultCashAccountId?: string | null
+
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()
 
@@ -601,6 +640,17 @@ export class ArReceipt {
 
   @Property({ name: 'total_amount', type: 'numeric', precision: 18, scale: 4, default: '0' })
   totalAmount: string = '0'
+
+  /** Withheld by the customer (ภาษีถูกหัก ณ ที่จ่าย) — settles the invoice but is not cash. */
+  @Property({ name: 'wht_amount', type: 'numeric', precision: 18, scale: 4, default: '0' })
+  whtAmount: string = '0.0000'
+
+  @Property({ name: 'wht_rate', type: 'numeric', precision: 6, scale: 2, nullable: true })
+  whtRate?: string | null
+
+  /** sales invoice this receipt was auto-created for (orva_documents record-payment), if any */
+  @Property({ name: 'source_invoice_id', type: 'uuid', nullable: true })
+  sourceInvoiceId?: string | null
 
   @Property({ name: 'journal_id', type: 'uuid', nullable: true })
   journalId?: string | null

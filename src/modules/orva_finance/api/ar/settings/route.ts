@@ -19,6 +19,8 @@ const settingsResponseSchema = z.object({
   arAccountId: z.string().uuid().nullable(),
   revenueAccountId: z.string().uuid().nullable(),
   taxAccountId: z.string().uuid().nullable(),
+  whtReceivableAccountId: z.string().uuid().nullable(),
+  defaultCashAccountId: z.string().uuid().nullable(),
 })
 
 export async function GET(req: Request) {
@@ -33,6 +35,8 @@ export async function GET(req: Request) {
     arAccountId: settings?.arAccountId ?? null,
     revenueAccountId: settings?.revenueAccountId ?? null,
     taxAccountId: settings?.taxAccountId ?? null,
+    whtReceivableAccountId: settings?.whtReceivableAccountId ?? null,
+    defaultCashAccountId: settings?.defaultCashAccountId ?? null,
   })
 }
 
@@ -59,12 +63,16 @@ export async function PUT(req: Request) {
       await expectType(parsed.data.arAccountId, 'asset', 'AR control')
       await expectType(parsed.data.revenueAccountId, 'income', 'Revenue')
       if (parsed.data.taxAccountId) await expectType(parsed.data.taxAccountId, 'liability', 'Tax payable')
+      if (parsed.data.whtReceivableAccountId) await expectType(parsed.data.whtReceivableAccountId, 'asset', 'WHT receivable')
+      if (parsed.data.defaultCashAccountId) await expectType(parsed.data.defaultCashAccountId, 'asset', 'Default bank')
 
       const existing = await tem.findOne(ArSettings, { tenantId, organizationId })
       if (existing) {
         existing.arAccountId = parsed.data.arAccountId
         existing.revenueAccountId = parsed.data.revenueAccountId
         existing.taxAccountId = parsed.data.taxAccountId ?? null
+        existing.whtReceivableAccountId = parsed.data.whtReceivableAccountId ?? null
+        existing.defaultCashAccountId = parsed.data.defaultCashAccountId ?? null
       } else {
         const now = new Date()
         tem.persist(tem.create(ArSettings, {
@@ -73,6 +81,8 @@ export async function PUT(req: Request) {
           arAccountId: parsed.data.arAccountId,
           revenueAccountId: parsed.data.revenueAccountId,
           taxAccountId: parsed.data.taxAccountId ?? null,
+          whtReceivableAccountId: parsed.data.whtReceivableAccountId ?? null,
+          defaultCashAccountId: parsed.data.defaultCashAccountId ?? null,
           createdAt: now,
           updatedAt: now,
         }))

@@ -96,6 +96,8 @@ export const { metadata, GET, POST, PUT, DELETE } = makeCrudRoute({
       receiptDate: input.receiptDate,
       currencyCode: input.currencyCode ?? 'THB',
       memo: input.memo ?? null,
+      whtAmount: Number(input.whtAmount ?? 0).toFixed(4),
+      whtRate: input.whtRate == null ? null : Number(input.whtRate).toFixed(2),
       createdBy: ctx.auth?.sub ?? null,
     }),
     response: (entity) => ({ id: String(entity.id) }),

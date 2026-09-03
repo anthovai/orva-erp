@@ -36,6 +36,8 @@ export default function ReceiptCreateForm() {
   const [periodId, setPeriodId] = React.useState('')
   const [receiptDate, setReceiptDate] = React.useState(() => new Date().toISOString().slice(0, 10))
   const [memo, setMemo] = React.useState('')
+  const [whtRate, setWhtRate] = React.useState('3')
+  const [whtAmount, setWhtAmount] = React.useState('')
   const [amounts, setAmounts] = React.useState<Record<string, string>>({})
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
@@ -68,11 +70,13 @@ export default function ReceiptCreateForm() {
     [amounts],
   )
   const total = allocations.reduce((sum, a) => sum + a.amount, 0)
+  const wht = Number(whtAmount) || 0
+  const cashIn = total - wht
   const overAllocated = allocations.some((a) => {
     const item = items.find((i) => i.invoice_id === a.invoiceId)
     return !item || a.amount > Number(item.remaining_amount) + 0.00005
   })
-  const canSubmit = Boolean(cashAccountId && periodId && receiptDate && allocations.length >= 1 && !overAllocated && !submitting)
+  const canSubmit = Boolean(cashAccountId && periodId && receiptDate && allocations.length >= 1 && !overAllocated && wht >= 0 && wht < total && !submitting)
 
   const fmt = (v: string | number) =>
     Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -88,6 +92,8 @@ export default function ReceiptCreateForm() {
         currencyCode: 'THB',
         memo: memo || null,
         allocations,
+        whtAmount: wht,
+        whtRate: wht > 0 && whtRate ? Number(whtRate) : null,
       })
       flash(t('orva_finance.receipts.flash.created', 'Draft receipt created'), 'success')
       router.push(LIST_HREF)
@@ -198,6 +204,30 @@ export default function ReceiptCreateForm() {
                   <td className="px-3 py-2 text-right" colSpan={5}>{t('orva_finance.receipts.form.total', 'Receipt total')}</td>
                   <td className={`px-3 py-2 text-right tabular-nums ${overAllocated ? 'text-destructive' : ''}`}>{fmt(total)}</td>
                 </tr>
+                <tr className="bg-muted/30">
+                  <td className="px-3 py-2" colSpan={4}>
+                    <div className="flex flex-wrap items-center gap-2 text-sm font-normal">
+                      <span>{t('orva_finance.receipts.form.wht', 'ภาษีถูกหัก ณ ที่จ่าย')}</span>
+                      <Input type="number" min="0" max="100" step="0.5" className="w-20 text-right" value={whtRate} onChange={(e) => setWhtRate(e.target.value)} aria-label="%" />
+                      <span>%</span>
+                      <Button
+                        variant="ghost" size="sm"
+                        onClick={() => setWhtAmount((Math.round((total / 1.07) * (Number(whtRate) || 0)) / 100).toFixed(2))}
+                        disabled={total <= 0}
+                      >
+                        {t('orva_finance.receipts.form.whtCompute', 'คำนวณจากยอดก่อน VAT')}
+                      </Button>
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 text-right">{t('orva_finance.receipts.form.whtAmount', 'หัก ณ ที่จ่าย')}</td>
+                  <td className="px-3 py-2">
+                    <Input type="number" min="0" step="0.01" className={`text-right tabular-nums ${wht >= total && total > 0 ? 'border-destructive' : ''}`} value={whtAmount} onChange={(e) => setWhtAmount(e.target.value)} />
+                  </td>
+                </tr>
+                <tr className="bg-muted/30 font-medium">
+                  <td className="px-3 py-2 text-right" colSpan={5}>{t('orva_finance.receipts.form.cashIn', 'เงินเข้าบัญชีจริง')}</td>
+                  <td className="px-3 py-2 text-right tabular-nums">{fmt(cashIn)}</td>
+                </tr>
               </tfoot>
             </table>
           </div>
@@ -205,7 +235,7 @@ export default function ReceiptCreateForm() {
           <p className="text-xs text-muted-foreground max-w-prose">
             {t(
               'orva_finance.receipts.form.hint',
-              'Posting debits the selected asset account and credits the AR control account, settling each invoice by the allocated amount.',
+              'Posting debits the selected asset account with the cash received, debits WHT receivable with the tax the customer withheld, and credits the AR control account with the full allocation.',
             )}
           </p>
         </div>

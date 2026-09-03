@@ -117,6 +117,28 @@ export default function JournalsTable() {
                   queryClient.invalidateQueries({ queryKey: ['orva_finance.journals'] })
                 },
               },
+            ] : row.status === 'posted' && row.journal_kind !== 'closing' ? [
+              {
+                label: t('orva_finance.journals.actions.reverse', 'กลับรายการ'),
+                onSelect: async () => {
+                  const confirmed = await confirm({
+                    title: t('orva_finance.journals.confirmReverse', 'ออกใบกลับรายการวันนี้? รายการเดิมคงอยู่ และจะถูกหักล้างด้วยรายการใหม่'),
+                  })
+                  if (!confirmed) return
+                  const call = await fetch('/api/orva_finance/gl/journals/reverse', {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ id: row.id, reversalDate: new Date().toISOString().slice(0, 10) }),
+                  })
+                  const body = await call.json().catch(() => null)
+                  if (!call.ok) {
+                    flash(body?.message ?? t('orva_finance.journals.flash.reverseFailed', 'กลับรายการไม่สำเร็จ'), 'error')
+                    return
+                  }
+                  flash(t('orva_finance.journals.flash.reversed', 'กลับรายการแล้ว {no}', { no: String(body?.journalNo ?? '') }), 'success')
+                  queryClient.invalidateQueries({ queryKey: ['orva_finance.journals'] })
+                },
+              },
             ] : []}
           />
         )}

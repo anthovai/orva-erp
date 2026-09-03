@@ -46,6 +46,26 @@ describe('orva_finance AP posting helpers', () => {
     expect(() => buildPaymentJournalLines(10, 'acc-ap', '')).toThrow(/cash account/)
   })
 
+  test('bill with input VAT debits the VAT account and credits AP gross', () => {
+    const drafts = buildBillJournalLines([{ expenseAccountId: 'acc-exp', amount: 1000 }], 'acc-ap', 70, 'acc-vat')
+    expect(drafts).toEqual([
+      expect.objectContaining({ accountId: 'acc-exp', debit: '1000.0000' }),
+      expect.objectContaining({ accountId: 'acc-vat', debit: '70.0000' }),
+      expect.objectContaining({ accountId: 'acc-ap', credit: '1070.0000' }),
+    ])
+    expect(() => buildBillJournalLines([{ expenseAccountId: 'e', amount: 1 }], 'acc-ap', 7, null)).toThrow(/input VAT/)
+  })
+
+  test('payment with 3% withholding credits cash net and WHT payable', () => {
+    const drafts = buildPaymentJournalLines(1070, 'acc-ap', 'acc-cash', 30, 'acc-wht')
+    expect(drafts).toEqual([
+      expect.objectContaining({ accountId: 'acc-ap', debit: '1070.0000' }),
+      expect.objectContaining({ accountId: 'acc-cash', credit: '1040.0000' }),
+      expect.objectContaining({ accountId: 'acc-wht', credit: '30.0000' }),
+    ])
+    expect(() => buildPaymentJournalLines(100, 'acc-ap', 'acc-cash', 3, null)).toThrow(/WHT payable/)
+  })
+
   test('allocations total and remaining checks', () => {
     expect(computeAllocationsTotal([{ billId: 'b1', amount: 100 }, { billId: 'b2', amount: 50.25 }])).toBe('150.2500')
     expect(() => computeAllocationsTotal([{ billId: 'b1', amount: 0 }])).toThrow(/positive/)
