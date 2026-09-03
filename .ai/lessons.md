@@ -1,6 +1,6 @@
 # Lessons
 
-This catalog indexes 3 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
+This catalog indexes 4 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
 
 ## How to use this catalog
 
@@ -25,6 +25,10 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 - Run `node scripts/check-lessons.mjs` before committing.
 
 ## Catalog
+
+### umes
+
+- [Upstream's sales create form claims a document number on open — preview instead, claim on save](lessons/sales-document-numbers-are-claimed-on-form-open.md) — area:umes,debugging; module:orva_documents,sales; topic:document-numbers,route-override,command-interceptor
 
 ### backend-ui
 

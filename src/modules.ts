@@ -102,7 +102,24 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'audit_logs', from: '@open-mercato/core' },
   { id: 'attachments', from: '@open-mercato/core' },
   { id: 'catalog', from: '@open-mercato/core' },
-  { id: 'sales', from: '@open-mercato/core' },
+  {
+    id: 'sales',
+    from: '@open-mercato/core',
+    overrides: {
+      routes: {
+        api: {
+          // Non-burning document numbers: the create screen previews the next
+          // quote/order number instead of claiming it; the claim happens in
+          // orva_documents/commands/interceptors.ts when the document is saved.
+          // Same response contract; other kinds still claim immediately.
+          'POST /api/sales/document-numbers': {
+            handler: (req: Request) =>
+              import('@/modules/orva_documents/lib/documentNumbersHandler').then((m) => m.POST(req)),
+          },
+        },
+      },
+    },
+  },
   { id: 'wms', from: '@open-mercato/core' },
   { id: 'api_keys', from: '@open-mercato/core' },
   { id: 'devices', from: '@open-mercato/core' },
