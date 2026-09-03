@@ -54,6 +54,13 @@ export const previewQuerySchema = z.object({
   template: templateSchema.optional(),
   /** Sales document to render; sample data is used when absent. */
   documentId: z.string().uuid().optional(),
+  /**
+   * Preview the sheet as a given brand. A real document takes its brand from
+   * its own number, so this only applies to sample data and to numbers that
+   * carry no brand prefix — it exists so a new brand can be checked before
+   * its first document is issued.
+   */
+  brand: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{2,6}$/).optional(),
 })
 
 /**

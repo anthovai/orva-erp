@@ -58,6 +58,8 @@ export default function DocumentPreviewPage() {
     return isTemplateId(value) ? value : ''
   })
   const [sourceId, setSourceId] = React.useState<string>(() => searchParams.get('documentId') ?? SAMPLE_VALUE)
+  const [brand, setBrand] = React.useState<string>(() => searchParams.get('brand') ?? '')
+  const [brands, setBrands] = React.useState<Array<{ code: string; name: string }>>([])
   const [data, setData] = React.useState<PreviewResponse | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [failed, setFailed] = React.useState(false)
@@ -69,6 +71,7 @@ export default function DocumentPreviewPage() {
     const params = new URLSearchParams({ type })
     if (template) params.set('template', template)
     if (sourceId !== SAMPLE_VALUE) params.set('documentId', sourceId)
+    if (brand) params.set('brand', brand)
     apiCall<PreviewResponse>(`/api/orva_documents/preview?${params.toString()}`)
       .then((call) => {
         if (cancelled) return
@@ -78,7 +81,7 @@ export default function DocumentPreviewPage() {
       .catch(() => { if (!cancelled) setFailed(true) })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [type, template, sourceId])
+  }, [type, template, sourceId, brand])
 
   const [busy, setBusy] = React.useState(false)
   const [emailTo, setEmailTo] = React.useState('')
@@ -94,6 +97,13 @@ export default function DocumentPreviewPage() {
       .catch(() => {})
     return () => { cancelled = true }
   }, [])
+  React.useEffect(() => {
+    let cancelled = false
+    apiCall<{ items: Array<{ code: string; name: string }> }>('/api/orva_documents/brands')
+      .then((call) => { if (!cancelled && call.ok) setBrands(call.result?.items ?? []) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
   const isTaxType = type === 'tax_invoice' || type === 'receipt'
   const etaxAvailable = etaxConfigured && isTaxType && sourceId !== SAMPLE_VALUE
 
@@ -101,8 +111,9 @@ export default function DocumentPreviewPage() {
     const params = new URLSearchParams({ type })
     if (template) params.set('template', template)
     if (sourceId !== SAMPLE_VALUE) params.set('documentId', sourceId)
+    if (brand) params.set('brand', brand)
     return params
-  }, [type, template, sourceId])
+  }, [type, template, sourceId, brand])
 
   // Server-rendered PDF: the browser downloads the same sheet it is showing.
   // etax = the PDF/A-3 variant with the ขมธอ.3-2560 XML embedded.
@@ -257,6 +268,24 @@ export default function DocumentPreviewPage() {
                 </SelectContent>
               </Select>
             </label>
+
+            {brands.length ? (
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-muted-foreground">{t('orva_documents.preview.brandLabel', 'แบรนด์')}</span>
+                <Select value={brand || '__default__'} onValueChange={(next) => setBrand(next === '__default__' ? '' : next)}>
+                  <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__default__">{t('orva_documents.preview.brandDefault', 'แบรนด์หลัก (ตั้งค่าเอกสาร)')}</SelectItem>
+                    {brands.map((b) => (
+                      <SelectItem key={b.code} value={b.code}>{b.code} · {b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {sourceId !== SAMPLE_VALUE ? (
+                  <span className="text-xs text-muted-foreground">{t('orva_documents.preview.brandFromNumber', 'เอกสารจริงใช้แบรนด์ตามเลขที่ของตัวเอง')}</span>
+                ) : null}
+              </label>
+            ) : null}
 
             <Button type="button" variant="outline" onClick={() => window.print()} disabled={!doc}>
               {t('orva_documents.preview.print', 'พิมพ์')}

@@ -401,7 +401,7 @@ function sourceFromQuote(row: QuoteRow, lines: QuoteRow[]): DocumentSource {
 /** Builds the printable document for one already-loaded quote row. */
 export async function documentFromQuote(
   tem: EntityManager,
-  args: { row: QuoteRow; type: DocumentType; template?: TemplateId; settings: DocumentSettings | null },
+  args: { row: QuoteRow; type: DocumentType; template?: TemplateId; settings: DocumentSettings | null; brand?: string | null },
 ): Promise<PrintableDocument> {
   const billing = args.type === 'billing_note' ? await billingNoteLines(tem, args.row) : null
   const [lines, buyerIdentity, settings] = await Promise.all([
@@ -413,7 +413,7 @@ export async function documentFromQuote(
           ? loadInvoiceLines(tem, String(args.row.id))
           : loadQuoteLines(tem, String(args.row.id)),
     loadBuyerThaiIdentity(tem, args.row.customer_entity_id),
-    brandedSettings(tem, args.settings, args.row.quote_number),
+    brandedSettings(tem, args.settings, args.row.quote_number, args.brand),
   ])
   // a billing note has no VAT of its own: it totals the open invoices (gross)
   const row = billing
@@ -438,10 +438,20 @@ export async function documentFromQuote(
  * plus the brand's colour/logos/terms when the number belongs to a brand
  * series (MRV-… → Marventine). Default-series documents print unchanged.
  */
-async function brandedSettings(tem: EntityManager, settings: DocumentSettings | null, number: unknown): Promise<DocumentSettings | null> {
-  if (!settings || typeof number !== 'string' || !number.includes('-')) return settings
+async function brandedSettings(
+  tem: EntityManager,
+  settings: DocumentSettings | null,
+  number: unknown,
+  brandCode?: string | null,
+): Promise<DocumentSettings | null> {
+  if (!settings) return settings
+  const numbered = typeof number === 'string' && number.includes('-')
+  if (!numbered && !brandCode) return settings
   const brands = await loadBrands(tem, { tenantId: settings.tenantId, organizationId: settings.organizationId })
-  return settingsWithBrand(settings, brandForNumber(number, brands))
+  // the document's own number wins; the explicit code is for sheets that carry no brand yet
+  const brand = (numbered ? brandForNumber(number, brands) : null)
+    ?? (brandCode ? brands.find((b) => b.code === brandCode.toUpperCase()) ?? null : null)
+  return settingsWithBrand(settings, brand)
 }
 
 /** The quotation may carry its own mark; billing documents share logoHeader. */
@@ -452,6 +462,15 @@ function headerLogoFor(type: DocumentType, settings: DocumentSettings | null): s
 }
 
 /** Sample sheet for tenants with no sales records yet. */
+/** Sample sheet, optionally dressed in a brand so a new brand can be checked. */
+export async function sampleDocumentForBrand(
+  tem: EntityManager,
+  args: { type: DocumentType; template?: TemplateId; settings: DocumentSettings | null; brand?: string | null },
+): Promise<PrintableDocument> {
+  const settings = await brandedSettings(tem, args.settings, null, args.brand)
+  return sampleDocument({ ...args, settings })
+}
+
 export function sampleDocument(args: {
   type: DocumentType
   template?: TemplateId

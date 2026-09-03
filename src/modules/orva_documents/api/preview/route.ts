@@ -19,7 +19,7 @@ import {
   listInvoiceSources,
   listQuoteSources,
   loadSettings,
-  sampleDocument,
+  sampleDocumentForBrand,
   sourceOption,
 } from '../../lib/source'
 
@@ -59,7 +59,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const parsed = previewQuerySchema.safeParse(Object.fromEntries(url.searchParams))
   if (!parsed.success) return Response.json({ error: 'Invalid query' }, { status: 400 })
-  const { type, documentId } = parsed.data
+  const { type, documentId, brand } = parsed.data
   const template = parsed.data.template as TemplateId | undefined
 
   const container = await createRequestContainer()
@@ -116,8 +116,8 @@ export async function GET(req: Request) {
         sources: sourceRows,
         usedSample: !row,
         document: row
-          ? await documentFromQuote(tem, { row, type, template, settings })
-          : sampleDocument({ type, template, settings }),
+          ? await documentFromQuote(tem, { row, type, template, settings, brand })
+          : await sampleDocumentForBrand(tem, { type, template, settings, brand }),
       }
     })
 
