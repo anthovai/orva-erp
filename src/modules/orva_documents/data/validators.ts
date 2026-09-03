@@ -130,3 +130,41 @@ export const brandDeleteSchema = z.object({ id: z.string().uuid() })
 export const brandActivateSchema = z.object({
   code: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{2,6}$/).nullable(),
 })
+
+/**
+ * RD reason codes for credit/debit notes (ป.82/2542 ข้อ 2–3). The label prints
+ * on the sheet; the code stays in metadata for the VAT register.
+ */
+export const NOTE_REASONS = {
+  credit: [
+    { code: 'C1', label: 'ลดราคาสินค้า/บริการที่ขาย เนื่องจากผิดข้อกำหนดที่ตกลงกัน' },
+    { code: 'C2', label: 'สินค้าชำรุดบกพร่อง / รับคืนสินค้า' },
+    { code: 'C3', label: 'คำนวณราคาสินค้า/บริการผิดพลาดสูงกว่าที่เป็นจริง' },
+    { code: 'C4', label: 'ยกเลิกการให้บริการ / บอกเลิกสัญญา' },
+    { code: 'C5', label: 'จ่ายคืนเงินจ่ายล่วงหน้า เงินประกัน เงินมัดจำ' },
+    { code: 'C9', label: 'เหตุอื่นตามที่กรมสรรพากรกำหนด' },
+  ],
+  debit: [
+    { code: 'D1', label: 'เพิ่มราคาสินค้า/บริการ เนื่องจากส่งเกินกว่าที่ตกลงกัน' },
+    { code: 'D2', label: 'คำนวณราคาสินค้า/บริการผิดพลาดต่ำกว่าที่เป็นจริง' },
+    { code: 'D9', label: 'เหตุอื่นตามที่กรมสรรพากรกำหนด' },
+  ],
+} as const
+
+export const noteLineSchema = z.object({
+  description: z.string().trim().min(1).max(300),
+  quantity: z.coerce.number().positive().default(1),
+  /** ex-VAT unit amount */
+  unitPriceNet: z.coerce.number().positive(),
+})
+
+export const noteCreateSchema = z.object({
+  invoiceId: z.string().uuid(),
+  kind: z.enum(['credit', 'debit']),
+  issueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  reasonCode: z.string().trim().min(1).max(4),
+  reason: z.string().trim().max(1000).optional().nullable(),
+  lines: z.array(noteLineSchema).min(1).max(20),
+})
+
+export const noteListSchema = z.object({ invoiceId: z.string().uuid() })

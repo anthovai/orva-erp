@@ -19,6 +19,12 @@ export type FinanceBridge = {
     scope: FinanceScope,
     args: { invoiceId: string; date: string; cashReceived: number; wht: number; note?: string | null },
   ) => Promise<FinanceBridgeResult>
+  /** ใบลดหนี้ / ใบเพิ่มหนี้ against a posted invoice. */
+  postNote: (
+    em: EntityManager,
+    scope: FinanceScope,
+    args: { noteId: string; noteNumber: string; invoiceNumber: string; kind: 'credit' | 'debit'; date: string; net: number; vat: number },
+  ) => Promise<FinanceBridgeResult>
 }
 
 export function resolveFinanceBridge(container: AppContainer): FinanceBridge | null {

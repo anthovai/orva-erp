@@ -11,7 +11,7 @@
  */
 import { bahtText } from './bahtText'
 
-export const DOCUMENT_TYPES = ['quotation', 'invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice'] as const
+export const DOCUMENT_TYPES = ['quotation', 'invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'credit_note', 'debit_note', 'billing_note'] as const
 export type DocumentType = (typeof DOCUMENT_TYPES)[number]
 
 export const TEMPLATE_IDS = ['classic', 'modern', 'compact', 'brand'] as const
@@ -23,7 +23,8 @@ export const TEMPLATE_IDS = ['classic', 'modern', 'compact', 'brand'] as const
  */
 export function typesForSourceKind(sourceKind: string | undefined): readonly DocumentType[] {
   if (sourceKind === 'quote') return ['quotation']
-  if (sourceKind === 'invoice') return ['invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice']
+  if (sourceKind === 'invoice') return ['invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'billing_note']
+  if (sourceKind === 'credit_memo') return ['credit_note', 'debit_note']
   return DOCUMENT_TYPES
 }
 export type TemplateId = (typeof TEMPLATE_IDS)[number]
@@ -43,12 +44,19 @@ const HEADINGS: Record<DocumentType, { th: string; en: string }> = {
   // buyer may be anonymous and prices print VAT-inclusive with the statement
   // "ราคารวมภาษีมูลค่าเพิ่มแล้ว". The buyer cannot claim input VAT from it.
   abbreviated_tax_invoice: { th: 'ใบกำกับภาษีอย่างย่อ', en: 'Abbreviated Tax Invoice' },
+  // ป.82/2542: a credit/debit note is itself a tax document and must quote the
+  // original tax invoice, the correct amount, the difference and the reason.
+  credit_note: { th: 'ใบลดหนี้', en: 'Credit Note' },
+  debit_note: { th: 'ใบเพิ่มหนี้', en: 'Debit Note' },
+  // ใบวางบิล is a collection request, not a tax document: it lists the open
+  // invoices of one customer with the payment block.
+  billing_note: { th: 'ใบวางบิล', en: 'Billing Note' },
 }
 
 /** Types that are statutory tax documents and must carry the SELLER's taxpayer id. */
-const TAX_DOCUMENT_TYPES = new Set<DocumentType>(['tax_invoice', 'receipt', 'abbreviated_tax_invoice'])
+const TAX_DOCUMENT_TYPES = new Set<DocumentType>(['tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'credit_note', 'debit_note'])
 /** Statutory types that also need the BUYER's taxpayer id (full tax invoices). */
-const FULL_TAX_DOCUMENT_TYPES = new Set<DocumentType>(['tax_invoice', 'receipt'])
+const FULL_TAX_DOCUMENT_TYPES = new Set<DocumentType>(['tax_invoice', 'receipt', 'credit_note', 'debit_note'])
 
 export type Party = {
   name: string
@@ -82,6 +90,20 @@ export type DocumentSource = {
   grandTotal: number
   note?: string | null
   paymentMethod?: string | null
+  /** Credit/debit note: the original tax invoice and the correction, as ป.82/2542 requires on the sheet. */
+  reference?: DocumentReference | null
+}
+
+export type DocumentReference = {
+  invoiceNumber: string
+  invoiceDate: string | null
+  /** amount on the original tax invoice (gross) */
+  originalAmount: number
+  /** what it should have been (gross) */
+  correctAmount: number
+  /** difference (gross) — the note's grand total */
+  difference: number
+  reason: string
 }
 
 export type PrintableDocument = {
@@ -129,6 +151,8 @@ export type PrintableDocument = {
    * VAT-INCLUSIVE and the sheet states so; `taxAmount` is the VAT contained.
    */
   isAbbreviated: boolean
+  /** Original-invoice block for credit/debit notes; null elsewhere. */
+  reference: DocumentReference | null
   /**
    * Non-empty when the document would be legally deficient — the preview
    * shows these instead of silently rendering an invalid tax invoice.
@@ -219,6 +243,7 @@ export function buildPrintableDocument(input: {
     terms: isTaxDocument ? (input.terms ?? null) : null,
     isTaxDocument,
     isAbbreviated,
+    reference: source.reference ?? null,
     warnings,
   }
 }

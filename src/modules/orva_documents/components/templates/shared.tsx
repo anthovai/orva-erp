@@ -171,6 +171,27 @@ export function TermsBlock({ doc, t }: TemplateProps) {
   )
 }
 
+/**
+ * Credit/debit note reference — ป.82/2542 requires the original tax invoice
+ * number and date, the correct amount, the difference and the reason.
+ */
+export function ReferenceBlock({ doc, t }: TemplateProps) {
+  if (!doc.reference) return null
+  const r = doc.reference
+  return (
+    <div className="rounded border px-3 py-2 text-sm">
+      <div className="mb-1 font-semibold">{t('orva_documents.reference.title', 'อ้างอิงใบกำกับภาษีเดิม')}</div>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 text-xs">
+        <div>{t('orva_documents.reference.invoice', 'เลขที่ใบกำกับภาษีเดิม')}: <span className="font-medium">{r.invoiceNumber}</span>{r.invoiceDate ? ` · ${formatThaiDate(r.invoiceDate)}` : ''}</div>
+        <div>{t('orva_documents.reference.original', 'มูลค่าตามใบกำกับภาษีเดิม')}: <span className="tabular-nums">{formatMoney(r.originalAmount)}</span></div>
+        <div>{t('orva_documents.reference.correct', 'มูลค่าที่ถูกต้อง')}: <span className="tabular-nums">{formatMoney(r.correctAmount)}</span></div>
+        <div>{t('orva_documents.reference.difference', 'ผลต่าง')}: <span className="font-medium tabular-nums">{formatMoney(r.difference)}</span></div>
+        <div className="col-span-2">{t('orva_documents.reference.reason', 'สาเหตุ')}: {r.reason}</div>
+      </div>
+    </div>
+  )
+}
+
 /** การชำระเงิน block from settings — bank account and terms, every type. */
 export function PaymentDetailsBlock({ doc, t }: TemplateProps) {
   if (!doc.paymentDetails) return null

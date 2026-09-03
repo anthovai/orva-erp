@@ -13,6 +13,7 @@ import { previewQuerySchema } from '../../data/validators'
 import type { TemplateId } from '../../lib/document'
 import {
   documentFromQuote,
+  findCreditMemoById,
   findInvoiceById,
   findQuoteById,
   listInvoiceSources,
@@ -85,7 +86,16 @@ export async function GET(req: Request) {
     const row = documentId
       ? (await findQuoteById(forked, { quoteId: documentId, tenantId }))
         ?? (await findInvoiceById(forked, { invoiceId: documentId, tenantId }))
+        ?? (await findCreditMemoById(forked, { creditMemoId: documentId, tenantId }))
       : null
+    // a credit/debit note record prints only its own sheet; a note type needs a note record
+    const noteTypes: string[] = ['credit_note', 'debit_note']
+    if (row?.kind === 'credit_memo' && !noteTypes.includes(type)) {
+      return Response.json({ error: 'A credit/debit note record prints only as ใบลดหนี้/ใบเพิ่มหนี้' }, { status: 400 })
+    }
+    if (row && row.kind !== 'credit_memo' && noteTypes.includes(type)) {
+      return Response.json({ error: 'ใบลดหนี้/ใบเพิ่มหนี้ prints from a note record — ออกใบลดหนี้จากใบแจ้งหนี้ก่อน' }, { status: 400 })
+    }
     // Document types belong to record kinds — the user's model, and Thai
     // practice: a quotation prints from a quotation; billing documents
     // (invoice, tax invoice, receipt) print from the invoice that was issued
@@ -94,7 +104,7 @@ export async function GET(req: Request) {
     if (row?.kind === 'invoice' && type === 'quotation') {
       return Response.json({ error: 'A quotation cannot be printed from an invoice record' }, { status: 400 })
     }
-    if (row && row.kind !== 'invoice' && type !== 'quotation') {
+    if (row && row.kind !== 'invoice' && row.kind !== 'credit_memo' && type !== 'quotation') {
       return Response.json(
         { error: 'Billing documents print from an issued invoice — ออกใบแจ้งหนี้งวดจากใบเสนอราคาก่อน' },
         { status: 400 },
@@ -114,7 +124,7 @@ export async function GET(req: Request) {
     return Response.json({
       document,
       usedSample,
-      sourceKind: row ? (row.kind === 'invoice' ? 'invoice' : 'quote') : 'sample',
+      sourceKind: row ? (row.kind === 'invoice' ? 'invoice' : row.kind === 'credit_memo' ? 'credit_memo' : 'quote') : 'sample',
       sources: sources.map(sourceOption),
     })
   } catch (error) {

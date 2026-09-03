@@ -1,6 +1,6 @@
 import { asValue } from 'awilix'
 import type { AppContainer } from '@open-mercato/shared/lib/di/container'
-import { postInvoiceToLedger, recordReceiptForInvoice } from './lib/bridge'
+import { postInvoiceToLedger, postNoteToLedger, recordReceiptForInvoice } from './lib/bridge'
 
 /**
  * DI token other app modules may resolve OPTIONALLY (`container.hasRegistration`)
@@ -18,6 +18,7 @@ export function register(container: AppContainer) {
     [ORVA_FINANCE_BRIDGE]: asValue({
       postInvoice: postInvoiceToLedger,
       recordReceipt: recordReceiptForInvoice,
+      postNote: postNoteToLedger,
     }),
   })
 }

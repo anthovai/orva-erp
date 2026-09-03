@@ -60,14 +60,16 @@ export async function POST(req: Request): Promise<Response> {
   // screen) or the caller named one (issue-invoice passes the quote's brand).
   // Quotes preview, invoices claim — same split as the default series.
   const brandCode = parsed.data.brand ?? readActiveBrandCode(req)
-  if (brandCode && (kind === 'quote' || kind === 'invoice')) {
+  if (brandCode && (kind === 'quote' || kind === 'invoice' || kind === 'credit_memo')) {
     const brand = (await loadBrands(em, scope)).find((b) => b.code === brandCode) ?? null
     if (brand) {
       if (kind === 'quote') {
         const peek = await peekBrandNumber(em, scope, brand, 'quote')
         if (peek) return Response.json(peek)
       } else {
-        return Response.json(await claimBrandNumber(em, scope, brand, 'invoice', format ?? null))
+        // invoices and credit/debit notes claim immediately; notes must pass
+        // their format (CN-/DN- variant of the invoice format)
+        return Response.json(await claimBrandNumber(em, scope, brand, kind, format ?? null))
       }
     }
   }

@@ -1,7 +1,7 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
 import { findOneWithDecryption, findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import { parseDecryptedFieldValue } from '@open-mercato/shared/lib/encryption/tenantDataEncryptionService'
-import { SalesInvoice, SalesInvoiceLine, SalesQuote, SalesQuoteLine } from '@open-mercato/core/modules/sales/data/entities'
+import { SalesCreditMemo, SalesCreditMemoLine, SalesInvoice, SalesInvoiceLine, SalesQuote, SalesQuoteLine } from '@open-mercato/core/modules/sales/data/entities'
 import { DocumentSettings } from '../data/entities'
 import { brandForNumber, loadBrands, settingsWithBrand } from './brands'
 import {
@@ -9,6 +9,7 @@ import {
   sampleBuyer,
   sampleSource,
   type DocumentLine,
+  type DocumentReference,
   type DocumentSource,
   type DocumentType,
   type Party,
@@ -61,6 +62,10 @@ export function templateFor(type: DocumentType, settings: DocumentSettings | nul
     receipt: settings.templateReceipt,
     // the retail slip shares the receipt's template choice
     abbreviated_tax_invoice: settings.templateReceipt,
+    // notes correct a tax invoice, so they print like one; the billing note like an invoice
+    credit_note: settings.templateTaxInvoice,
+    debit_note: settings.templateTaxInvoice,
+    billing_note: settings.templateInvoice,
   }
   const chosen = byType[type]
   return chosen === 'modern' || chosen === 'compact' || chosen === 'brand' ? (chosen as TemplateId) : fallback
@@ -389,6 +394,7 @@ function sourceFromQuote(row: QuoteRow, lines: QuoteRow[]): DocumentSource {
     // encryption helpers, so the operator's note prints on the sheet.
     note: typeof row.comments === 'string' && row.comments.trim() ? row.comments : null,
     paymentMethod: null,
+    reference: (row.reference as DocumentReference | undefined) ?? null,
   }
 }
 
@@ -397,19 +403,28 @@ export async function documentFromQuote(
   tem: EntityManager,
   args: { row: QuoteRow; type: DocumentType; template?: TemplateId; settings: DocumentSettings | null },
 ): Promise<PrintableDocument> {
+  const billing = args.type === 'billing_note' ? await billingNoteLines(tem, args.row) : null
   const [lines, buyerIdentity, settings] = await Promise.all([
-    args.row.kind === 'invoice'
-      ? loadInvoiceLines(tem, String(args.row.id))
-      : loadQuoteLines(tem, String(args.row.id)),
+    billing
+      ? Promise.resolve(billing.lines)
+      : args.row.kind === 'credit_memo'
+        ? loadCreditMemoLines(tem, String(args.row.id))
+        : args.row.kind === 'invoice'
+          ? loadInvoiceLines(tem, String(args.row.id))
+          : loadQuoteLines(tem, String(args.row.id)),
     loadBuyerThaiIdentity(tem, args.row.customer_entity_id),
     brandedSettings(tem, args.settings, args.row.quote_number),
   ])
+  // a billing note has no VAT of its own: it totals the open invoices (gross)
+  const row = billing
+    ? { ...args.row, subtotal_net_amount: String(billing.total), discount_total_amount: '0', tax_total_amount: '0', grand_total_gross_amount: String(billing.total), valid_until: null, quote_number: `BN-${String(args.row.quote_number ?? '')}` }
+    : args.row
   return buildPrintableDocument({
     type: args.type,
     template: args.template ?? templateFor(args.type, settings),
     seller: sellerFrom(settings),
     buyer: partyFromSnapshot(args.row, buyerIdentity),
-    source: sourceFromQuote(args.row, lines),
+    source: sourceFromQuote(row, lines),
     accentColor: settings?.brandColor ?? null,
     paymentDetails: settings?.paymentDetails ?? null,
     logoHeader: headerLogoFor(args.type, settings),
@@ -465,4 +480,89 @@ export function sourceOption(row: QuoteRow) {
     issueDate: isoDate(row.issue_date),
     customerName: snapshotName(snapshot),
   }
+}
+
+// ───────────────────────── credit / debit notes (ใบลดหนี้ / ใบเพิ่มหนี้) ─────
+
+/**
+ * A credit memo row shaped like the quote/invoice rows this file consumes,
+ * plus the ป.82/2542 reference block. Debit notes reuse upstream's credit
+ * memo entity with `metadata.noteKind = 'debit'` (upstream has no debit
+ * memo); the sign of the correction lives in the ledger posting, the sheet
+ * prints the difference as a positive amount under the right heading.
+ */
+export async function findCreditMemoById(
+  tem: EntityManager,
+  args: { creditMemoId: string; tenantId: string },
+): Promise<QuoteRow | null> {
+  const memo = await findOneWithDecryption(tem, SalesCreditMemo, { id: args.creditMemoId, deletedAt: null }, {}, { tenantId: args.tenantId })
+  if (!memo || memo.tenantId !== args.tenantId) return null
+  const metadata = jsonRecord(memo.metadata)
+  const reference: DocumentReference = {
+    invoiceNumber: String(metadata.originalInvoiceNumber ?? ''),
+    invoiceDate: isoDate(metadata.originalInvoiceDate) ?? null,
+    originalAmount: Number(metadata.originalTotal ?? 0),
+    correctAmount: Number(metadata.correctTotal ?? 0),
+    difference: Number(memo.grandTotalGrossAmount),
+    reason: [metadata.reasonLabel, memo.reason].filter((v) => typeof v === 'string' && v.trim()).join(' — '),
+  }
+  return {
+    id: memo.id,
+    kind: 'credit_memo',
+    note_kind: metadata.noteKind === 'debit' ? 'debit' : 'credit',
+    quote_number: memo.creditMemoNumber,
+    currency_code: memo.currencyCode,
+    customer_entity_id: metadata.customerEntityId ?? null,
+    customer_snapshot: jsonRecord(metadata.customerSnapshot),
+    billing_address_snapshot: jsonRecord(metadata.billingAddressSnapshot),
+    tenant_id: memo.tenantId,
+    organization_id: memo.organizationId,
+    issue_date: isoDate(memo.issueDate ?? memo.createdAt),
+    valid_until: null,
+    subtotal_net_amount: memo.subtotalNetAmount,
+    discount_total_amount: '0',
+    tax_total_amount: memo.taxTotalAmount,
+    grand_total_gross_amount: memo.grandTotalGrossAmount,
+    comments: null,
+    reference,
+  }
+}
+
+async function loadCreditMemoLines(tem: EntityManager, creditMemoId: string): Promise<QuoteRow[]> {
+  const lines = await findWithDecryption(tem, SalesCreditMemoLine, { creditMemo: creditMemoId }, { orderBy: { lineNumber: 'asc' } })
+  return lines.map((line) => ({
+    name: line.name ?? null,
+    description: line.description ?? null,
+    quantity: line.quantity,
+    unit_price_net: line.unitPriceNet,
+    total_net_amount: line.totalNetAmount,
+    tax_rate: line.taxRate,
+  }))
+}
+
+/**
+ * ใบวางบิล: every open invoice of the same customer as `row`, one line each,
+ * gross amounts (no VAT split — the tax invoices already carry it).
+ */
+async function billingNoteLines(tem: EntityManager, row: QuoteRow): Promise<{ lines: QuoteRow[]; total: number }> {
+  const customerEntityId = typeof row.customer_entity_id === 'string' ? row.customer_entity_id : null
+  const rows = (await tem.execute(
+    `select invoice_number, to_char(issue_date, 'YYYY-MM-DD') as issue_date, to_char(due_date, 'YYYY-MM-DD') as due_date,
+            (grand_total_gross_amount - coalesce(paid_total_amount, 0))::text as remaining
+     from sales_invoices
+     where deleted_at is null and tenant_id = ?::uuid
+       and (grand_total_gross_amount - coalesce(paid_total_amount, 0)) > 0.005
+       and (id = ?::uuid or (?::text is not null and metadata->>'customerEntityId' = ?::text))
+     order by issue_date, invoice_number`,
+    [row.tenant_id, row.id, customerEntityId, customerEntityId],
+  )) as Array<{ invoice_number: string; issue_date: string | null; due_date: string | null; remaining: string }>
+  const lines = rows.map((r) => ({
+    name: `ใบแจ้งหนี้ ${r.invoice_number}${r.issue_date ? ` ลงวันที่ ${r.issue_date}` : ''}${r.due_date ? ` ครบกำหนด ${r.due_date}` : ''}`,
+    description: null,
+    quantity: '1',
+    unit_price_net: r.remaining,
+    total_net_amount: r.remaining,
+    tax_rate: null,
+  }))
+  return { lines, total: rows.reduce((s, r) => s + Number(r.remaining), 0) }
 }

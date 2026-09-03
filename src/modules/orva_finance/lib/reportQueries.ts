@@ -64,8 +64,24 @@ export async function vatReport(tem: EntityManager, scope: Scope, month: string)
        and (?::uuid is null or i.organization_id = ?::uuid)
        and i.tax_total_amount > 0
        and left(i.metadata->>'paidDate', 7) = ?
-     order by i.metadata->>'paidDate', i.invoice_number`,
-    [scope.tenantId, ...org(scope), month],
+     union all
+     -- ใบลดหนี้ enter the register as negatives, ใบเพิ่มหนี้ as positives, by issue date
+     select to_char(m.issue_date, 'YYYY-MM-DD') as date,
+            m.credit_memo_number as document_no,
+            coalesce(m.metadata->'customerSnapshot'->'customer'->>'displayName',
+                     m.metadata->'customerSnapshot'->>'displayName') as customer_name,
+            m.metadata->>'customerTaxId' as customer_tax_id,
+            m.metadata->>'customerBranch' as customer_branch,
+            (case when m.metadata->>'noteKind' = 'debit' then 1 else -1 end * m.grand_total_net_amount)::text as base,
+            (case when m.metadata->>'noteKind' = 'debit' then 1 else -1 end * m.tax_total_amount)::text as vat,
+            (case when m.metadata->>'noteKind' = 'debit' then 1 else -1 end * m.grand_total_gross_amount)::text as total
+     from sales_credit_memos m
+     where m.deleted_at is null and m.tenant_id = ?::uuid
+       and (?::uuid is null or m.organization_id = ?::uuid)
+       and m.tax_total_amount > 0
+       and to_char(m.issue_date, 'YYYY-MM') = ?
+     order by 1, 2`,
+    [scope.tenantId, ...org(scope), month, scope.tenantId, ...org(scope), month],
   )) as VatSalesRow[]
 
   const purchases = (await tem.execute(

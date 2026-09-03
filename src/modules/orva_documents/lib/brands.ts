@@ -18,7 +18,7 @@ import { formatDocumentNumber, hasRandomTokens, resolveFormat, type PeekKind } f
  * and inspectable next to the default series.
  */
 export type BrandScope = { tenantId: string; organizationId: string }
-export type BrandKind = 'quote' | 'invoice'
+export type BrandKind = 'quote' | 'invoice' | 'credit_memo'
 
 export const BRAND_COOKIE = 'orva_brand'
 
@@ -65,6 +65,8 @@ export function settingsWithBrand<T extends Pick<DocumentSettings, 'brandColor' 
 export const brandSeriesKind = (kind: BrandKind, code: string) => `${kind}:${code.toUpperCase()}`
 
 async function brandFormat(em: EntityManager, scope: BrandScope, brand: DocumentBrand, kind: BrandKind, invoiceDefault?: string | null): Promise<string> {
+  // credit/debit notes always take the caller's explicit format (CN-/DN- variant)
+  if (kind === 'credit_memo') return reprefixFormat(invoiceDefault?.trim() || 'CN-{yyyy}{mm}{dd}-{seq:5}', brand.code)
   const own = kind === 'quote' ? brand.quoteNumberFormat : brand.invoiceNumberFormat
   if (own?.trim()) return own.trim()
   const base = kind === 'quote' ? await resolveFormat(em, scope, 'quote') : (invoiceDefault?.trim() || 'INV-{yyyy}{mm}{dd}-{seq:5}')

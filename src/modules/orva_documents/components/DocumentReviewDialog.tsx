@@ -34,6 +34,9 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, { key: string; fallback:
   tax_invoice: { key: 'orva_documents.type.tax_invoice', fallback: 'ใบกำกับภาษี / ใบแจ้งหนี้' },
   receipt: { key: 'orva_documents.type.receipt', fallback: 'ใบกำกับภาษี/ใบเสร็จรับเงิน' },
   abbreviated_tax_invoice: { key: 'orva_documents.type.abbreviated_tax_invoice', fallback: 'ใบกำกับภาษีอย่างย่อ' },
+  credit_note: { key: 'orva_documents.type.credit_note', fallback: 'ใบลดหนี้' },
+  debit_note: { key: 'orva_documents.type.debit_note', fallback: 'ใบเพิ่มหนี้' },
+  billing_note: { key: 'orva_documents.type.billing_note', fallback: 'ใบวางบิล' },
 }
 
 type PreviewResponse = { document: PrintableDocument; usedSample: boolean; sourceKind?: string }

@@ -34,7 +34,7 @@ export async function GET(req: Request) {
   // etax=1: the PDF/A-3 variant (ขมธอ.3-2560 XML embedded) — tax documents
   // from a real record only, for manual validation or filing outside email
   const wantEtax = url.searchParams.get('etax') === '1'
-  const isTaxType = parsed.data.type === 'tax_invoice' || parsed.data.type === 'receipt' || parsed.data.type === 'abbreviated_tax_invoice'
+  const isTaxType = ['tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'credit_note', 'debit_note'].includes(parsed.data.type)
   if (wantEtax && (!isTaxType || !parsed.data.documentId)) {
     return Response.json({ error: 'e-Tax PDF/A-3 applies to tax documents from a real record' }, { status: 400 })
   }

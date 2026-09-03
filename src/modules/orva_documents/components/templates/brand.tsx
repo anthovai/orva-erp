@@ -4,6 +4,7 @@ import {
   AmountInWords,
   CopyRoleLabel,
   TaxIdentityLine,
+  ReferenceBlock,
   TermsBlock,
   formatThaiDate,
   type TemplateProps,
@@ -176,6 +177,7 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
               <p className="whitespace-pre-line text-muted-foreground">{doc.note}</p>
             </div>
           ) : null}
+          <ReferenceBlock doc={doc} t={t} />
           <TermsBlock doc={doc} t={t} />
         </div>
         {doc.isTaxDocument ? (

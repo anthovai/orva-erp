@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy'
 import { RecordPaymentDialog } from '../../../components/RecordPaymentDialog'
+import { NoteDialog } from '../../../components/NoteDialog'
 
 /**
  * The invoice list upstream never shipped: sales_invoices has entities, CRUD
@@ -39,6 +40,7 @@ export default function OrvaInvoicesPage() {
   const router = useRouter()
   const [page, setPage] = React.useState(1)
   const [paymentInvoiceId, setPaymentInvoiceId] = React.useState<string | null>(null)
+  const [noteInvoice, setNoteInvoice] = React.useState<{ id: string; number: string } | null>(null)
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['orva_documents.invoices', page],
     queryFn: async () =>
@@ -121,6 +123,16 @@ export default function OrvaInvoicesPage() {
                   label: t('orva_documents.rowAction.receipt', 'ออกใบกำกับภาษี/ใบเสร็จ'),
                   href: `/backend/documents/preview?type=receipt&documentId=${row.id}`,
                 },
+                {
+                  id: 'billing-note',
+                  label: t('orva_documents.rowAction.billingNote', 'ใบวางบิล'),
+                  href: `/backend/documents/preview?type=billing_note&documentId=${row.id}`,
+                },
+                {
+                  id: 'note',
+                  label: t('orva_documents.rowAction.note', 'ออกใบลดหนี้/เพิ่มหนี้'),
+                  onSelect: () => setNoteInvoice({ id: row.id, number: String((row as { invoice_number?: string }).invoice_number ?? '') }),
+                },
               ]}
             />
           )}
@@ -136,6 +148,13 @@ export default function OrvaInvoicesPage() {
           open={paymentInvoiceId !== null}
           onOpenChange={(next) => { if (!next) setPaymentInvoiceId(null) }}
           onRecorded={() => { void refetch() }}
+        />
+        <NoteDialog
+          invoiceId={noteInvoice?.id ?? null}
+          invoiceNumber={noteInvoice?.number ?? null}
+          open={noteInvoice !== null}
+          onOpenChange={(next) => { if (!next) setNoteInvoice(null) }}
+          onIssued={() => { void refetch() }}
         />
       </PageBody>
     </Page>

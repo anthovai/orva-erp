@@ -35,6 +35,8 @@ export const ETAX_TYPE_CODES = {
   tax_invoice: { code: 'T02', name: 'ใบแจ้งหนี้/ใบกำกับภาษี', subjectTag: 'INV' },
   receipt: { code: 'T03', name: 'ใบเสร็จรับเงิน/ใบกำกับภาษี', subjectTag: 'RCT' },
   abbreviated_tax_invoice: { code: 'T05', name: 'ใบกำกับภาษีอย่างย่อ', subjectTag: 'ABB' },
+  credit_note: { code: '81', name: 'ใบลดหนี้', subjectTag: 'CRN' },
+  debit_note: { code: '80', name: 'ใบเพิ่มหนี้', subjectTag: 'DBN' },
 } as const
 
 export type EtaxDocumentType = keyof typeof ETAX_TYPE_CODES

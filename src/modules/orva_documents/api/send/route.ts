@@ -52,7 +52,7 @@ export async function POST(req: Request) {
   // system from an unregistered address would simply be rejected there.
   let etaxSender: string | null = null
   if (etax) {
-    if (type !== 'tax_invoice' && type !== 'receipt' && type !== 'abbreviated_tax_invoice') {
+    if (!['tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'credit_note', 'debit_note'].includes(type)) {
       return Response.json({ error: 'e-Tax applies to tax documents only' }, { status: 400 })
     }
     if (!documentId) {

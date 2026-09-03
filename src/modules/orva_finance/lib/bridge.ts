@@ -220,17 +220,102 @@ export async function recordReceiptForInvoice(
   }
 }
 
+export type NoteArgs = {
+  /** the sales_credit_memos row — used as the idempotency key */
+  noteId: string
+  noteNumber: string
+  invoiceNumber: string
+  kind: 'credit' | 'debit'
+  date: string
+  net: number
+  vat: number
+}
+
+/**
+ * Books a credit note (ใบลดหนี้: Dr revenue, Dr output VAT / Cr AR) or a debit
+ * note (ใบเพิ่มหนี้: the reverse) against the original invoice's customer.
+ * Idempotent per note: a journal whose memo names the note is not repeated.
+ */
+export async function postNoteToLedger(em: EntityManager, scope: BridgeScope, args: NoteArgs): Promise<BridgeResult> {
+  try {
+    return await withTenantRls(em, scope.tenantId, async (tem): Promise<BridgeResult> => {
+      const memo = `${args.kind === 'credit' ? 'CN' : 'DN'} ${args.noteNumber} — ${args.invoiceNumber} [${args.noteId}]`
+      const already = (await tem.execute(
+        `select journal_no from orva_gl_journals where tenant_id = ?::uuid and memo = ? and deleted_at is null limit 1`,
+        [scope.tenantId, memo],
+      )) as Array<{ journal_no: string }>
+      if (already[0]) return { ok: true, journalNo: already[0].journal_no }
+      const settings = await tem.findOne(ArSettings, { tenantId: scope.tenantId, organizationId: scope.organizationId })
+      if (!settings) return { ok: false, reason: 'AR accounts are not configured' }
+      const period = await periodCovering(tem, scope, args.date)
+      if (!period) return { ok: false, reason: `no open fiscal period covers ${args.date}` }
+      const gross = Math.round((args.net + args.vat) * 100) / 100
+      if (!(gross > 0)) return { ok: false, reason: 'zero-amount note' }
+      const taxAccountId = settings.taxAccountId ?? null
+      if (args.vat > 0 && !taxAccountId) return { ok: false, reason: 'output VAT account is not configured' }
+      const d = (n: number) => n.toFixed(4)
+      const z = '0.0000'
+      const vatLine = (debit: boolean, label: string) =>
+        args.vat > 0 && taxAccountId ? [{ accountId: taxAccountId, debit: debit ? d(args.vat) : z, credit: debit ? z : d(args.vat), description: label }] : []
+      // credit: revenue and VAT come back, AR shrinks; debit: mirror image
+      const lines = args.kind === 'credit'
+        ? [
+            { accountId: settings.revenueAccountId, debit: d(args.net), credit: z, description: 'ลดหนี้ — รายได้' },
+            ...vatLine(true, 'ลดหนี้ — ภาษีขาย'),
+            { accountId: settings.arAccountId, debit: z, credit: d(gross), description: 'ลดหนี้ — ลูกหนี้การค้า' },
+          ]
+        : [
+            { accountId: settings.arAccountId, debit: d(gross), credit: z, description: 'เพิ่มหนี้ — ลูกหนี้การค้า' },
+            { accountId: settings.revenueAccountId, debit: z, credit: d(args.net), description: 'เพิ่มหนี้ — รายได้' },
+            ...vatLine(false, 'เพิ่มหนี้ — ภาษีขาย'),
+          ]
+      const verdict = checkPostable({
+        journalStatus: 'draft', journalDate: args.date, lines,
+        period: { status: period.status, startsOn: String(period.startsOn), endsOn: String(period.endsOn) },
+      })
+      if (!verdict.ok) return { ok: false, reason: verdict.reason }
+      const now = new Date()
+      const journalNo = await allocateJournalNo(tem, scope.tenantId, scope.organizationId)
+      const journal = tem.create(GlJournal, {
+        tenantId: scope.tenantId, organizationId: scope.organizationId, journalNo,
+        status: 'draft', journalKind: 'standard', periodId: period.id, journalDate: args.date,
+        currencyCode: 'THB', memo, totalDebit: d(gross), totalCredit: d(gross),
+        createdBy: scope.userId, createdAt: now, updatedAt: now,
+      })
+      tem.persist(journal)
+      await tem.flush()
+      lines.forEach((draft, index) => {
+        tem.persist(tem.create(GlJournalLine, {
+          tenantId: scope.tenantId, organizationId: scope.organizationId, journalId: journal.id,
+          lineNo: index + 1, accountId: draft.accountId, partyId: null,
+          debit: draft.debit, credit: draft.credit, description: draft.description, createdAt: now, updatedAt: now,
+        }))
+      })
+      await tem.flush()
+      journal.status = 'posted'
+      journal.postedAt = now
+      journal.postedBy = scope.userId
+      await tem.flush()
+      return { ok: true, journalNo }
+    })
+  } catch (error) {
+    return { ok: false, reason: error instanceof Error ? error.message : String(error) }
+  }
+}
+
 export type OrvaFinanceBridge = {
   postInvoice: (scope: BridgeScope, args: { invoiceId: string; date: string }) => Promise<BridgeResult>
   recordReceipt: (
     scope: BridgeScope,
     args: { invoiceId: string; date: string; cashReceived: number; wht: number; note?: string | null },
   ) => Promise<BridgeResult>
+  postNote: (scope: BridgeScope, args: NoteArgs) => Promise<BridgeResult>
 }
 
 export function createOrvaFinanceBridge({ em }: { em: EntityManager }): OrvaFinanceBridge {
   return {
     postInvoice: (scope, args) => postInvoiceToLedger(em, scope, args),
     recordReceipt: (scope, args) => recordReceiptForInvoice(em, scope, args),
+    postNote: (scope, args) => postNoteToLedger(em, scope, args),
   }
 }
