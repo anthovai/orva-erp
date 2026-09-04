@@ -4,7 +4,7 @@ import { Button } from '@open-mercato/ui/primitives/button'
 import { Spinner } from '@open-mercato/ui/primitives/spinner'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import type { PrintableDocument } from '../../../lib/document'
-import { DOCUMENT_TEMPLATES } from '../../../components/templates'
+import { templateComponentFor } from '../../../components/templates'
 
 type PublicDocumentResponse = {
   document: PrintableDocument
@@ -57,7 +57,7 @@ export default function PublicDocumentPage({ params }: { params: { token: string
   }
 
   const doc = data.document
-  const Template = DOCUMENT_TEMPLATES[doc.template].Component
+  const Template = templateComponentFor(doc)
   // The sheet reads from the document's own labels so a customer whose browser
   // asks for English still receives the Thai document the seller issued. The
   // buttons around it stay in the visitor's language.

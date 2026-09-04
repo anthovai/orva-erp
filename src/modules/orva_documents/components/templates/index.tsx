@@ -1,6 +1,7 @@
 "use client"
 import * as React from 'react'
 import type { TemplateId } from '../../lib/document'
+import { PayslipTemplate } from './payslip'
 import { BrandTemplate } from './brand'
 import {
   AmountInWords,
@@ -166,4 +167,14 @@ export const DOCUMENT_TEMPLATES: Record<TemplateId, { labelKey: string; fallback
   modern: { labelKey: 'orva_documents.template.modern', fallback: 'แบบโมเดิร์น (Modern)', Component: ModernTemplate },
   compact: { labelKey: 'orva_documents.template.compact', fallback: 'แบบกระชับ (Compact)', Component: CompactTemplate },
   brand: { labelKey: 'orva_documents.template.brand', fallback: 'แบบแบรนด์ (หัวจดหมายสีกิจการ)', Component: BrandTemplate },
+}
+
+/**
+ * The sheet component for a document: a payslip has its own layout regardless
+ * of the tenant's template choice (that choice only supplies the accent), every
+ * other type uses the selected template.
+ */
+export function templateComponentFor(doc: { template: TemplateId; isPayslip?: boolean }) {
+  if (doc.isPayslip) return PayslipTemplate
+  return DOCUMENT_TEMPLATES[doc.template].Component
 }

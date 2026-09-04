@@ -13,6 +13,8 @@ import { previewQuerySchema } from '../../data/validators'
 import type { TemplateId } from '../../lib/document'
 import {
   documentFromQuote,
+  documentFromPayroll,
+  findPayrollLineById,
   findCreditMemoById,
   findInvoiceById,
   findQuoteById,
@@ -87,7 +89,14 @@ export async function GET(req: Request) {
       ? (await findQuoteById(forked, { quoteId: documentId, tenantId }))
         ?? (await findInvoiceById(forked, { invoiceId: documentId, tenantId }))
         ?? (await findCreditMemoById(forked, { creditMemoId: documentId, tenantId }))
+        ?? (await findPayrollLineById(forked, { payrollLineId: documentId, tenantId }))
       : null
+    if (row?.kind === 'payroll_line' && type !== 'payslip') {
+      return Response.json({ error: 'A payroll line prints only as สลิปเงินเดือน' }, { status: 400 })
+    }
+    if (type === 'payslip' && row && row.kind !== 'payroll_line') {
+      return Response.json({ error: 'สลิปเงินเดือน prints from a payroll line' }, { status: 400 })
+    }
     // a credit/debit note record prints only its own sheet; a note type needs a note record
     const noteTypes: string[] = ['credit_note', 'debit_note']
     if (row?.kind === 'credit_memo' && !noteTypes.includes(type)) {
@@ -104,7 +113,7 @@ export async function GET(req: Request) {
     if (row?.kind === 'invoice' && type === 'quotation') {
       return Response.json({ error: 'A quotation cannot be printed from an invoice record' }, { status: 400 })
     }
-    if (row && row.kind !== 'invoice' && row.kind !== 'credit_memo' && type !== 'quotation') {
+    if (row && row.kind !== 'invoice' && row.kind !== 'credit_memo' && row.kind !== 'payroll_line' && type !== 'quotation') {
       return Response.json(
         { error: 'Billing documents print from an issued invoice — ออกใบแจ้งหนี้งวดจากใบเสนอราคาก่อน' },
         { status: 400 },
@@ -115,7 +124,9 @@ export async function GET(req: Request) {
       return {
         sources: sourceRows,
         usedSample: !row,
-        document: row
+        document: row?.kind === 'payroll_line'
+          ? await documentFromPayroll(tem, { row, template, settings })
+          : row
           ? await documentFromQuote(tem, { row, type, template, settings, brand })
           : await sampleDocumentForBrand(tem, { type, template, settings, brand }),
       }
@@ -124,7 +135,7 @@ export async function GET(req: Request) {
     return Response.json({
       document,
       usedSample,
-      sourceKind: row ? (row.kind === 'invoice' ? 'invoice' : row.kind === 'credit_memo' ? 'credit_memo' : 'quote') : 'sample',
+      sourceKind: row ? (typeof row.kind === 'string' && row.kind !== 'quote' ? String(row.kind) : 'quote') : 'sample',
       sources: sources.map(sourceOption),
     })
   } catch (error) {

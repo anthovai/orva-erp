@@ -26,7 +26,7 @@ import {
   type PrintableDocument,
   type TemplateId,
 } from '../lib/document'
-import { DOCUMENT_TEMPLATES } from './templates'
+import { DOCUMENT_TEMPLATES, templateComponentFor } from './templates'
 
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, { key: string; fallback: string }> = {
   quotation: { key: 'orva_documents.type.quotation', fallback: 'ใบเสนอราคา' },
@@ -37,6 +37,7 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, { key: string; fallback:
   credit_note: { key: 'orva_documents.type.credit_note', fallback: 'ใบลดหนี้' },
   debit_note: { key: 'orva_documents.type.debit_note', fallback: 'ใบเพิ่มหนี้' },
   billing_note: { key: 'orva_documents.type.billing_note', fallback: 'ใบวางบิล' },
+  payslip: { key: 'orva_documents.type.payslip', fallback: 'สลิปเงินเดือน' },
 }
 
 type PreviewResponse = { document: PrintableDocument; usedSample: boolean; sourceKind?: string }
@@ -129,7 +130,7 @@ export function DocumentReviewDialog({
     }
   }
 
-  const Template = doc ? DOCUMENT_TEMPLATES[doc.template].Component : null
+  const Template = doc ? templateComponentFor(doc) : null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

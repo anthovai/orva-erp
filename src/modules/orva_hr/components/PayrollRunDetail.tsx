@@ -173,14 +173,15 @@ export default function PayrollRunDetail({ id }: { id: string }) {
                     <th className="px-3 py-2 text-right">{t('orva_hr.payroll.detail.ssoEmployer', 'SSO (employer)')}</th>
                     <th className="px-3 py-2 text-right">{t('orva_hr.payroll.detail.wht', 'WHT')}</th>
                     <th className="px-3 py-2 text-right">{t('orva_hr.payroll.column.net', 'Net')}</th>
+                    <th className="px-3 py-2 text-right">{t('orva_hr.payroll.detail.payslip', 'สลิปเงินเดือน')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {linesLoading ? (
-                    <tr><td className="px-3 py-6 text-center text-muted-foreground" colSpan={7}>…</td></tr>
+                    <tr><td className="px-3 py-6 text-center text-muted-foreground" colSpan={8}>…</td></tr>
                   ) : lines.length === 0 ? (
                     <tr>
-                      <td className="px-3 py-6 text-center text-muted-foreground" colSpan={7}>
+                      <td className="px-3 py-6 text-center text-muted-foreground" colSpan={8}>
                         {t('orva_hr.payroll.detail.noLines', 'No lines yet — run Calculate to compute this month')}
                       </td>
                     </tr>
@@ -193,6 +194,11 @@ export default function PayrollRunDetail({ id }: { id: string }) {
                       <td className="px-3 py-2 text-right tabular-nums">{fmt(line.sso_employer)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{fmt(line.wht)}</td>
                       <td className="px-3 py-2 text-right tabular-nums font-semibold">{fmt(line.net)}</td>
+                      <td className="px-3 py-2 text-right">
+                        <a className="text-primary hover:underline" href={`/backend/documents/preview?type=payslip&documentId=${line.id}`}>
+                          {t('orva_hr.payroll.detail.openPayslip', 'เปิด/พิมพ์')}
+                        </a>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -207,6 +213,7 @@ export default function PayrollRunDetail({ id }: { id: string }) {
                       <td className="px-3 py-2 text-right tabular-nums">{fmt(run.total_sso_employer)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{fmt(run.total_wht)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{fmt(run.total_net)}</td>
+                      <td />
                     </tr>
                   </tfoot>
                 ) : null}

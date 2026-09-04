@@ -11,7 +11,7 @@
  */
 import { bahtText } from './bahtText'
 
-export const DOCUMENT_TYPES = ['quotation', 'invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'credit_note', 'debit_note', 'billing_note'] as const
+export const DOCUMENT_TYPES = ['quotation', 'invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'credit_note', 'debit_note', 'billing_note', 'payslip'] as const
 export type DocumentType = (typeof DOCUMENT_TYPES)[number]
 
 export const TEMPLATE_IDS = ['classic', 'modern', 'compact', 'brand'] as const
@@ -25,6 +25,7 @@ export function typesForSourceKind(sourceKind: string | undefined): readonly Doc
   if (sourceKind === 'quote') return ['quotation']
   if (sourceKind === 'invoice') return ['invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'billing_note']
   if (sourceKind === 'credit_memo') return ['credit_note', 'debit_note']
+  if (sourceKind === 'payroll_line') return ['payslip']
   return DOCUMENT_TYPES
 }
 export type TemplateId = (typeof TEMPLATE_IDS)[number]
@@ -51,6 +52,9 @@ const HEADINGS: Record<DocumentType, { th: string; en: string }> = {
   // ใบวางบิล is a collection request, not a tax document: it lists the open
   // invoices of one customer with the payment block.
   billing_note: { th: 'ใบวางบิล', en: 'Billing Note' },
+  // Not a tax document: it proves what the employee was paid and what was
+  // withheld, and is the paper trail behind ภ.ง.ด.1 and สปส.1-10.
+  payslip: { th: 'สลิปเงินเดือน', en: 'Payslip' },
 }
 
 /** Types that are statutory tax documents and must carry the SELLER's taxpayer id. */
@@ -151,6 +155,8 @@ export type PrintableDocument = {
    * VAT-INCLUSIVE and the sheet states so; `taxAmount` is the VAT contained.
    */
   isAbbreviated: boolean
+  /** Payslip: lines are earnings and deductions (deductions negative), grandTotal is net pay. */
+  isPayslip: boolean
   /** Original-invoice block for credit/debit notes; null elsewhere. */
   reference: DocumentReference | null
   /**
@@ -170,6 +176,8 @@ function secondaryDateLabel(type: DocumentType): string | null {
       return 'orva_documents.field.dueDate'
     case 'receipt':
       return 'orva_documents.field.paidDate'
+    case 'payslip':
+      return 'orva_documents.field.payPeriod'
     default:
       return null
   }
@@ -191,6 +199,7 @@ export function buildPrintableDocument(input: {
   const heading = HEADINGS[type]
   const isTaxDocument = TAX_DOCUMENT_TYPES.has(type)
   const isAbbreviated = type === 'abbreviated_tax_invoice'
+  const isPayslip = type === 'payslip'
 
   const warnings: DocumentWarning[] = []
   if (isTaxDocument) {
@@ -243,6 +252,7 @@ export function buildPrintableDocument(input: {
     terms: isTaxDocument ? (input.terms ?? null) : null,
     isTaxDocument,
     isAbbreviated,
+    isPayslip,
     reference: source.reference ?? null,
     warnings,
   }
@@ -282,4 +292,37 @@ export function sampleBuyer(): Party {
     phone: '02-000-0000',
     email: 'account@example.co.th',
   }
+}
+
+/**
+ * Sample payslip: a payroll-shaped sheet for tenants with no run calculated
+ * yet. Sales sample data on a payslip printed "ค่าบริการติดตั้งระบบ ERP" as an
+ * employee's earnings, which teaches the operator the wrong thing about the
+ * document.
+ */
+export function samplePayslipSource(): DocumentSource {
+  const salary = 45000
+  const sso = 750
+  const wht = 1200
+  return {
+    number: 'PRUN-0001-EMP-0001',
+    issueDate: '2026-09-30',
+    secondaryDate: '2026-09',
+    currencyCode: 'THB',
+    lines: [
+      { description: 'เงินเดือน', quantity: 1, unitPrice: salary, amount: salary },
+      { description: 'หัก ประกันสังคม (ลูกจ้าง)', quantity: 1, unitPrice: -sso, amount: -sso },
+      { description: 'หัก ภาษีเงินได้ ณ ที่จ่าย', quantity: 1, unitPrice: -wht, amount: -wht },
+    ],
+    subtotal: salary,
+    discount: 0,
+    taxRate: null,
+    taxAmount: 0,
+    grandTotal: salary - sso - wht,
+  }
+}
+
+/** Sample employee for the payslip preview. */
+export function sampleEmployee(): Party {
+  return { name: 'ตัวอย่าง พนักงาน', taxId: null, branch: null, address: 'รหัสพนักงาน EMP-0001' }
 }

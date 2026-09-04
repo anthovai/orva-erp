@@ -7,6 +7,8 @@ import { brandForNumber, loadBrands, settingsWithBrand } from './brands'
 import {
   buildPrintableDocument,
   sampleBuyer,
+  sampleEmployee,
+  samplePayslipSource,
   sampleSource,
   type DocumentLine,
   type DocumentReference,
@@ -66,6 +68,8 @@ export function templateFor(type: DocumentType, settings: DocumentSettings | nul
     credit_note: settings.templateTaxInvoice,
     debit_note: settings.templateTaxInvoice,
     billing_note: settings.templateInvoice,
+    // the payslip has its own layout; the template choice only sets the accent
+    payslip: settings.templateInvoice,
   }
   const chosen = byType[type]
   return chosen === 'modern' || chosen === 'compact' || chosen === 'brand' ? (chosen as TemplateId) : fallback
@@ -476,12 +480,13 @@ export function sampleDocument(args: {
   template?: TemplateId
   settings: DocumentSettings | null
 }): PrintableDocument {
+  const payslip = args.type === 'payslip'
   return buildPrintableDocument({
     type: args.type,
     template: args.template ?? templateFor(args.type, args.settings),
     seller: sellerFrom(args.settings),
-    buyer: sampleBuyer(),
-    source: sampleSource(),
+    buyer: payslip ? sampleEmployee() : sampleBuyer(),
+    source: payslip ? samplePayslipSource() : sampleSource(),
     accentColor: args.settings?.brandColor ?? null,
     paymentDetails: args.settings?.paymentDetails ?? null,
     logoHeader: headerLogoFor(args.type, args.settings),
@@ -584,4 +589,109 @@ async function billingNoteLines(tem: EntityManager, row: QuoteRow): Promise<{ li
     tax_rate: null,
   }))
   return { lines, total: rows.reduce((s, r) => s + Number(r.remaining), 0) }
+}
+
+// ───────────────────────────────── สลิปเงินเดือน (payslip) ──────────────────
+
+/**
+ * One employee's line in a calculated payroll run, shaped like the rows this
+ * file consumes. Read with scalar SQL and an explicit tenant filter — the
+ * same seam this module already uses for sales tables; no cross-module ORM
+ * relation is created.
+ */
+export async function findPayrollLineById(
+  tem: EntityManager,
+  args: { payrollLineId: string; tenantId: string },
+): Promise<QuoteRow | null> {
+  const rows = (await tem.execute(
+    `select l.id, l.employee_no, l.employee_name,
+            l.gross::text as gross, l.sso_employee::text as sso_employee, l.wht::text as wht, l.net::text as net,
+            r.run_no, r.month_code, to_char(r.pay_date, 'YYYY-MM-DD') as pay_date,
+            r.tenant_id, r.organization_id,
+            e.employee_no as master_employee_no, to_char(e.hire_date, 'YYYY-MM-DD') as hire_date
+     from orva_hr_payroll_lines l
+     join orva_hr_payroll_runs r on r.id = l.run_id and r.deleted_at is null
+     left join orva_hr_employees e on e.id = l.employee_id and e.deleted_at is null
+     where l.id = ?::uuid and l.tenant_id = ?::uuid and l.deleted_at is null`,
+    [args.payrollLineId, args.tenantId],
+  )) as Array<Record<string, string | null>>
+  const line = rows[0]
+  if (!line) return null
+  return {
+    id: line.id,
+    kind: 'payroll_line',
+    quote_number: line.run_no ? `${line.run_no}-${line.employee_no ?? line.master_employee_no ?? ''}`.replace(/-$/, '') : String(line.id).slice(0, 8),
+    currency_code: 'THB',
+    customer_entity_id: null,
+    customer_snapshot: {},
+    billing_address_snapshot: {},
+    tenant_id: line.tenant_id,
+    organization_id: line.organization_id,
+    issue_date: line.pay_date,
+    valid_until: line.month_code,
+    employee_name: line.employee_name,
+    employee_no: line.employee_no ?? line.master_employee_no ?? null,
+    hire_date: line.hire_date,
+    month_code: line.month_code,
+    gross: line.gross,
+    sso_employee: line.sso_employee,
+    wht: line.wht,
+    net: line.net,
+  }
+}
+
+/**
+ * Payslip presentation: earnings first, then deductions as negative lines, so
+ * the sheet's total is net pay. VAT plays no part.
+ */
+function sourceFromPayroll(row: QuoteRow): DocumentSource {
+  const gross = num(row.gross)
+  const sso = num(row.sso_employee)
+  const wht = num(row.wht)
+  const lines: DocumentLine[] = [
+    { description: 'เงินเดือน', quantity: 1, unitPrice: gross, amount: gross },
+  ]
+  if (sso > 0) lines.push({ description: 'หัก ประกันสังคม (ลูกจ้าง)', quantity: 1, unitPrice: -sso, amount: -sso })
+  if (wht > 0) lines.push({ description: 'หัก ภาษีเงินได้ ณ ที่จ่าย', quantity: 1, unitPrice: -wht, amount: -wht })
+  return {
+    number: String(row.quote_number ?? ''),
+    issueDate: String(row.issue_date ?? ''),
+    secondaryDate: typeof row.month_code === 'string' ? row.month_code : null,
+    currencyCode: 'THB',
+    lines,
+    subtotal: gross,
+    discount: 0,
+    taxRate: null,
+    taxAmount: 0,
+    grandTotal: num(row.net),
+    note: null,
+    paymentMethod: null,
+  }
+}
+
+/** Builds the payslip for one payroll line. */
+export async function documentFromPayroll(
+  tem: EntityManager,
+  args: { row: QuoteRow; template?: TemplateId; settings: DocumentSettings | null },
+): Promise<PrintableDocument> {
+  return buildPrintableDocument({
+    type: 'payslip',
+    template: args.template ?? templateFor('payslip', args.settings),
+    seller: sellerFrom(args.settings),
+    // the employee is the counterparty on a payslip
+    buyer: {
+      name: String(args.row.employee_name ?? ''),
+      taxId: null,
+      branch: null,
+      address: args.row.employee_no ? `รหัสพนักงาน ${args.row.employee_no}` : null,
+      phone: null,
+      email: null,
+    },
+    source: sourceFromPayroll(args.row),
+    accentColor: args.settings?.brandColor ?? null,
+    paymentDetails: null,
+    logoHeader: args.settings?.logoHeader ?? null,
+    logoFooter: args.settings?.logoFooter ?? null,
+    terms: null,
+  })
 }

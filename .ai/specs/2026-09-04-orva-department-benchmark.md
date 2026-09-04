@@ -82,7 +82,7 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 |---|---|---|---|
 | Employees, payroll runs, ประกันสังคม, WHT | ERPNext HR | ✅ | — |
 | **Leave / availability** | Odoo Time Off | ⏸ upstream staff | **exposed this phase under HR** |
-| Payslip PDF + email | Odoo | ❌ | Gap #6: payslip document type |
+| Payslip PDF + email | Odoo | ✅ 2026-09-04 | `payslip` document type: own sheet (earnings / deductions / net pay, signatures, confidentiality note), printed from a payroll line (`/backend/documents/preview?type=payslip&documentId=<line>`), linked per employee from the payroll run; print, PDF and email reuse the document rails |
 | ภ.ง.ด.1/1ก, สปส.1-10 files | Thai payroll (e.g. HumanSoft) | ❌ | later |
 | Attendance | Odoo | ❌ | not needed for one person |
 
@@ -105,4 +105,12 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 5. ✅ Support (`/backend/support/tickets`): tickets against customer companies with type/priority/status/due date, a reply thread (staff / customer / internal note), minutes logged per reply rolling up to the ticket, first-response and resolution stamps, transition-checked status machine with optimistic locking; queue sorted urgent → overdue → oldest with counts for open, awaiting-reply, overdue and hours logged.
    The **Support** group is now customer support only; internal admin pages (attachments, audit log, API docs, profile preferences, deal settings) went back to the settings panel where they belong.
 
-Out of this phase (F/G): recurring invoices, PromptPay QR, purchase orders, labels, campaigns, payslip PDF, e-filing formats, CIT estimate, marketplace import.
+Out of this phase (F/G): recurring invoices, PromptPay QR, purchase orders, labels, campaigns, e-filing formats, CIT estimate, marketplace import.
+
+## Phase F — in progress
+
+1. ✅ Payslip document (2026-09-04) — see HR above.
+2. **PromptPay QR on invoices / billing notes** — blocked on one decision: the QR image needs a generator. `@types/qrcode` is already a devDependency but the runtime `qrcode` package is not installed, and adding a dependency is ask-first. The EMVCo payload (tags + CRC16) can be built and unit-tested with no dependency; only the raster/SVG needs the library.
+3. Recurring invoices (annual maintenance → งวด on a schedule, via the `scheduler` module).
+4. Purchase order to the OEM (draft → bill → receive, closing the loop orva_stock already has from bill onward).
+5. Customer statement (ใบแจ้งยอด) from AR open items.

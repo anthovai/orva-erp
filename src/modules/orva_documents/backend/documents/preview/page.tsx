@@ -16,7 +16,7 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { Input } from '@open-mercato/ui/primitives/input'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { DOCUMENT_TYPES, TEMPLATE_IDS, typesForSourceKind, type DocumentType, type PrintableDocument, type TemplateId } from '../../../lib/document'
-import { DOCUMENT_TEMPLATES } from '../../../components/templates'
+import { DOCUMENT_TEMPLATES, templateComponentFor } from '../../../components/templates'
 
 type SourceOption = { id: string; kind?: string; number: string; issueDate: string | null; customerName: string | null }
 type PreviewResponse = { document: PrintableDocument; sources: SourceOption[]; usedSample: boolean; sourceKind?: string }
@@ -30,6 +30,7 @@ const TYPE_LABELS: Record<DocumentType, { key: string; fallback: string }> = {
   credit_note: { key: 'orva_documents.type.credit_note', fallback: 'ใบลดหนี้' },
   debit_note: { key: 'orva_documents.type.debit_note', fallback: 'ใบเพิ่มหนี้' },
   billing_note: { key: 'orva_documents.type.billing_note', fallback: 'ใบวางบิล' },
+  payslip: { key: 'orva_documents.type.payslip', fallback: 'สลิปเงินเดือน' },
 }
 
 const SAMPLE_VALUE = '__sample__'
@@ -206,7 +207,7 @@ export default function DocumentPreviewPage() {
   // with no explicit choice the server already applied the configured
   // template — render whichever the document says it is
   // '' must fall through too, hence || rather than ??
-  const Template = DOCUMENT_TEMPLATES[(doc?.template || template || 'classic') as TemplateId].Component
+  const Template = templateComponentFor({ template: (doc?.template || template || 'classic') as TemplateId, isPayslip: doc?.isPayslip })
 
   return (
     <Page>
