@@ -32,6 +32,8 @@ export type HomeOverview = {
     draftJournals: number
     unmatchedBankLines: number
     lastMonthPackSent: boolean
+    expiringLots: number
+    expiredLots: number
   }
 }
 
@@ -102,7 +104,7 @@ export function useHomeOverview(refreshToken?: unknown) {
 export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOverview; showInvoiceList?: boolean }) {
   const t = useT()
   const overdue = data.cashIn.overdueCount > 0
-  const waitingCount = data.waiting.quotes.length + data.waiting.unpostedInvoices + data.waiting.draftJournals + data.waiting.unmatchedBankLines + (data.waiting.lastMonthPackSent ? 0 : 1)
+  const waitingCount = data.waiting.quotes.length + data.waiting.unpostedInvoices + data.waiting.draftJournals + data.waiting.unmatchedBankLines + (data.waiting.lastMonthPackSent ? 0 : 1) + (data.waiting.expiringLots ?? 0) + (data.waiting.expiredLots ?? 0)
   const taxTone: Tone = data.tax.some((d) => d.state === 'overdue' && !d.packSentAt) ? 'bad' : data.tax.some((d) => d.state === 'due_soon' && !d.packSentAt) ? 'warn' : undefined
 
   return (
@@ -202,6 +204,12 @@ export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOver
           ) : null}
           {data.waiting.unmatchedBankLines > 0 ? (
             <Row left={<Link href="/backend/bank/reconciliation" className="hover:underline">{t('orva_finance.home.waiting.bank', 'รายการธนาคารยังไม่กระทบยอด')}</Link>} right={String(data.waiting.unmatchedBankLines)} tone="warn" />
+          ) : null}
+          {(data.waiting.expiredLots ?? 0) > 0 ? (
+            <Row left={<Link href="/backend/stock/valuation" className="hover:underline">{t('orva_finance.home.waiting.expiredLots', 'ล็อตสินค้าหมดอายุแล้วแต่ยังมีของค้าง')}</Link>} right={String(data.waiting.expiredLots)} tone="bad" />
+          ) : null}
+          {(data.waiting.expiringLots ?? 0) > 0 ? (
+            <Row left={<Link href="/backend/stock/valuation" className="hover:underline">{t('orva_finance.home.waiting.expiringLots', 'ล็อตสินค้าใกล้หมดอายุใน 90 วัน')}</Link>} right={String(data.waiting.expiringLots)} tone="warn" />
           ) : null}
           {!data.waiting.lastMonthPackSent ? (
             <Row left={<Link href="/backend/reports/month-pack" className="hover:underline">{t('orva_finance.home.waiting.pack', 'ชุดปิดเดือนที่แล้วยังไม่ส่งสำนักงานบัญชี')}</Link>} right="1" tone="warn" />

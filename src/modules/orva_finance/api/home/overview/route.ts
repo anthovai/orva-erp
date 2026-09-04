@@ -39,6 +39,8 @@ const responseSchema = z.object({
     draftJournals: z.number(),
     unmatchedBankLines: z.number(),
     lastMonthPackSent: z.boolean(),
+    expiringLots: z.number(),
+    expiredLots: z.number(),
   }),
 })
 

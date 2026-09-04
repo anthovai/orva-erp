@@ -39,6 +39,42 @@ export type HomeOverviewData = {
     draftJournals: number
     unmatchedBankLines: number
     lastMonthPackSent: boolean
+    /** คลัง: lots still on hand that expire within 90 days / already expired. */
+    expiringLots: number
+    expiredLots: number
+  }
+}
+
+/**
+ * Marventine lots that still hold stock but are running out of shelf life —
+ * the one stock fact the owner must not miss on the home screen. A scalar
+ * tenant-filtered read on the WMS tables, the same seam as the sales reads;
+ * 90 days matches the 'soon' window on the stock valuation screen.
+ */
+async function stockExpiryAlerts(
+  tem: EntityManager,
+  scope: Scope,
+  today: string,
+): Promise<{ expiringLots: number; expiredLots: number }> {
+  const rows = (await tem.execute(
+    `select coalesce(count(*) filter (where x.expires_at >= ?::date), 0)::int as expiring,
+            coalesce(count(*) filter (where x.expires_at < ?::date), 0)::int as expired
+     from (
+       select l.id, l.expires_at
+       from wms_inventory_lots l
+       join wms_inventory_balances b on b.lot_id = l.id and b.deleted_at is null
+       where l.tenant_id = ?::uuid
+         and (?::uuid is null or l.organization_id = ?::uuid)
+         and l.deleted_at is null and l.expires_at is not null
+         and l.expires_at <= ?::date + interval '90 days'
+       group by l.id, l.expires_at
+       having sum(b.quantity_on_hand) > 0
+     ) x`,
+    [today, today, scope.tenantId, scope.organizationId, scope.organizationId, today],
+  )) as Array<{ expiring: number; expired: number }>
+  return {
+    expiringLots: Number(rows[0]?.expiring ?? 0),
+    expiredLots: Number(rows[0]?.expired ?? 0),
   }
 }
 
@@ -55,12 +91,13 @@ export async function resolveCustomerNames(tem: EntityManager, scope: Scope, ids
 export async function buildHomeOverview(tem: EntityManager, scope: Scope, today: string): Promise<HomeOverviewData> {
   const month = monthOf(today)
   const bounds = monthBounds(month)
-  const [invoices, receipts, bank, quotes, books] = await Promise.all([
+  const [invoices, receipts, bank, quotes, books, stock] = await Promise.all([
     openInvoices(tem, scope),
     receiptsInMonth(tem, scope, bounds.from, bounds.to),
     cashBalances(tem, scope),
     pendingQuotes(tem, scope),
     bookkeepingStatus(tem, scope, month, bounds.from, bounds.to),
+    stockExpiryAlerts(tem, scope, today),
   ])
   const deadlines = upcomingDeadlines(today)
   const customerNames = await resolveCustomerNames(tem, scope, [
@@ -124,6 +161,8 @@ export async function buildHomeOverview(tem: EntityManager, scope: Scope, today:
       draftJournals: books.draftJournals,
       unmatchedBankLines: books.unmatchedBankLines,
       lastMonthPackSent: sentFor(periods[periods.length - 1] ?? month) != null,
+      expiringLots: stock.expiringLots,
+      expiredLots: stock.expiredLots,
     },
   }
 }

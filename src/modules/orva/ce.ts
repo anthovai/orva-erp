@@ -34,6 +34,24 @@ export const entities = [
     ],
   },
   {
+    // การตลาด: which channel brought the deal in. A one-person company can't
+    // afford full UTM plumbing, but knowing ช่องทางที่มา per deal is enough
+    // to see which channel actually converts. Thai values double as labels —
+    // this is a Thai-only tenant and the value prints as entered.
+    id: 'customers:customer_deal',
+    fields: [
+      cf.select(
+        'lead_source',
+        ['เพื่อนแนะนำ/ปากต่อปาก', 'ลูกค้าเก่า', 'Facebook', 'LINE', 'เว็บไซต์', 'อีเวนต์/ออกบูธ', 'อื่นๆ'],
+        {
+          label: 'ช่องทางที่มา',
+          description: 'ลูกค้ารายนี้รู้จักเรามาจากช่องทางไหน — ใช้ดูว่าช่องทางใดปิดการขายได้จริง',
+          filterable: true,
+        },
+      ),
+    ],
+  },
+  {
     id: 'customers:customer_company_profile',
     fields: [
       cf.text('th_tax_id', {

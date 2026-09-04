@@ -35,7 +35,7 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 | AI proposals from inbound mail | — | ✅ upstream (inbox_ops) | — |
 | Email campaigns / broadcast | Odoo Marketing | ❌ | phase F: broadcast to a customer segment through the messages module |
 | Lead capture form → deal | Odoo Website | ❌ | phase F: public form on the portal creating a deal |
-| Lead source / UTM on deals | Odoo | 🟡 (custom field) | add `lead_source` select on deals |
+| Lead source / UTM on deals | Odoo | ✅ 2026-09-04 | `lead_source` (ช่องทางที่มา) select on deals via orva/ce.ts, filterable |
 | Landing pages / CMS | Odoo Website | ⏸ (content module) | out of scope |
 | Customer portal (see quotes/invoices, pay) | Odoo | 🟡 upstream customer_accounts | enable when a customer asks |
 
@@ -45,7 +45,7 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 |---|---|---|---|
 | Tasks, calendar, workflow user tasks | all | ✅ | — |
 | **Timesheets + projects** | Odoo/ERPNext | ⏸ upstream staff | **exposed this phase under Projects** |
-| Project = quote, milestones = งวด, profitability (billed − hours × rate) | Odoo Project | ❌ | Gap #4: project card on the quote (installments already listed there) + hours from timesheets |
+| Project = quote, milestones = งวด, profitability (billed − hours × rate) | Odoo Project | 🟡 2026-09-04 | โปรเจกต์ page (/backend/projects): billed/paid % per quote, unpaid งวด, remaining; hours × rate later |
 | Kanban board | all | 🟡 (customer tasks) | later |
 | Client acceptance → triggers next งวด invoice | — | 🟡 (acceptance link on quote) | later |
 
@@ -56,7 +56,7 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 | Lots, expiry, balances, movements | Odoo Inventory | ✅ upstream wms | — |
 | Cost per lot, valuation, COGS posting | Odoo | ✅ (orva_stock) | — |
 | **Purchase order to OEM → bill → receive** | Odoo Purchase | ❌ (bill → receive only) | phase F: light PO in orva_stock |
-| Reorder point / low-stock alert | Odoo | 🟡 (wms profiles, events) | surface on the home screen |
+| Reorder point / low-stock alert | Odoo | 🟡 | expiry alerts (≤90 วัน + expired) on the home waiting card 2026-09-04; reorder point later |
 | Barcode / lot label printing (with FDA no.) | Odoo | ❌ | phase F: label sheet from lot + product fields |
 | Marketplace order import (Shopee/Lazada/TikTok) | Odoo connectors | ❌ | phase G |
 | Shipping labels (Flash/Kerry) | — | ⏸ shipping_carriers | phase G |
