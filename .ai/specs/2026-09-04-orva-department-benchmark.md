@@ -91,8 +91,8 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 | Capability | Benchmark | Orva | Plan |
 |---|---|---|---|
 | Users, roles, API keys, devices, MFA, SSO, integrations, webhooks, system status, cache, telemetry, audit log, API docs | all | ✅ upstream | audit log + API docs exposed this phase |
-| **Helpdesk / tickets for clients** (SLA, email-in, customer link) | Odoo Helpdesk / osTicket | ❌ | **Gap #7 — this phase (light)**: tickets on customer companies, status/priority, email-in later |
-| Software & subscription register (licences, renewals, cost account 5700) | ITAM tools | ❌ | phase F: asset register reuse (FA) with renewal reminders on home |
+| **Helpdesk / tickets for clients** (SLA, email-in, customer link) | Odoo Helpdesk / osTicket | ✅ | tickets on customer companies, status/priority, reply thread, minutes logged; linked to a project (`quoteId`) 2026-09-05 — the Projects page counts open tickets per project and links straight into the filtered queue, so a client's bugs surface next to their billing. Email-in later |
+| Software & subscription register (licences, renewals, cost account 5700) | ITAM tools | ✅ 2026-09-05 | `/backend/support/subscriptions`: licence/domain/hosting/certificate with cycle, cost, renewal date, auto-renew flag, expense account, project link; "ต่ออายุแล้ว" rolls the date one cycle on (past lapsed dates roll forward to the future); yearly run-rate KPI; lapsed + ≤30-day counts on the home waiting card |
 | Client site uptime monitoring | Uptime Kuma | ❌ | out of scope (use Uptime Kuma) |
 | Knowledge base | Odoo Knowledge | ❌ | later |
 
@@ -121,5 +121,21 @@ Out of this phase (F/G): recurring invoices, PromptPay QR, purchase orders, labe
 5. **คลัง — expiry / low-stock on the home screen**: the waiting card counts lots
    expiring within 90 days (Marventine shelf life) so the owner sees it without
    opening the stock pages.
-6. Support — software & subscription register with renewal reminders (later).
-7. Later still: recurring invoices, PO to OEM, customer statement, lot labels.
+6. ✅ **Projects ↔ Support link** (2026-09-05) — the answer to "how do we catch a bug
+   before the client does". A ticket carries the `quoteId` of the project it belongs to
+   (picker on the create form); the Projects page shows an open-issue count per project
+   and links into `/backend/support/tickets?quoteId=…`. So a project row shows both what
+   it owes us and what we owe it.
+7. ✅ **Support — software & subscription register** (2026-09-05) — see IT Support above.
+   Renewal maths live in `lib/subscriptions.ts` (pure, 14 tests): month-end clamping,
+   roll-forward past today, per-cycle annualisation.
+8. Later still: recurring invoices, PO to OEM, customer statement, lot labels,
+   marketing broadcast, lead-capture form.
+
+### Note for whoever picks this up next
+
+Adding an entity class needs the **dev server restarted** — the ORM metadata bundle
+(`.mercato/generated/entities.generated.mjs`) is built at boot, and `yarn generate`
+will not refresh it while the server holds the old copy in memory. Symptom:
+`MetadataError: Metadata for entity X not found` on the first write, while reads that
+use raw `tem.execute` SQL keep working. See `.ai/lessons.md` → module-data.

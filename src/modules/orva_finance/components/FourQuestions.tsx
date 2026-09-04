@@ -34,6 +34,8 @@ export type HomeOverview = {
     lastMonthPackSent: boolean
     expiringLots: number
     expiredLots: number
+    renewingSubscriptions: number
+    lapsedSubscriptions: number
   }
 }
 
@@ -104,7 +106,7 @@ export function useHomeOverview(refreshToken?: unknown) {
 export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOverview; showInvoiceList?: boolean }) {
   const t = useT()
   const overdue = data.cashIn.overdueCount > 0
-  const waitingCount = data.waiting.quotes.length + data.waiting.unpostedInvoices + data.waiting.draftJournals + data.waiting.unmatchedBankLines + (data.waiting.lastMonthPackSent ? 0 : 1) + (data.waiting.expiringLots ?? 0) + (data.waiting.expiredLots ?? 0)
+  const waitingCount = data.waiting.quotes.length + data.waiting.unpostedInvoices + data.waiting.draftJournals + data.waiting.unmatchedBankLines + (data.waiting.lastMonthPackSent ? 0 : 1) + (data.waiting.expiringLots ?? 0) + (data.waiting.expiredLots ?? 0) + (data.waiting.renewingSubscriptions ?? 0) + (data.waiting.lapsedSubscriptions ?? 0)
   const taxTone: Tone = data.tax.some((d) => d.state === 'overdue' && !d.packSentAt) ? 'bad' : data.tax.some((d) => d.state === 'due_soon' && !d.packSentAt) ? 'warn' : undefined
 
   return (
@@ -210,6 +212,12 @@ export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOver
           ) : null}
           {(data.waiting.expiringLots ?? 0) > 0 ? (
             <Row left={<Link href="/backend/stock/valuation" className="hover:underline">{t('orva_finance.home.waiting.expiringLots', 'ล็อตสินค้าใกล้หมดอายุใน 90 วัน')}</Link>} right={String(data.waiting.expiringLots)} tone="warn" />
+          ) : null}
+          {(data.waiting.lapsedSubscriptions ?? 0) > 0 ? (
+            <Row left={<Link href="/backend/support/subscriptions" className="hover:underline">{t('orva_finance.home.waiting.lapsedSubscriptions', 'ไลเซนส์/โดเมนเลยกำหนดต่ออายุ')}</Link>} right={String(data.waiting.lapsedSubscriptions)} tone="bad" />
+          ) : null}
+          {(data.waiting.renewingSubscriptions ?? 0) > 0 ? (
+            <Row left={<Link href="/backend/support/subscriptions" className="hover:underline">{t('orva_finance.home.waiting.renewingSubscriptions', 'ไลเซนส์/โดเมนต่ออายุใน 30 วัน')}</Link>} right={String(data.waiting.renewingSubscriptions)} tone="warn" />
           ) : null}
           {!data.waiting.lastMonthPackSent ? (
             <Row left={<Link href="/backend/reports/month-pack" className="hover:underline">{t('orva_finance.home.waiting.pack', 'ชุดปิดเดือนที่แล้วยังไม่ส่งสำนักงานบัญชี')}</Link>} right="1" tone="warn" />

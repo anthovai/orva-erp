@@ -41,6 +41,8 @@ const responseSchema = z.object({
     lastMonthPackSent: z.boolean(),
     expiringLots: z.number(),
     expiredLots: z.number(),
+    renewingSubscriptions: z.number(),
+    lapsedSubscriptions: z.number(),
   }),
 })
 

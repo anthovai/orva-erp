@@ -59,3 +59,45 @@ export const replyCreateSchema = z.object({
 })
 
 export const ticketQuerySchema = z.object({ id: z.string().uuid() })
+
+export const SUBSCRIPTION_KINDS = ['software', 'domain', 'hosting', 'certificate', 'other'] as const
+export const BILLING_CYCLES = ['monthly', 'quarterly', 'yearly', 'one_time'] as const
+export const SUBSCRIPTION_STATUSES = ['active', 'cancelled'] as const
+
+export const subscriptionListSchema = z
+  .object({
+    status: z.enum(SUBSCRIPTION_STATUSES).optional(),
+    kind: z.enum(SUBSCRIPTION_KINDS).optional(),
+    /** 'due' keeps only lapsed + within the lead window */
+    bucket: z.enum(['all', 'due']).optional().default('all'),
+    search: z.string().trim().max(200).optional(),
+    today: isoDate.optional(),
+  })
+  .passthrough()
+
+export const subscriptionCreateSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  vendor: z.string().trim().max(200).optional().nullable(),
+  kind: z.enum(SUBSCRIPTION_KINDS).default('software'),
+  cost: z.coerce.number().min(0).max(1e12).optional().default(0),
+  currencyCode: z.string().trim().length(3).optional().default('THB'),
+  billingCycle: z.enum(BILLING_CYCLES).default('yearly'),
+  renewsOn: isoDate.optional().nullable(),
+  autoRenew: z.coerce.boolean().optional().default(true),
+  expenseAccountCode: z.string().trim().max(40).optional().nullable(),
+  customerEntityId: z.string().uuid().optional().nullable(),
+  quoteId: z.string().uuid().optional().nullable(),
+  notes: z.string().trim().max(4000).optional().nullable(),
+})
+
+export const subscriptionUpdateSchema = subscriptionCreateSchema
+  .partial()
+  .extend({
+    id: z.string().uuid(),
+    status: z.enum(SUBSCRIPTION_STATUSES).optional(),
+    /** Roll the renewal date one cycle on and stamp it paid. */
+    markRenewed: z.boolean().optional(),
+    today: isoDate.optional(),
+    /** Optimistic lock — the row's updatedAt as read. */
+    updatedAt: z.string().min(1),
+  })

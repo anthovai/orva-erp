@@ -42,6 +42,9 @@ export type HomeOverviewData = {
     /** คลัง: lots still on hand that expire within 90 days / already expired. */
     expiringLots: number
     expiredLots: number
+    /** IT: licences/domains renewing within 30 days / already lapsed. */
+    renewingSubscriptions: number
+    lapsedSubscriptions: number
   }
 }
 
@@ -78,6 +81,32 @@ async function stockExpiryAlerts(
   }
 }
 
+/**
+ * Licences, domains and certificates about to lapse. A subscription that dies
+ * unnoticed takes a client's site with it, so it belongs on the home screen
+ * next to the stock expiry — 30 days matches the register's lead window.
+ */
+async function subscriptionRenewals(
+  tem: EntityManager,
+  scope: Scope,
+  today: string,
+): Promise<{ renewingSubscriptions: number; lapsedSubscriptions: number }> {
+  const rows = (await tem.execute(
+    `select coalesce(count(*) filter (where renews_on >= ?::date), 0)::int as renewing,
+            coalesce(count(*) filter (where renews_on < ?::date), 0)::int as lapsed
+     from orva_support_subscriptions
+     where tenant_id = ?::uuid
+       and (?::uuid is null or organization_id = ?::uuid)
+       and deleted_at is null and status = 'active' and renews_on is not null
+       and renews_on <= ?::date + interval '30 days'`,
+    [today, today, scope.tenantId, scope.organizationId, scope.organizationId, today],
+  )) as Array<{ renewing: number; lapsed: number }>
+  return {
+    renewingSubscriptions: Number(rows[0]?.renewing ?? 0),
+    lapsedSubscriptions: Number(rows[0]?.lapsed ?? 0),
+  }
+}
+
 /** Customer display names live encrypted in customer_entities; resolve the few we show. */
 export async function resolveCustomerNames(tem: EntityManager, scope: Scope, ids: Array<string | null | undefined>): Promise<Map<string, string | null>> {
   const unique = [...new Set(ids.filter((id): id is string => Boolean(id)))]
@@ -91,13 +120,14 @@ export async function resolveCustomerNames(tem: EntityManager, scope: Scope, ids
 export async function buildHomeOverview(tem: EntityManager, scope: Scope, today: string): Promise<HomeOverviewData> {
   const month = monthOf(today)
   const bounds = monthBounds(month)
-  const [invoices, receipts, bank, quotes, books, stock] = await Promise.all([
+  const [invoices, receipts, bank, quotes, books, stock, subs] = await Promise.all([
     openInvoices(tem, scope),
     receiptsInMonth(tem, scope, bounds.from, bounds.to),
     cashBalances(tem, scope),
     pendingQuotes(tem, scope),
     bookkeepingStatus(tem, scope, month, bounds.from, bounds.to),
     stockExpiryAlerts(tem, scope, today),
+    subscriptionRenewals(tem, scope, today),
   ])
   const deadlines = upcomingDeadlines(today)
   const customerNames = await resolveCustomerNames(tem, scope, [
@@ -163,6 +193,8 @@ export async function buildHomeOverview(tem: EntityManager, scope: Scope, today:
       lastMonthPackSent: sentFor(periods[periods.length - 1] ?? month) != null,
       expiringLots: stock.expiringLots,
       expiredLots: stock.expiredLots,
+      renewingSubscriptions: subs.renewingSubscriptions,
+      lapsedSubscriptions: subs.lapsedSubscriptions,
     },
   }
 }

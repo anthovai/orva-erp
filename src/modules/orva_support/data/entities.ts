@@ -128,3 +128,91 @@ export class SupportReply {
   @Property({ name: 'deleted_at', type: Date, nullable: true })
   deletedAt?: Date | null
 }
+
+/**
+ * A software licence, domain, hosting plan or certificate we pay for. The
+ * register exists for one reason: renewals that lapse unnoticed take a
+ * client's site with them. `renewsOn` drives the home-screen warning,
+ * `billingCycle` rolls it forward once paid, and `customerEntityId` /
+ * `quoteId` say whose project a licence is held for — bare uuids, no
+ * cross-module relation.
+ */
+@Entity({ tableName: 'orva_support_subscriptions' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class SupportSubscription {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ type: 'text' })
+  name!: string
+
+  /** Who bills us — GitHub, Cloudflare, the registrar. */
+  @Property({ type: 'text', nullable: true })
+  vendor?: string | null
+
+  /** software | domain | hosting | certificate | other */
+  @Property({ type: 'text' })
+  kind: string = 'software'
+
+  @Property({ type: 'numeric', precision: 18, scale: 4, default: '0' })
+  cost: string = '0.0000'
+
+  @Property({ name: 'currency_code', type: 'text' })
+  currencyCode: string = 'THB'
+
+  /** monthly | quarterly | yearly | one_time */
+  @Property({ name: 'billing_cycle', type: 'text' })
+  billingCycle: string = 'yearly'
+
+  /** The next date money leaves or the licence dies. Null for a one-off. */
+  @Property({ name: 'renews_on', type: 'date', nullable: true })
+  @Index()
+  renewsOn?: string | null
+
+  /** False means somebody must go and pay it by hand. */
+  @Property({ name: 'auto_renew', type: 'boolean' })
+  autoRenew: boolean = true
+
+  /** Expense account this posts to when the bill arrives (5700 family). */
+  @Property({ name: 'expense_account_code', type: 'text', nullable: true })
+  expenseAccountCode?: string | null
+
+  @Property({ name: 'customer_entity_id', type: 'uuid', nullable: true })
+  customerEntityId?: string | null
+
+  @Property({ name: 'customer_name', type: 'text', nullable: true })
+  customerName?: string | null
+
+  /** The project this licence serves, when it is held for contract work. */
+  @Property({ name: 'quote_id', type: 'uuid', nullable: true })
+  quoteId?: string | null
+
+  @Property({ type: 'text', nullable: true })
+  notes?: string | null
+
+  /** active | cancelled */
+  @Property({ type: 'text' })
+  status: string = 'active'
+
+  /** Stamped every time the renewal date is rolled forward. */
+  @Property({ name: 'last_renewed_at', type: Date, nullable: true })
+  lastRenewedAt?: Date | null
+
+  @Property({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+
+  @Property({ name: 'deleted_at', type: Date, nullable: true })
+  deletedAt?: Date | null
+}

@@ -34,6 +34,7 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 ### module-data
 
 - [ce.ts custom fields are inert until `yarn mercato entities install` syncs them](lessons/ce-fields-need-entities-install.md) — area:umes,module-data; module:orva,entities,customers,catalog; topic:custom-fields,ce-dsl,entities-install,definitions-cache
+- [A new entity class needs the dev server restarted, not just `yarn generate`](lessons/new-entity-needs-dev-restart.md) — area:module-data; module:any; topic:mikro-orm,entity-discovery,generated-bundle,dev-server — writes 500 with MetadataError while raw-SQL reads still work
 
 ### backend-ui
 
