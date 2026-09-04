@@ -47,6 +47,10 @@ export const settingsPutSchema = z.object({
   logoHeaderQuotation: logoSchema,
   documentTerms: z.string().trim().max(2000).optional().nullable(),
   etaxSenderEmail: z.string().trim().email().optional().nullable().or(z.literal('').transform(() => null)),
+  /** Phone, 13-digit tax id, or 15-digit e-wallet — dashes/spaces tolerated. */
+  promptpayId: z.string().trim().max(30)
+    .refine((value) => value === '' || /^(0\d{9}|\d{13}|\d{15})$/.test(value.replace(/[^0-9]/g, '')), 'ต้องเป็นเบอร์โทร 10 หลัก เลขผู้เสียภาษี 13 หลัก หรือ e-wallet 15 หลัก')
+    .optional().nullable().or(z.literal('').transform(() => null)),
 })
 
 export const previewQuerySchema = z.object({

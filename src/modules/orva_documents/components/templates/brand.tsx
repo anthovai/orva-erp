@@ -4,6 +4,7 @@ import {
   AmountInWords,
   CopyRoleLabel,
   TaxIdentityLine,
+  PromptPayBlock,
   ReferenceBlock,
   TermsBlock,
   formatThaiDate,
@@ -171,6 +172,7 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
               <p className="whitespace-pre-line">{doc.paymentDetails}</p>
             </div>
           ) : null}
+          <PromptPayBlock doc={doc} t={t} />
           {doc.note ? (
             <div>
               <div className="font-bold">{t('orva_documents.field.note', 'หมายเหตุ')}</div>

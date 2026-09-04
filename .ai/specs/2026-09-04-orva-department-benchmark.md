@@ -21,7 +21,7 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 | ใบส่งของ / delivery note | all | ⏸ (sales_shipments upstream) | expose when Marventine ships parcels |
 | Customer statement (ใบแจ้งยอด) | Odoo/ERPNext | ❌ | Gap #3 — from AR open items |
 | Recurring invoices (annual maintenance) | Odoo/ERPNext | ❌ | phase F: recurring งวด from quote |
-| PromptPay QR on invoice | FlowAccount/PEAK | ❌ | phase F: EMVCo QR from bank details |
+| PromptPay QR on invoice | FlowAccount/PEAK | ✅ 2026-09-04 | Thai-QR (EMVCo tag 29 + CRC16, `lib/promptpay.ts`, dependency `qrcode` for the image) rendered on invoices and billing notes for the exact amount due; suppressed once the invoice is paid; id (phone/tax id/e-wallet) set once in document settings — configured with the company tax id |
 | Price lists, products on quotes, discounts | Odoo | ✅ upstream | — |
 | Sales orders / channels | Odoo | ⏸ | not the business |
 | Deals pipeline / CRM | Odoo | ✅ upstream | keep; owner may drop later |
@@ -110,7 +110,7 @@ Out of this phase (F/G): recurring invoices, PromptPay QR, purchase orders, labe
 ## Phase F — in progress
 
 1. ✅ Payslip document (2026-09-04) — see HR above.
-2. **PromptPay QR on invoices / billing notes** — blocked on one decision: the QR image needs a generator. `@types/qrcode` is already a devDependency but the runtime `qrcode` package is not installed, and adding a dependency is ask-first. The EMVCo payload (tags + CRC16) can be built and unit-tested with no dependency; only the raster/SVG needs the library.
+2. ✅ PromptPay QR (2026-09-04) — see Sales above; `qrcode` added with the owner's go-ahead.
 3. Recurring invoices (annual maintenance → งวด on a schedule, via the `scheduler` module).
 4. Purchase order to the OEM (draft → bill → receive, closing the loop orva_stock already has from bill onward).
 5. Customer statement (ใบแจ้งยอด) from AR open items.
