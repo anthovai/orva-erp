@@ -108,14 +108,6 @@ export class DocumentSettings {
   @Property({ name: 'etax_sender_email', type: 'text', nullable: true })
   etaxSenderEmail?: string | null
 
-  /**
-   * PromptPay proxy the company registered with its bank — phone, 13-digit
-   * taxpayer id, or 15-digit e-wallet. Set = invoices and billing notes carry
-   * a scan-to-pay QR for the amount due; blank = no QR.
-   */
-  @Property({ name: 'promptpay_id', type: 'text', nullable: true })
-  promptpayId?: string | null
-
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()
 

@@ -157,10 +157,6 @@ export type PrintableDocument = {
   isAbbreviated: boolean
   /** Payslip: lines are earnings and deductions (deductions negative), grandTotal is net pay. */
   isPayslip: boolean
-  /** PromptPay QR (SVG data URI) for the amount due — invoices and billing notes when the id is configured. */
-  promptPayQr: string | null
-  /** The PromptPay id as displayed under the QR. */
-  promptPayId: string | null
   /** Original-invoice block for credit/debit notes; null elsewhere. */
   reference: DocumentReference | null
   /**
@@ -198,8 +194,6 @@ export function buildPrintableDocument(input: {
   logoHeader?: string | null
   logoFooter?: string | null
   terms?: string | null
-  promptPayQr?: string | null
-  promptPayId?: string | null
 }): PrintableDocument {
   const { type, template, seller, buyer, source } = input
   const heading = HEADINGS[type]
@@ -259,8 +253,6 @@ export function buildPrintableDocument(input: {
     isTaxDocument,
     isAbbreviated,
     isPayslip,
-    promptPayQr: input.promptPayQr ?? null,
-    promptPayId: input.promptPayId ?? null,
     reference: source.reference ?? null,
     warnings,
   }

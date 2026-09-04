@@ -203,30 +203,6 @@ export function PaymentDetailsBlock({ doc, t }: TemplateProps) {
   )
 }
 
-/**
- * Scan-to-pay: the Thai-QR for this document's exact amount. Sits beside the
- * payment details so the customer chooses QR or manual transfer; only
- * collection documents (invoice, billing note) carry it.
- */
-export function PromptPayBlock({ doc, t }: TemplateProps) {
-  if (!doc.promptPayQr) return null
-  return (
-    <div className="flex items-center gap-3 rounded border px-3 py-2">
-      {/* eslint-disable-next-line @next/next/no-img-element -- self-contained data URI for print */}
-      <img src={doc.promptPayQr} alt="PromptPay QR" className="h-24 w-24" />
-      <div className="text-xs leading-5">
-        <div className="font-semibold">{t('orva_documents.promptpay.scan', 'สแกนจ่ายด้วยพร้อมเพย์')}</div>
-        {doc.promptPayId ? (
-          <div className="text-muted-foreground">PromptPay: <span className="tabular-nums">{doc.promptPayId}</span></div>
-        ) : null}
-        <div className="text-muted-foreground">
-          {t('orva_documents.promptpay.amount', 'ยอดชำระ')} <span className="font-medium tabular-nums">{formatMoney(doc.grandTotal)} {doc.currencyCode}</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export function SignatureRow({ t }: { t: TemplateProps['t'] }) {
   const slots = [
     t('orva_documents.field.signatureBuyer', 'ผู้รับสินค้า/บริการ'),

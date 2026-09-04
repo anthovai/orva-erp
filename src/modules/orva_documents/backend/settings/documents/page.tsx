@@ -35,7 +35,6 @@ type SettingsPayload = {
   logoHeaderQuotation: string | null
   documentTerms: string | null
   etaxSenderEmail: string | null
-  promptpayId: string | null
   updatedAt: string | null
 }
 
@@ -90,11 +89,6 @@ export default function DocumentSettingsPage() {
       type: 'text',
     },
     {
-      id: 'promptpayId',
-      label: t('orva_documents.settings.promptpayId', 'PromptPay (เบอร์โทร / เลขผู้เสียภาษี 13 หลัก) — ใส่แล้วใบแจ้งหนี้และใบวางบิลจะมี QR สแกนจ่ายตามยอด'),
-      type: 'text',
-    },
-    {
       id: 'invoiceNumberFormat',
       label: t('orva_documents.settings.invoiceNumberFormat', 'รูปแบบเลขที่ใบแจ้งหนี้ (เช่น KK-INV-{yyyy}{seq:3})'),
       type: 'text',
@@ -133,7 +127,7 @@ export default function DocumentSettingsPage() {
       id: 'seller',
       title: t('orva_documents.settings.groupSeller', 'ข้อมูลกิจการบนเอกสาร'),
       column: 1,
-      fields: ['sellerName', 'sellerLegalName', 'sellerTaxId', 'sellerBranch', 'sellerAddress', 'sellerPhone', 'sellerEmail', 'paymentDetails', 'promptpayId', 'documentTerms', 'etaxSenderEmail'],
+      fields: ['sellerName', 'sellerLegalName', 'sellerTaxId', 'sellerBranch', 'sellerAddress', 'sellerPhone', 'sellerEmail', 'paymentDetails', 'documentTerms', 'etaxSenderEmail'],
     },
     {
       id: 'templates',

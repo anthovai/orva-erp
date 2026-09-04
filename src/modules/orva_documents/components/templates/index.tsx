@@ -9,7 +9,6 @@ import {
   LineItemsTable,
   PartyBlock,
   PaymentDetailsBlock,
-  PromptPayBlock,
   SignatureRow,
   TaxIdentityLine,
   ReferenceBlock,
@@ -95,7 +94,6 @@ function ClassicTemplate({ doc, t }: TemplateProps) {
         <TotalsBlock doc={doc} t={t} />
       </div>
       <PaymentDetailsBlock doc={doc} t={t} />
-      <PromptPayBlock doc={doc} t={t} />
       {doc.note ? <p className="text-xs leading-5 text-muted-foreground">{doc.note}</p> : null}
       <ReferenceBlock doc={doc} t={t} />
       <TermsBlock doc={doc} t={t} />
@@ -131,7 +129,6 @@ function ModernTemplate({ doc, t }: TemplateProps) {
       </div>
       <AmountInWords doc={doc} t={t} />
       <PaymentDetailsBlock doc={doc} t={t} />
-      <PromptPayBlock doc={doc} t={t} />
       {doc.note ? <p className="text-xs leading-5 text-muted-foreground">{doc.note}</p> : null}
       <ReferenceBlock doc={doc} t={t} />
       <TermsBlock doc={doc} t={t} />

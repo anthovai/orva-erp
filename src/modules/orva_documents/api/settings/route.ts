@@ -37,7 +37,6 @@ const settingsSchema = z.object({
   logoHeaderQuotation: z.string().nullable(),
   documentTerms: z.string().nullable(),
   etaxSenderEmail: z.string().nullable(),
-  promptpayId: z.string().nullable(),
   updatedAt: z.string().nullable(),
 })
 
@@ -63,7 +62,6 @@ function serialize(row: DocumentSettings | null) {
       logoHeaderQuotation: null,
       documentTerms: null,
       etaxSenderEmail: null,
-      promptpayId: null,
       updatedAt: null,
     }
   }
@@ -87,7 +85,6 @@ function serialize(row: DocumentSettings | null) {
     logoHeaderQuotation: row.logoHeaderQuotation ?? null,
     documentTerms: row.documentTerms ?? null,
     etaxSenderEmail: row.etaxSenderEmail ?? null,
-    promptpayId: row.promptpayId ?? null,
     updatedAt: row.updatedAt ? row.updatedAt.toISOString() : null,
   }
 }
@@ -151,8 +148,6 @@ export async function PUT(req: Request) {
     if (input.logoHeaderQuotation !== undefined) target.logoHeaderQuotation = input.logoHeaderQuotation
     if (input.documentTerms !== undefined) target.documentTerms = input.documentTerms || null
     if (input.etaxSenderEmail !== undefined) target.etaxSenderEmail = input.etaxSenderEmail || null
-    // stored digits-only so the QR builder never re-parses human formatting
-    if (input.promptpayId !== undefined) target.promptpayId = input.promptpayId ? input.promptpayId.replace(/[^0-9]/g, '') : null
     if (input.invoiceNumberFormat) target.invoiceNumberFormat = input.invoiceNumberFormat
     if (input.brandColor) target.brandColor = input.brandColor
     if (input.templateQuotation) target.templateQuotation = input.templateQuotation

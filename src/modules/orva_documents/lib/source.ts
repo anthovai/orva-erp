@@ -2,9 +2,7 @@ import type { EntityManager } from '@mikro-orm/postgresql'
 import { findOneWithDecryption, findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import { parseDecryptedFieldValue } from '@open-mercato/shared/lib/encryption/tenantDataEncryptionService'
 import { SalesCreditMemo, SalesCreditMemoLine, SalesInvoice, SalesInvoiceLine, SalesQuote, SalesQuoteLine } from '@open-mercato/core/modules/sales/data/entities'
-import QRCode from 'qrcode'
 import { DocumentSettings } from '../data/entities'
-import { buildPromptPayPayload, formatPromptPayId } from './promptpay'
 import { brandForNumber, loadBrands, settingsWithBrand } from './brands'
 import {
   buildPrintableDocument,
@@ -179,8 +177,6 @@ export async function findInvoiceById(
     organization_id: invoice.organizationId,
     issue_date: isoDate(invoice.issueDate ?? invoice.createdAt),
     valid_until: isoDate(metadata.paidDate ?? invoice.dueDate),
-    // a paid invoice must not print a scan-to-pay QR next to its own รับชำระแล้ว note
-    paid_date: isoDate(metadata.paidDate ?? null),
     subtotal_net_amount: invoice.subtotalNetAmount,
     discount_total_amount: invoice.discountTotalAmount,
     tax_total_amount: invoice.taxTotalAmount,
@@ -427,16 +423,12 @@ export async function documentFromQuote(
   const row = billing
     ? { ...args.row, subtotal_net_amount: String(billing.total), discount_total_amount: '0', tax_total_amount: '0', grand_total_gross_amount: String(billing.total), valid_until: null, quote_number: `BN-${String(args.row.quote_number ?? '')}` }
     : args.row
-  const alreadyPaid = args.row.kind === 'invoice' && Boolean(args.row.paid_date)
-  const promptPay = await promptPayFor(args.type, settings, alreadyPaid ? 0 : num(row.grand_total_gross_amount))
   return buildPrintableDocument({
     type: args.type,
     template: args.template ?? templateFor(args.type, settings),
     seller: sellerFrom(settings),
     buyer: partyFromSnapshot(args.row, buyerIdentity),
     source: sourceFromQuote(row, lines),
-    promptPayQr: promptPay?.qr ?? null,
-    promptPayId: promptPay?.id ?? null,
     accentColor: settings?.brandColor ?? null,
     paymentDetails: settings?.paymentDetails ?? null,
     logoHeader: headerLogoFor(args.type, settings),
@@ -702,33 +694,4 @@ export async function documentFromPayroll(
     logoFooter: args.settings?.logoFooter ?? null,
     terms: null,
   })
-}
-
-
-/** Documents that ask for money carry a scan-to-pay QR when PromptPay is configured. */
-const PROMPTPAY_TYPES = new Set<DocumentType>(['invoice', 'billing_note'])
-
-/**
- * Renders the Thai-QR payload as an SVG data URI so the printed sheet is
- * self-contained (same reasoning as the logos). A malformed id degrades to
- * no QR instead of failing the sheet — the number is still collectible by
- * transfer, and the settings screen validates new input anyway.
- */
-async function promptPayFor(
-  type: DocumentType,
-  settings: DocumentSettings | null,
-  amount: number,
-): Promise<{ qr: string; id: string } | null> {
-  const rawId = settings?.promptpayId?.trim()
-  if (!rawId || !PROMPTPAY_TYPES.has(type) || !(amount > 0)) return null
-  try {
-    const payload = buildPromptPayPayload(rawId, amount)
-    const svg = await QRCode.toString(payload, { type: 'svg', errorCorrectionLevel: 'M', margin: 0 })
-    return {
-      qr: 'data:image/svg+xml;base64,' + Buffer.from(svg, 'utf8').toString('base64'),
-      id: formatPromptPayId(rawId),
-    }
-  } catch {
-    return null
-  }
 }
