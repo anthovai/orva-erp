@@ -31,6 +31,10 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 - [Upstream's sales create form claims a document number on open — preview instead, claim on save](lessons/sales-document-numbers-are-claimed-on-form-open.md) — area:umes,debugging; module:orva_documents,sales; topic:document-numbers,route-override,command-interceptor
 - [A new dashboard widget is invisible until the role allowlist includes it](lessons/dashboard-widgets-need-role-allowlist.md) — area:umes,backend-ui; module:dashboards,orva_finance; topic:dashboard-widgets,role-allowlist,default-layout
 
+### module-data
+
+- [ce.ts custom fields are inert until `yarn mercato entities install` syncs them](lessons/ce-fields-need-entities-install.md) — area:umes,module-data; module:orva,entities,customers,catalog; topic:custom-fields,ce-dsl,entities-install,definitions-cache
+
 ### backend-ui
 
 - [t() fallbacks hide missing catalog keys — audit i18n/{th,en}.json whenever strings are added](lessons/i18n-fallbacks-hide-missing-catalog-keys.md) — area:backend-ui; module:orva_documents,orva,orva_party; topic:i18n,translations,catalogs
