@@ -201,7 +201,7 @@ export default function TicketsPage() {
           </select>
           <Input className="max-w-64" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('orva_support.search', 'ค้นหาเลขที่ / หัวเรื่อง / ลูกค้า')} />
           {quoteFilter ? (
-            <div className="flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+            <div className="flex items-center gap-1.5 rounded-full bg-status-info-bg px-3 py-1 text-xs font-medium text-status-info-text">
               <span>{t('orva_support.filter.project', 'กรองเฉพาะโปรเจกต์')}</span>
               <button type="button" className="ml-1 hover:opacity-70" onClick={() => setQuoteFilter('')}>×</button>
             </div>

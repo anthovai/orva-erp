@@ -9,6 +9,7 @@ import { createLogger } from '@open-mercato/shared/lib/logger'
 import type { OpenApiRouteDoc } from '@open-mercato/shared/lib/openapi'
 import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
+import { DocumentSend } from '../../data/entities'
 import { sendSchema } from '../../data/validators'
 import { loadSettings } from '../../lib/source'
 import { sendEtaxEmail } from '../../lib/etaxEmail'
@@ -154,10 +155,37 @@ export async function POST(req: Request) {
     return Response.json({ error: 'Could not send the email' }, { status: 502 })
   }
 
-  // What went out, and how big it was: the only record that a customer was
-  // sent this exact document, and the first thing anyone checks when they ask
-  // whether the attachment was really there.
   logger.info('Document emailed', { to, type, fileName, bytes: pdf.byteLength, etax: !!etax })
+
+  // The durable record that this customer was sent this exact document — what
+  // collection reads to answer "have I chased this invoice, and when?", and
+  // the audit trail behind an e-Tax CC. The mail is already delivered by now,
+  // so a failure here is logged and swallowed: losing the row is bad, turning
+  // a sent email into a 500 the caller will retry is worse.
+  try {
+    const container = await createRequestContainer()
+    const em = container.resolve<EntityManager>('em')
+    await withTenantRls(em, auth.tenantId, async (tem) => {
+      tem.persist(tem.create(DocumentSend, {
+        tenantId: auth.tenantId!, organizationId,
+        documentType: type,
+        documentId: documentId ?? null,
+        documentNumber: heading.number || null,
+        toEmail: to,
+        fileName,
+        bytes: pdf.byteLength,
+        etax: !!etax,
+        sentBy: auth.sub ?? null,
+        sentAt: new Date(),
+      }))
+      await tem.flush()
+    })
+  } catch (error) {
+    logger.error('Document send was delivered but not recorded', {
+      to, type, documentId,
+      err: error instanceof Error ? error.message : String(error),
+    })
+  }
 
   return Response.json({ ok: true, fileName, bytes: pdf.byteLength, etax: !!etax })
 }

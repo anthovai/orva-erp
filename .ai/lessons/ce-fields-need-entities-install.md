@@ -1,8 +1,11 @@
-# ce.ts custom fields are inert until `yarn mercato entities install` syncs them
+---
+title: "ce.ts custom fields are inert until `yarn mercato entities install` syncs them"
+modules: ["orva", "entities", "customers", "catalog"]
+areas: ["umes", "module-data"]
+topics: ["custom-fields", "ce-dsl", "entities-install", "definitions-cache"]
+---
 
-- Area: umes, module-data
-- Modules: orva, entities, customers, catalog
-- Topics: custom-fields, ce-dsl, entities-install, definitions-cache
+# ce.ts custom fields are inert until `yarn mercato entities install` syncs them
 
 ## Symptom
 

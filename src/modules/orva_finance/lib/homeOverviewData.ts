@@ -2,6 +2,7 @@ import type { EntityManager } from '@mikro-orm/postgresql'
 import { findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import { CustomerEntity } from '@open-mercato/core/modules/customers/data/entities'
 import { daysBetween, monthBounds, monthOf, upcomingDeadlines, type TaxDeadline } from './homeOverview'
+import { reminderState } from './reminders'
 import {
   bookkeepingStatus, cashBalances, monthPackHistory, openInvoices, pendingQuotes, receiptsInMonth,
   vatReport, whtReport, type Scope,
@@ -22,10 +23,23 @@ export type HomeOverviewData = {
   today: string
   month: string
   cashIn: {
-    items: Array<{ id: string; ref: string; customer: string | null; dueDate: string | null; daysOverdue: number; remaining: string; total: string }>
+    items: Array<{
+      id: string; ref: string; customer: string | null; dueDate: string | null; daysOverdue: number
+      remaining: string; total: string
+      /** How many times the invoice/tax invoice was emailed to the customer. */
+      remindersSent: number
+      /** Days since the last send, or null when never sent. */
+      daysSinceReminder: number | null
+      /** Overdue past the threshold and never chased. */
+      neverReminded: boolean
+      /** Quiet long enough (or never chased) to justify another nudge. */
+      dueForReminder: boolean
+    }>
     openTotal: string
     overdueTotal: string
     overdueCount: number
+    /** Overdue invoices that have never been chased — the sharpest signal. */
+    unremindedCount: number
   }
   received: {
     total: string; cash: string; wht: string; count: number
@@ -45,6 +59,8 @@ export type HomeOverviewData = {
     /** IT: licences/domains renewing within 30 days / already lapsed. */
     renewingSubscriptions: number
     lapsedSubscriptions: number
+    /** Quotes accepted by the customer with no งวด issued yet. */
+    acceptedAwaitingInstallment: Array<{ id: string; ref: string; customer: string | null; total: string }>
   }
 }
 
@@ -79,6 +95,75 @@ async function stockExpiryAlerts(
     expiringLots: Number(rows[0]?.expiring ?? 0),
     expiredLots: Number(rows[0]?.expired ?? 0),
   }
+}
+
+/**
+ * When each invoice was last chased. Reads `orva_documents_sends` — the
+ * append-only send log — through the same scalar tenant-filtered seam as the
+ * other cross-module reads here. Only reminder-shaped documents count: an
+ * invoice or its tax invoice going out IS the nudge, because the owner sends
+ * the document itself rather than a separate letter.
+ */
+async function reminderHistory(
+  tem: EntityManager,
+  scope: Scope,
+  invoiceIds: readonly string[],
+): Promise<Map<string, string[]>> {
+  if (!invoiceIds.length) return new Map()
+  const rows = (await tem.execute(
+    `select document_id::text as id, to_char(sent_at, 'YYYY-MM-DD') as on_date
+     from orva_documents_sends
+     where tenant_id = ?::uuid
+       and (?::uuid is null or organization_id = ?::uuid)
+       and document_type in ('invoice', 'tax_invoice', 'billing_note')
+       and document_id = any(?::uuid[])
+     order by sent_at`,
+    [scope.tenantId, scope.organizationId, scope.organizationId, `{${invoiceIds.join(',')}}`],
+  )) as Array<{ id: string; on_date: string }>
+  const byInvoice = new Map<string, string[]>()
+  for (const row of rows) {
+    const list = byInvoice.get(row.id)
+    if (list) list.push(row.on_date)
+    else byInvoice.set(row.id, [row.on_date])
+  }
+  return byInvoice
+}
+
+/**
+ * Quotes the customer accepted through the acceptance link but which have not
+ * been billed at all. Upstream's accept route writes `status = 'confirmed'`
+ * with a plain ORM write — no event — so this is derived rather than pushed,
+ * which also self-heals: issue the งวด and the row disappears.
+ *
+ * Deliberately only the FIRST งวด. A part-billed quote always has a remainder,
+ * so prompting on that would put a permanent row on a card whose every other
+ * row can actually be cleared; billing progress lives on the Projects page.
+ */
+async function quotesAwaitingFirstInstallment(
+  tem: EntityManager,
+  scope: Scope,
+): Promise<Array<{ id: string; ref: string; customerEntityId: string | null; total: string }>> {
+  const rows = (await tem.execute(
+    `select q.id::text, q.quote_number, q.customer_entity_id::text, q.grand_total_gross_amount::text as total
+     from sales_quotes q
+     where q.deleted_at is null and q.tenant_id = ?::uuid
+       and (?::uuid is null or q.organization_id = ?::uuid)
+       and q.status = 'confirmed'
+       and not exists (
+         select 1 from sales_invoices i
+         where i.deleted_at is null and i.tenant_id = q.tenant_id
+           and i.metadata->>'quoteId' = q.id::text
+       )
+     order by q.created_at desc
+     limit 20`,
+    [scope.tenantId, scope.organizationId, scope.organizationId],
+  )) as Array<{ id: string; quote_number: string; customer_entity_id: string | null; total: string }>
+  return rows.map((row) => ({
+    id: row.id,
+    ref: row.quote_number,
+    customerEntityId: row.customer_entity_id,
+    total: Number(row.total).toFixed(2),
+  }))
 }
 
 /**
@@ -120,7 +205,7 @@ export async function resolveCustomerNames(tem: EntityManager, scope: Scope, ids
 export async function buildHomeOverview(tem: EntityManager, scope: Scope, today: string): Promise<HomeOverviewData> {
   const month = monthOf(today)
   const bounds = monthBounds(month)
-  const [invoices, receipts, bank, quotes, books, stock, subs] = await Promise.all([
+  const [invoices, receipts, bank, quotes, books, stock, subs, accepted] = await Promise.all([
     openInvoices(tem, scope),
     receiptsInMonth(tem, scope, bounds.from, bounds.to),
     cashBalances(tem, scope),
@@ -128,22 +213,32 @@ export async function buildHomeOverview(tem: EntityManager, scope: Scope, today:
     bookkeepingStatus(tem, scope, month, bounds.from, bounds.to),
     stockExpiryAlerts(tem, scope, today),
     subscriptionRenewals(tem, scope, today),
+    quotesAwaitingFirstInstallment(tem, scope),
   ])
   const deadlines = upcomingDeadlines(today)
+  const reminders = await reminderHistory(tem, scope, invoices.map((i) => i.id))
   const customerNames = await resolveCustomerNames(tem, scope, [
     ...quotes.map((q) => q.customer_entity_id),
     ...invoices.filter((i) => !i.customer_name).map((i) => i.customer_entity_id),
+    ...accepted.map((a) => a.customerEntityId),
   ])
 
-  const cashItems = invoices.map((row) => ({
-    id: row.id,
-    ref: row.invoice_number,
-    customer: row.customer_name ?? (row.customer_entity_id ? customerNames.get(row.customer_entity_id) ?? null : null),
-    dueDate: row.due_date,
-    daysOverdue: row.due_date ? Math.max(0, daysBetween(row.due_date, today)) : 0,
-    remaining: Number(row.remaining).toFixed(2),
-    total: Number(row.total).toFixed(2),
-  }))
+  const cashItems = invoices.map((row) => {
+    const state = reminderState({ dueDate: row.due_date, reminderDates: reminders.get(row.id) ?? [] }, today)
+    return {
+      id: row.id,
+      ref: row.invoice_number,
+      customer: row.customer_name ?? (row.customer_entity_id ? customerNames.get(row.customer_entity_id) ?? null : null),
+      dueDate: row.due_date,
+      daysOverdue: state.daysOverdue,
+      remaining: Number(row.remaining).toFixed(2),
+      total: Number(row.total).toFixed(2),
+      remindersSent: state.remindersSent,
+      daysSinceReminder: state.daysSinceReminder,
+      neverReminded: state.neverReminded,
+      dueForReminder: state.dueForReminder,
+    }
+  })
   const overdue = cashItems.filter((item) => item.daysOverdue > 0)
   const sum = <T,>(rows: T[], key: keyof T) => rows.reduce((s, r) => s + Number(r[key] ?? 0), 0)
 
@@ -164,6 +259,7 @@ export async function buildHomeOverview(tem: EntityManager, scope: Scope, today:
       openTotal: sum(cashItems, 'remaining').toFixed(2),
       overdueTotal: sum(overdue, 'remaining').toFixed(2),
       overdueCount: overdue.length,
+      unremindedCount: overdue.filter((item) => item.neverReminded).length,
     },
     received: {
       total: sum(receipts, 'total').toFixed(2),
@@ -195,6 +291,12 @@ export async function buildHomeOverview(tem: EntityManager, scope: Scope, today:
       expiredLots: stock.expiredLots,
       renewingSubscriptions: subs.renewingSubscriptions,
       lapsedSubscriptions: subs.lapsedSubscriptions,
+      acceptedAwaitingInstallment: accepted.map((row) => ({
+        id: row.id,
+        ref: row.ref,
+        customer: row.customerEntityId ? customerNames.get(row.customerEntityId) ?? null : null,
+        total: row.total,
+      })),
     },
   }
 }

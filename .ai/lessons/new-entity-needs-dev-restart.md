@@ -1,8 +1,11 @@
-# A new entity class needs the dev server restarted, not just `yarn generate`
+---
+title: "A new entity class needs the dev server restarted, not just `yarn generate`"
+modules: ["platform", "orva_documents", "orva_support"]
+areas: ["module-data", "debugging"]
+topics: ["mikro-orm", "entity-discovery", "generated-bundle", "dev-server"]
+---
 
-area: module-data
-module: any `@orva/*` module with `data/entities.ts`
-topic: mikro-orm, entity-discovery, generated-bundle, dev-server
+# A new entity class needs the dev server restarted, not just `yarn generate`
 
 ## Symptom
 

@@ -15,10 +15,16 @@ export type HomeOverview = {
   today: string
   month: string
   cashIn: {
-    items: Array<{ id: string; ref: string; customer: string | null; dueDate: string | null; daysOverdue: number; remaining: string; total: string }>
+    items: Array<{
+      id: string; ref: string; customer: string | null; dueDate: string | null; daysOverdue: number
+      remaining: string; total: string
+      remindersSent: number; daysSinceReminder: number | null
+      neverReminded: boolean; dueForReminder: boolean
+    }>
     openTotal: string
     overdueTotal: string
     overdueCount: number
+    unremindedCount: number
   }
   received: {
     total: string; cash: string; wht: string; count: number
@@ -36,6 +42,7 @@ export type HomeOverview = {
     expiredLots: number
     renewingSubscriptions: number
     lapsedSubscriptions: number
+    acceptedAwaitingInstallment: Array<{ id: string; ref: string; customer: string | null; total: string }>
   }
 }
 
@@ -103,10 +110,33 @@ export function useHomeOverview(refreshToken?: unknown) {
   return { data, loading, failed }
 }
 
+/**
+ * Whether this overdue invoice has been chased. Read straight off the send
+ * log, so "ยังไม่ได้ตาม" means no invoice or tax invoice was ever emailed for
+ * it — not merely that no reminder was drafted.
+ */
+function chaseText(
+  item: HomeOverview['cashIn']['items'][number],
+  t: (key: string, fallback: string) => string,
+): string | null {
+  if (item.daysOverdue <= 0) return null
+  if (item.neverReminded) return t('orva_finance.home.cashIn.neverReminded', 'ยังไม่ได้ตาม')
+  if (item.dueForReminder && item.daysSinceReminder != null) {
+    return t('orva_finance.home.cashIn.remindAgain', 'ตามครั้งล่าสุด {days} วันก่อน — ตามอีกได้')
+      .replace('{days}', String(item.daysSinceReminder))
+  }
+  if (item.remindersSent > 0) {
+    return t('orva_finance.home.cashIn.reminded', 'ตามแล้ว {count} ครั้ง')
+      .replace('{count}', String(item.remindersSent))
+  }
+  return null
+}
+
 export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOverview; showInvoiceList?: boolean }) {
   const t = useT()
   const overdue = data.cashIn.overdueCount > 0
-  const waitingCount = data.waiting.quotes.length + data.waiting.unpostedInvoices + data.waiting.draftJournals + data.waiting.unmatchedBankLines + (data.waiting.lastMonthPackSent ? 0 : 1) + (data.waiting.expiringLots ?? 0) + (data.waiting.expiredLots ?? 0) + (data.waiting.renewingSubscriptions ?? 0) + (data.waiting.lapsedSubscriptions ?? 0)
+  const accepted = data.waiting.acceptedAwaitingInstallment ?? []
+  const waitingCount = data.waiting.quotes.length + data.waiting.unpostedInvoices + data.waiting.draftJournals + data.waiting.unmatchedBankLines + (data.waiting.lastMonthPackSent ? 0 : 1) + (data.waiting.expiringLots ?? 0) + (data.waiting.expiredLots ?? 0) + (data.waiting.renewingSubscriptions ?? 0) + (data.waiting.lapsedSubscriptions ?? 0) + accepted.length
   const taxTone: Tone = data.tax.some((d) => d.state === 'overdue' && !d.packSentAt) ? 'bad' : data.tax.some((d) => d.state === 'due_soon' && !d.packSentAt) ? 'warn' : undefined
 
   return (
@@ -129,7 +159,8 @@ export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOver
                 left={<Link href={`/backend/sales/invoices/${item.id}`} className="hover:underline">{item.ref}</Link>}
                 sub={[item.customer, item.dueDate ? (item.daysOverdue > 0
                   ? t('orva_finance.home.cashIn.daysOverdue', 'เกินกำหนด {days} วัน').replace('{days}', String(item.daysOverdue))
-                  : t('orva_finance.home.cashIn.dueOn', 'ครบกำหนด {date}').replace('{date}', thaiDate(item.dueDate))) : null].filter(Boolean).join(' · ')}
+                  : t('orva_finance.home.cashIn.dueOn', 'ครบกำหนด {date}').replace('{date}', thaiDate(item.dueDate))) : null,
+                  chaseText(item, t)].filter(Boolean).join(' · ')}
                 right={money(item.remaining)}
                 tone={item.daysOverdue > 0 ? 'bad' : undefined}
               />
@@ -187,6 +218,17 @@ export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOver
       {/* 4 — waiting on someone */}
       <Card title={t('orva_finance.home.waiting.title', 'เอกสารที่รอ')} value={String(waitingCount)} tone={waitingCount > 0 ? 'warn' : 'good'} href="/backend/sales/quotes">
         <div className="flex flex-col gap-1.5">
+          {/* Accepted but unbilled comes first: it is the one row that is money
+              waiting on us rather than on somebody else. */}
+          {accepted.slice(0, 4).map((q) => (
+            <Row
+              key={q.id}
+              left={<Link href={`/backend/sales/quotes/${q.id}`} className="hover:underline">{q.ref}</Link>}
+              sub={[q.customer, t('orva_finance.home.waiting.acceptedSub', 'ตอบรับแล้ว — ออกงวดแรกได้')].filter(Boolean).join(' · ')}
+              right={money(q.total)}
+              tone="good"
+            />
+          ))}
           {data.waiting.quotes.slice(0, 4).map((q) => (
             <Row
               key={q.id}

@@ -362,7 +362,7 @@ inside `withTenantRls`. No `makeCrudRoute` needed — nothing here is a new CRUD
 | Phase | Outcome | Effort | Blocker / owner action | Exit gate |
 |---|---|---|---|---|
 | **G0 — Make it real** ✅ 2026-09-05 | clean tenant, grants, launch.json, upstream write-ups | done | remaining: Railway env + filing the issues | met: `verify-rls` 7/7, 0 demo rows, grants already in place |
-| **G1 — Cash cycle on autopilot** | acceptance → งวด prompt; overdue → drafted reminders; statement doc; recurring designed | 4–5 days | none | J-001, J-002 pass on real quote with `--today` override |
+| **G1 — Cash cycle** 🟡 slice 1 ✅ 2026-09-05 | send log + chase state on every overdue invoice; accepted→งวด row (derived, no event exists); 2 pre-existing bugs fixed. Statement + scan deferred with reasons | done so far | none | met: all three cadence states + acceptance row verified live |
 | **G2 — The owner's inbox** | email → ticket → email; morning brief; assistant tools across departments | 5–6 days | owner connects Gmail (OAuth) | J-003, J-004 pass; brief received 3 consecutive weekdays |
 | **G3 — Marventine launch readiness** (gated A2) | expected receipt, lot label, full dry-run | 4 days | first OEM batch ordered | dry-run checklist all green on a real SKU |
 | **G4 — Leads** | portal lead form → deal | 1–2 days | none | test lead appears on pipeline with source |
@@ -405,27 +405,76 @@ inside `withTenantRls`. No `makeCrudRoute` needed — nothing here is a new CRUD
 6. ✅ Gates: typecheck clean, lint 0 errors, 152 tests, `verify-rls` 7/7 PASS (266
    tables), `verify-finance` all PASS with no residue.
 
-### Phase G1 — Cash cycle on autopilot (REQ-002, 003, 004) — child spec `2026-09-0x-orva-cash-cycle-automation.md`
+### Phase G1 — Cash cycle (REQ-002, 003, 004) — slice 1 ✅ 2026-09-05
 
-1. **Notification types** — register `orva.next_installment`, `orva.reminder_pending`
-   with th/en templates. Test: type resolves in the notifications registry.
-2. **Acceptance subscriber** (`orva_documents/subscribers/quoteAccepted.ts`) — on
-   `sales.quote.accepted`, if no invoice has `metadata.quoteId = id`, create the
-   notification; waiting card renders it with click-through to `IssueInvoiceDialog`.
-   Tests: unit (predicate), integration (emit event → row appears; issue invoice → row
-   gone).
-3. **Overdue scan job** (`orva_finance/jobs/overdueScan.ts`, `scheduled_jobs` 06:30) —
-   pure `reminderCadence(invoice, pendingActions, today)` in `lib/` (tests: +3/+10/+17,
-   max 3, paid cancels, one in flight); job creates drafts via the Phase C tool path.
-   Integration: run with `--today` on KK-INV-2026012 → one pending action; approve →
-   sent through existing route.
-4. **Statement document** — `orva_documents` type `statement`: header (brand), customer,
-   as-of, open invoices with due/remaining, receipts, balance; reuses AR open-items
-   SQL from `reportQueries`; row action on the customer page; attached automatically
-   by the scan at ≥ 10 days. Tests: render with 0 / n open items; snapshot HTML.
-5. **Recurring invoices — design only** (A1): write the child spec section (`scheduled_jobs`
-   creating a draft invoice from a template quote on a cadence, approval-gated). No code.
-6. Gates + browser verification of J-001/J-002 in light/dark, narrow width.
+Research killed three of this phase's assumptions before any code was written. The
+design below is what the seams actually support; no child spec was opened (AGENTS.md
+`reuse-spec` — this section is the spec).
+
+**What the research found**
+
+- ❌ **There is no `sales.quote.accepted` event.** `sales` emits only
+  `quote.created/updated/deleted/expiring`. Worse, upstream's accept route
+  (`api/quotes/accept/route.ts`) writes `status = 'confirmed'` with a plain
+  `trx.persist()` — not through a command — so `quote.updated` does not fire either.
+  It also auto-converts the quote to a sales order (a record this tenant does not use)
+  and emails `ADMIN_EMAIL`. **No event seam exists to subscribe to.**
+- ❌ **Status is not a reliable acceptance signal in practice.** The real quote
+  KK-QTN-2026011 sits at `status = 'sent'` and yet งวด 1 was already issued — the owner
+  bills without using the acceptance link at all.
+- ❌ **`ai_pending_actions` is the wrong home for job-created drafts.** Its columns
+  (`agent_id`, `conversation_id`, `expires_at`, `created_by_user_id`) model an AI
+  conversation awaiting a human; a cron row would have to fake all four.
+- ✅ **The real gap was smaller and sharper than the plan's:** document sends were
+  written to a **log line only** (`api/send/route.ts` even said so in a comment), so
+  "have I already chased this invoice, and when?" was unanswerable. That question is
+  the whole of collection.
+
+**What shipped instead** — derived state, no events, no cron, no approval plumbing:
+
+1. ✅ **`orva_documents_sends`** — append-only record of a document actually emailed
+   (type, document id + number snapshot, recipient, file, bytes, e-Tax flag, who, when).
+   Written by `api/send/route.ts` after delivery, inside try/catch: the mail is already
+   gone, so a logging failure is logged and swallowed rather than turned into a 500 the
+   caller would retry. Doubles as the audit trail behind an e-Tax CC to ETDA.
+2. ✅ **`orva_finance/lib/reminders.ts`** — pure cadence (12 tests): 3 days before the
+   first nudge, 7 quiet days between, stop at 3. Exposes `neverReminded`,
+   `daysSinceReminder`, `dueForReminder`, `exhausted`, and a `reminderLabel` token so
+   the caller localises.
+3. ✅ **Every overdue invoice on the home screen now says whether it has been chased** —
+   "ยังไม่ได้ตาม" / "ตามแล้ว N ครั้ง" / "ตามครั้งล่าสุด N วันก่อน — ตามอีกได้", plus
+   `cashIn.unremindedCount`. Nothing is sent automatically; the owner still clicks.
+4. ✅ **REQ-002 as a derived row**, since no event exists: quotes at `status='confirmed'`
+   with no invoice carrying their `quoteId` show as "ตอบรับแล้ว — ออกงวดแรกได้". Derived
+   means self-healing — issue the งวด and the row clears itself, no resolution logic.
+   Deliberately first-งวด only: a part-billed quote always has a remainder, so prompting
+   on that would pin a permanent row to a card whose every other row can be cleared.
+   Billing progress stays on the Projects page.
+5. **Two pre-existing bugs the fixtures exposed, both fixed:**
+   - `openInvoices` read the **encrypted** `customer_entities.display_name` in a raw
+     subselect. Every caller does `row.customer_name ?? <decrypted>`, so a non-null
+     ciphertext won the coalesce and **rendered to the user**. Verified live: the
+     overdue row showed `CX/ToBaj6Zt…:v1`. Dropping the subselect fixes all four call
+     sites (home overview + three assistant tools) at once.
+   - `pendingQuotes` excluded `'accepted'` but not `'confirmed'`, so a quote accepted
+     through the link sat on the waiting card forever as "waiting on the customer" —
+     and double-counted against the new row.
+6. **Deferred with reasons, not skipped:**
+   - **REQ-004 statement** — `billing_note` (ใบวางบิล) already lists a customer's open
+     invoices with remaining amounts and totals them, which is exactly what a reminder
+     attaches. A true ใบแจ้งยอด adds receipts and a running balance — reconciliation
+     value that needs transaction volume this tenant does not have (1 invoice,
+     2 customers). Revisit when a customer disputes a balance.
+   - **Scheduled scan / auto-drafts** — the derived display answers "who needs chasing"
+     without a job. A job earns its keep once the brief exists to deliver it (G2.5),
+     and it should write its own rows, not borrow `ai_pending_actions`.
+   - **Recurring invoices** — unchanged, still A1.
+
+Verified live with synthetic `ZZTEST-*` rows (inserted by SQL so no document number was
+burned): never-chased → chased once → chased 9 days ago/due again, the accepted-quote
+row, correct customer name, waiting count 2 not 3. Fixtures then deleted; home screen
+confirmed back to the real two records. Gates: typecheck clean, lint 0 errors,
+164 tests, `verify-rls` 7/7 (267 tables).
 
 ### Phase G2 — The owner's inbox (REQ-005, 006, 007) — child spec `2026-09-1x-orva-support-inbox-and-brief.md`
 

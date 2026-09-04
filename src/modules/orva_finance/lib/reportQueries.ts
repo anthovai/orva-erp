@@ -336,10 +336,14 @@ export type OpenInvoiceRow = {
 /** Issued invoices not yet (fully) paid — money the owner is waiting for. */
 export async function openInvoices(tem: EntityManager, scope: Scope): Promise<OpenInvoiceRow[]> {
   return (await tem.execute(
+    // Snapshots only. customer_entities.display_name is encrypted at rest, so
+    // reading it in raw SQL yields ciphertext, and because every caller does
+    // `row.customer_name ?? <decrypted>` a non-null ciphertext wins the
+    // coalesce and gets rendered to the user. Leaving it null lets each
+    // caller's resolveCustomerNames() decryption fill it in.
     `select i.id, i.invoice_number,
             coalesce(i.metadata->'customerSnapshot'->'customer'->>'displayName',
-                     i.metadata->'customerSnapshot'->>'displayName',
-                     (select ce.display_name from customer_entities ce where ce.id::text = i.metadata->>'customerEntityId')) as customer_name,
+                     i.metadata->'customerSnapshot'->>'displayName') as customer_name,
             i.metadata->>'customerEntityId' as customer_entity_id,
             to_char(i.issue_date, 'YYYY-MM-DD') as issue_date,
             to_char(i.due_date, 'YYYY-MM-DD') as due_date,
@@ -419,7 +423,11 @@ export async function pendingQuotes(tem: EntityManager, scope: Scope): Promise<P
      from sales_quotes q
      where q.deleted_at is null and q.tenant_id = ?::uuid
        and (?::uuid is null or q.organization_id = ?::uuid)
-       and coalesce(q.status, '') not in ('accepted', 'rejected', 'declined', 'cancelled', 'converted', 'expired')
+       -- 'confirmed' is what upstream's accept route writes, so it belongs in
+       -- this list: the customer has answered, and the quote now waits on US
+       -- to issue the first งวด (see quotesAwaitingFirstInstallment). Without
+       -- it an accepted quote sat here forever as "waiting on the customer".
+       and coalesce(q.status, '') not in ('accepted', 'confirmed', 'rejected', 'declined', 'cancelled', 'converted', 'expired')
        and not exists (select 1 from sales_invoices i where i.deleted_at is null and i.metadata->>'quoteId' = q.id::text)
      order by q.valid_until nulls last, q.created_at desc
      limit 20`,

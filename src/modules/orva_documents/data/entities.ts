@@ -178,3 +178,59 @@ export class DocumentBrand {
   @Property({ name: 'deleted_at', type: Date, nullable: true })
   deletedAt?: Date | null
 }
+
+/**
+ * Append-only record that a document actually went to a customer. Until this
+ * existed the only trace of a send was a log line, so nobody could answer the
+ * question collection depends on: "have I already chased this invoice, and
+ * when?" Rows are never edited or deleted — a send happened or it did not,
+ * and the e-Tax CC to the ETDA time-stamp system needs the same audit trail.
+ *
+ * `documentId` is a bare uuid into whichever record the type prints from
+ * (invoice, quote, credit memo, payroll line); `documentNumber` is a snapshot
+ * so a list row needs no join or decryption.
+ */
+@Entity({ tableName: 'orva_documents_sends' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class DocumentSend {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  /** One of DOCUMENT_TYPES — quotation, invoice, tax_invoice, receipt, … */
+  @Property({ name: 'document_type', type: 'text' })
+  documentType!: string
+
+  /** Null for sample/preview data, which carries no record. */
+  @Property({ name: 'document_id', type: 'uuid', nullable: true })
+  @Index()
+  documentId?: string | null
+
+  @Property({ name: 'document_number', type: 'text', nullable: true })
+  documentNumber?: string | null
+
+  @Property({ name: 'to_email', type: 'text' })
+  toEmail!: string
+
+  @Property({ name: 'file_name', type: 'text' })
+  fileName!: string
+
+  @Property({ type: 'int' })
+  bytes: number = 0
+
+  /** True when this went out as e-Tax Invoice by Email (CC to ETDA). */
+  @Property({ type: 'boolean' })
+  etax: boolean = false
+
+  @Property({ name: 'sent_by', type: 'uuid', nullable: true })
+  sentBy?: string | null
+
+  @Property({ name: 'sent_at', type: Date })
+  @Index()
+  sentAt: Date = new Date()
+}

@@ -42,11 +42,12 @@ type ProjectRow = {
 const money = (value: number, currency: string) =>
   `${value.toLocaleString('th-TH', { minimumFractionDigits: 2 })} ${currency}`
 
+/** Status tokens carry their own dark-mode values — never palette shades. */
 const STATUS_CLASSES: Record<ProjectRow['status'], string> = {
-  not_started: 'bg-muted text-muted-foreground',
-  billing: 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300',
-  billed: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
-  complete: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
+  not_started: 'bg-status-neutral-bg text-status-neutral-text',
+  billing: 'bg-status-info-bg text-status-info-text',
+  billed: 'bg-status-warning-bg text-status-warning-text',
+  complete: 'bg-status-success-bg text-status-success-text',
 }
 
 /** Paid sits on top of billed on the same track: เรียกเก็บ = pale, รับแล้ว = solid. */
@@ -120,7 +121,7 @@ export default function OrvaProjectsPage() {
         <div className="flex flex-col text-sm">
           <span className="tabular-nums">{row.original.installments}</span>
           {row.original.unpaidInstallments > 0 ? (
-            <span className="text-xs text-amber-700 dark:text-amber-400">
+            <span className="text-xs text-status-warning-text">
               {t('orva_documents.projects.unpaid', 'ค้างชำระ {n} งวด').replace('{n}', String(row.original.unpaidInstallments))}
             </span>
           ) : null}

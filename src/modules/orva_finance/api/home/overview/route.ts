@@ -18,12 +18,20 @@ const querySchema = z.object({
   today: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 })
 
-const moneyRow = z.object({ id: z.string(), ref: z.string(), customer: z.string().nullable(), dueDate: z.string().nullable(), daysOverdue: z.number(), remaining: z.string(), total: z.string() })
+const moneyRow = z.object({
+  id: z.string(), ref: z.string(), customer: z.string().nullable(), dueDate: z.string().nullable(),
+  daysOverdue: z.number(), remaining: z.string(), total: z.string(),
+  remindersSent: z.number(), daysSinceReminder: z.number().nullable(),
+  neverReminded: z.boolean(), dueForReminder: z.boolean(),
+})
 
 const responseSchema = z.object({
   today: z.string(),
   month: z.string(),
-  cashIn: z.object({ items: z.array(moneyRow), openTotal: z.string(), overdueTotal: z.string(), overdueCount: z.number() }),
+  cashIn: z.object({
+    items: z.array(moneyRow), openTotal: z.string(), overdueTotal: z.string(),
+    overdueCount: z.number(), unremindedCount: z.number(),
+  }),
   received: z.object({
     total: z.string(), cash: z.string(), wht: z.string(), count: z.number(),
     bank: z.array(z.object({ code: z.string(), name: z.string(), balance: z.string() })),
@@ -43,6 +51,9 @@ const responseSchema = z.object({
     expiredLots: z.number(),
     renewingSubscriptions: z.number(),
     lapsedSubscriptions: z.number(),
+    acceptedAwaitingInstallment: z.array(z.object({
+      id: z.string(), ref: z.string(), customer: z.string().nullable(), total: z.string(),
+    })),
   }),
 })
 
