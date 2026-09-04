@@ -361,7 +361,7 @@ inside `withTenantRls`. No `makeCrudRoute` needed — nothing here is a new CRUD
 
 | Phase | Outcome | Effort | Blocker / owner action | Exit gate |
 |---|---|---|---|---|
-| **G0 — Make it real** | clean tenant, prod env, grants, upstream bugs filed | 1 day | owner runs purge + sets Railway env | `verify-rls` PASS; 0 demo rows; support page loads for `employee` role |
+| **G0 — Make it real** ✅ 2026-09-05 | clean tenant, grants, launch.json, upstream write-ups | done | remaining: Railway env + filing the issues | met: `verify-rls` 7/7, 0 demo rows, grants already in place |
 | **G1 — Cash cycle on autopilot** | acceptance → งวด prompt; overdue → drafted reminders; statement doc; recurring designed | 4–5 days | none | J-001, J-002 pass on real quote with `--today` override |
 | **G2 — The owner's inbox** | email → ticket → email; morning brief; assistant tools across departments | 5–6 days | owner connects Gmail (OAuth) | J-003, J-004 pass; brief received 3 consecutive weekdays |
 | **G3 — Marventine launch readiness** (gated A2) | expected receipt, lot label, full dry-run | 4 days | first OEM batch ordered | dry-run checklist all green on a real SKU |
@@ -370,23 +370,40 @@ inside `withTenantRls`. No `makeCrudRoute` needed — nothing here is a new CRUD
 
 ## Implementation Plan
 
-### Phase G0 — Make it real (REQ-001)
+### Phase G0 — Make it real (REQ-001) — ✅ done 2026-09-05 except two owner actions
 
-1. **Purge demo data** — dry-run `node scripts/purge-demo-data.mjs`, confirm the row
-   list is exactly JE-000001…026 + 6 demo parties, take `pg_dump`, then `--apply`.
-   Test: `select count(*) from orva_gl_journals where journal_no like 'JE-0000%'` = 0;
-   TB still balances.
-2. **Grant role features** for `orva_support.*` (and any module added since tenant
-   creation) to `admin`/`employee` via the ACL route as superadmin; document the SQL
-   fallback in `.ai/lessons` (already known: setup.ts runs only at tenant creation).
-   Test: log in as `employee`, open `/backend/support/tickets`.
-3. **Prod env** — `ORVA_PDF_BROWSER_PATH`, `RESEND_API_KEY` on Railway; smoke: preview
-   PDF + one test email to the owner.
-4. **Fix `launch.json`** — add `runtimeExecutable: yarn`, `runtimeArgs: [dev]`, `port: 3000`
-   so the preview tool can restart the dev server (this session could not).
-5. **File upstream issues** — `invoices.update buildChanges`, number burn, #5790
-   follow-up; link them in `.ai/specs/README.md`.
-6. Gates: `yarn typecheck && yarn lint && yarn test`, `node scripts/verify-rls.mjs`.
+1. ✅ **Purge demo data** — it took **two** scripts, not one: `purge-verification-entries.mjs`
+   (JE-000027…030 — four expense journals from the F0 expense screen, in duplicate pairs
+   incl. "นายฟรีแลนซ์ ทดสอบ" — plus TCK-000001…004 and 2 replies) then
+   `purge-demo-data.mjs` (24 journals/66 lines, RCT-000002, BILL-000001, 6 parties,
+   3 staff teams + 6 members, the sample workflow, 36 notifications, ~65 soft-deleted
+   rows across the database, 10 orphan customers, 87 orphan custom-field values;
+   renumbered JE-000010→JE-000001, JE-000011→JE-000002; reset sequences; fixed the
+   RCT-000001 bank reference). Either order is safe — the second script's
+   `where next_value > 27` guard means the journal sequence lands on 3 both ways.
+   Backup first: `C:\Users\aidev\orva-backups\orva_erp-20260905-002936.dump`
+   (custom format, verified with `pg_restore --list`: 2651 TOC entries, 334 tables).
+   **Result:** 2 journals, TB 51,360.00 = 51,360.00 (diff 0.00), 0 demo rows, 0 parties,
+   0 notifications, 0 tickets, 2 real customers; KK-QTN-2026011 (85,600),
+   KK-INV-2026012 (25,680), RCT-000001 (25,680 gross, 720 WHT, 24,960 cash) intact;
+   sequences journal→3, ar_receipt→2, ap_bill→1, fa_asset→1, support_ticket→1.
+   Home screen verified post-purge with no stale cache.
+2. ✅ **Grant role features** — nothing to do. `orva_support.view/manage` were already
+   granted to admin/employee/superadmin (the subscription register reuses them and adds
+   no new feature id); older modules are covered by wildcards (`orva_finance.*` etc.).
+   Only `operator` and `supervisor` lack them, which is intended.
+3. ⏳ **Owner action — prod env**: set `ORVA_PDF_BROWSER_PATH`, `RESEND_API_KEY`
+   (+ `RESEND_FROM_EMAIL` to send) on Railway; none of the three exists locally either,
+   so PDF/email cannot be smoke-tested until then.
+4. ✅ **Fixed `launch.json`** — `runtimeExecutable: yarn`, `runtimeArgs: ["dev"]`,
+   `port: 3000`, `autoPort: false` (the port is pinned because `APP_URL=http://localhost:3000`
+   backs email links, the portal and G2's OAuth callbacks). The file is gitignored, so
+   this is per-machine setup, not a commit.
+5. ⏳ **Owner action — file upstream issues**: write-ups ready in `.ai/upstream-issues.md`
+   for the two real bugs. **#5790 has no surviving description** anywhere in the repo —
+   it needs the owner's note or it gets dropped.
+6. ✅ Gates: typecheck clean, lint 0 errors, 152 tests, `verify-rls` 7/7 PASS (266
+   tables), `verify-finance` all PASS with no residue.
 
 ### Phase G1 — Cash cycle on autopilot (REQ-002, 003, 004) — child spec `2026-09-0x-orva-cash-cycle-automation.md`
 
