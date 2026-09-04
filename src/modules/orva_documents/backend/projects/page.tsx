@@ -36,6 +36,7 @@ type ProjectRow = {
   paidPct: number
   remainingToBill: number
   remainingToCollect: number
+  openTickets: number
 }
 
 const money = (value: number, currency: string) =>
@@ -146,6 +147,22 @@ export default function OrvaProjectsPage() {
         </span>
       ),
     },
+    {
+      id: 'tickets',
+      header: t('orva_documents.projects.column.tickets', 'เรื่องค้าง'),
+      cell: ({ row }: { row: { original: ProjectRow } }) =>
+        row.original.openTickets > 0 ? (
+          <a
+            href={`/backend/support/tickets?quoteId=${row.original.quoteId}`}
+            className="inline-flex rounded-full bg-status-error-bg px-2 py-0.5 text-xs font-medium text-status-error-text hover:underline"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {t('orva_documents.projects.tickets', '{n} เรื่อง').replace('{n}', String(row.original.openTickets))}
+          </a>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        ),
+    },
   ], [t, statusLabel])
 
   if (error) {
@@ -181,6 +198,11 @@ export default function OrvaProjectsPage() {
                   id: 'open-quote',
                   label: t('orva_documents.projects.rowAction.quote', 'เปิดใบเสนอราคา / ออกงวดถัดไป'),
                   href: `/backend/sales/quotes/${row.quoteId}`,
+                },
+                {
+                  id: 'tickets',
+                  label: t('orva_documents.projects.rowAction.tickets', 'ดูบั๊ก / เรื่องค้างในโปรเจกต์นี้'),
+                  href: `/backend/support/tickets?quoteId=${row.quoteId}`,
                 },
                 {
                   id: 'review',

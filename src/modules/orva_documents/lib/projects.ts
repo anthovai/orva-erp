@@ -63,6 +63,8 @@ export type ProjectRow = ProjectProgress & {
   billed: number
   paid: number
   lastInvoiceDate: string | null
+  /** open support tickets (open + in_progress + waiting_customer) linked to this project */
+  openTickets: number
 }
 
 type InvoiceAggregate = {
@@ -111,6 +113,20 @@ export async function listProjects(
   )) as InvoiceAggregate[]
   const byQuote = new Map(aggregates.map((row) => [row.quote_id, row]))
 
+  const quoteIds = quotes.map((q) => q.id)
+  const ticketRows = quoteIds.length > 0
+    ? (await tem.execute(
+        `select quote_id::text, count(*)::int as cnt
+         from orva_support_tickets
+         where deleted_at is null and tenant_id = ?::uuid
+           and status = any('{open,in_progress,waiting_customer}'::text[])
+           and quote_id = any(?::uuid[])
+         group by 1`,
+        [scope.tenantId, `{${quoteIds.join(',')}}`],
+      )) as Array<{ quote_id: string; cnt: number }>
+    : []
+  const ticketMap = new Map(ticketRows.map((r) => [r.quote_id, r.cnt]))
+
   return quotes.map((quote) => {
     const agg = byQuote.get(quote.id)
     const quoteTotal = Number(quote.grandTotalGrossAmount ?? 0)
@@ -129,6 +145,7 @@ export async function listProjects(
       billed,
       paid,
       lastInvoiceDate: agg?.last_issue ?? null,
+      openTickets: ticketMap.get(quote.id) ?? 0,
       ...projectProgress({ quoteTotal, billed, paid }),
     }
   })

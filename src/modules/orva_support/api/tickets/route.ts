@@ -28,6 +28,7 @@ const ticketSchema = z.object({
   customerEntityId: z.string().nullable(),
   customerName: z.string().nullable(),
   contactEmail: z.string().nullable(),
+  quoteId: z.string().nullable(),
   dueOn: z.string().nullable(),
   minutesSpent: z.number(),
   ageHours: z.number(),
@@ -94,6 +95,7 @@ export async function GET(req: Request) {
          and (?::text is null or kind = ?::text)
          and (?::text is null or priority = ?::text)
          and (?::uuid is null or customer_entity_id = ?::uuid)
+         and (?::uuid is null or quote_id = ?::uuid)
          and (?::text is null or subject ilike ?::text or ticket_no ilike ?::text or coalesce(customer_name, '') ilike ?::text)
        order by created_at desc
        limit 500`,
@@ -104,6 +106,7 @@ export async function GET(req: Request) {
         q.kind ?? null, q.kind ?? null,
         q.priority ?? null, q.priority ?? null,
         q.customerEntityId ?? null, q.customerEntityId ?? null,
+        (q as { quoteId?: string }).quoteId ?? null, (q as { quoteId?: string }).quoteId ?? null,
         q.search ? `%${q.search}%` : null, q.search ? `%${q.search}%` : null, q.search ? `%${q.search}%` : null, q.search ? `%${q.search}%` : null,
       ],
     )) as Row[]

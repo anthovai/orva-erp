@@ -32,6 +32,7 @@ const projectSchema = z.object({
   paidPct: z.number(),
   remainingToBill: z.number(),
   remainingToCollect: z.number(),
+  openTickets: z.number().int(),
 })
 
 /** Every quote as a project with its installment-billing progress. */

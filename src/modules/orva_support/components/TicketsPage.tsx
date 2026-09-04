@@ -1,5 +1,6 @@
 "use client"
 import * as React from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Page, PageBody, PageHeader } from '@open-mercato/ui/backend/Page'
 import { Button } from '@open-mercato/ui/primitives/button'
@@ -18,6 +19,7 @@ type Ticket = {
 type TicketsResponse = { items: Ticket[]; total: number; counts: { open: number; waiting: number; overdue: number; unanswered: number; minutesOpen: number } }
 type Reply = { id: string; author: string; body: string; minutesSpent: number; createdAt: string }
 type Company = { id: string; entity_id?: string | null; display_name?: string | null; legal_name?: string | null }
+type Project = { quoteId: string; quoteNumber: string; customerName: string | null }
 
 const KINDS = ['bug', 'question', 'change_request', 'incident'] as const
 const PRIORITIES = ['urgent', 'high', 'normal', 'low'] as const
@@ -34,17 +36,24 @@ export default function TicketsPage() {
   const t = useT()
   const qc = useQueryClient()
   const scopeVersion = useOrganizationScopeVersion()
+  const searchParams = useSearchParams()
   const [bucket, setBucket] = React.useState<'open' | 'all'>('open')
   const [search, setSearch] = React.useState('')
+  const [quoteFilter, setQuoteFilter] = React.useState<string>(() => searchParams.get('quoteId') ?? '')
   const [selected, setSelected] = React.useState<Ticket | null>(null)
   const [creating, setCreating] = React.useState(false)
-  const [draft, setDraft] = React.useState({ subject: '', description: '', kind: 'bug', priority: 'normal', customerEntityId: '', contactEmail: '', dueOn: '' })
+  const [draft, setDraft] = React.useState({ subject: '', description: '', kind: 'bug', priority: 'normal', customerEntityId: '', contactEmail: '', dueOn: '', quoteId: '' })
   const [reply, setReply] = React.useState({ body: '', minutes: 0, author: 'staff' as 'staff' | 'customer' | 'note', status: '' })
   const [busy, setBusy] = React.useState(false)
 
   const list = useQuery({
-    queryKey: ['orva_support.tickets', bucket, search, scopeVersion],
-    queryFn: () => readApiResultOrThrow<TicketsResponse>(`/api/orva_support/tickets?bucket=${bucket}${search ? `&search=${encodeURIComponent(search)}` : ''}`),
+    queryKey: ['orva_support.tickets', bucket, search, quoteFilter, scopeVersion],
+    queryFn: () => {
+      const qs = new URLSearchParams({ bucket })
+      if (search) qs.set('search', search)
+      if (quoteFilter) qs.set('quoteId', quoteFilter)
+      return readApiResultOrThrow<TicketsResponse>(`/api/orva_support/tickets?${qs}`)
+    },
   })
   const replies = useQuery({
     queryKey: ['orva_support.replies', selected?.id],
@@ -54,6 +63,11 @@ export default function TicketsPage() {
   const companies = useQuery({
     queryKey: ['customers.companies.pick', scopeVersion],
     queryFn: async () => (await readApiResultOrThrow<{ items: Company[] }>('/api/customers/companies?pageSize=100')).items,
+    enabled: creating,
+  })
+  const projects = useQuery({
+    queryKey: ['orva_documents.projects.pick', scopeVersion],
+    queryFn: async () => (await readApiResultOrThrow<{ items: Project[] }>('/api/orva_documents/projects')).items,
     enabled: creating,
   })
 
@@ -68,12 +82,12 @@ export default function TicketsPage() {
     try {
       const res = await apiCall<{ ok: true; ticketNo: string }>('/api/orva_support/tickets', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ...draft, customerEntityId: draft.customerEntityId || null, contactEmail: draft.contactEmail || null, dueOn: draft.dueOn || null, description: draft.description || null }),
+        body: JSON.stringify({ ...draft, customerEntityId: draft.customerEntityId || null, contactEmail: draft.contactEmail || null, dueOn: draft.dueOn || null, description: draft.description || null, quoteId: draft.quoteId || null }),
       })
       if (!res.ok || !res.result) throw new Error((res.result as { error?: string } | undefined)?.error ?? 'failed')
       flash(t('orva_support.created', 'เปิดเรื่อง {no} แล้ว').replace('{no}', res.result.ticketNo), 'success')
       setCreating(false)
-      setDraft({ subject: '', description: '', kind: 'bug', priority: 'normal', customerEntityId: '', contactEmail: '', dueOn: '' })
+      setDraft({ subject: '', description: '', kind: 'bug', priority: 'normal', customerEntityId: '', contactEmail: '', dueOn: '', quoteId: '' })
       await refresh()
     } catch (e) { flash(e instanceof Error ? e.message : String(e), 'error') } finally { setBusy(false) }
   }
@@ -161,6 +175,15 @@ export default function TicketsPage() {
               </select>
             </label>
             <label className="flex flex-col gap-1 text-sm">
+              <span>{t('orva_support.field.project', 'โปรเจกต์ที่เกี่ยวข้อง')}</span>
+              <select className="rounded-md border bg-background px-3 py-2" value={draft.quoteId} onChange={(e) => setDraft({ ...draft, quoteId: e.target.value })}>
+                <option value="">—</option>
+                {(projects.data ?? []).map((p) => (
+                  <option key={p.quoteId} value={p.quoteId}>{p.quoteNumber}{p.customerName ? ` — ${p.customerName}` : ''}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
               <span>{t('orva_support.field.dueOn', 'กำหนดเสร็จ')}</span>
               <Input type="date" value={draft.dueOn} onChange={(e) => setDraft({ ...draft, dueOn: e.target.value })} />
             </label>
@@ -177,6 +200,12 @@ export default function TicketsPage() {
             <option value="all">{t('orva_support.filter.all', 'ทั้งหมด')}</option>
           </select>
           <Input className="max-w-64" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('orva_support.search', 'ค้นหาเลขที่ / หัวเรื่อง / ลูกค้า')} />
+          {quoteFilter ? (
+            <div className="flex items-center gap-1.5 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+              <span>{t('orva_support.filter.project', 'กรองเฉพาะโปรเจกต์')}</span>
+              <button type="button" className="ml-1 hover:opacity-70" onClick={() => setQuoteFilter('')}>×</button>
+            </div>
+          ) : null}
         </div>
 
         <div className="grid gap-4 lg:grid-cols-5">

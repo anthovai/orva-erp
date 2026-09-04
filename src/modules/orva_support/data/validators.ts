@@ -18,6 +18,7 @@ export const ticketListSchema = z
     kind: z.enum(TICKET_KINDS).optional(),
     priority: z.enum(TICKET_PRIORITIES).optional(),
     customerEntityId: z.string().uuid().optional(),
+    quoteId: z.string().uuid().optional(),
     search: z.string().trim().max(200).optional(),
   })
   .passthrough()
