@@ -129,8 +129,10 @@ Out of this phase (F/G): recurring invoices, PromptPay QR, purchase orders, labe
 7. ✅ **Support — software & subscription register** (2026-09-05) — see IT Support above.
    Renewal maths live in `lib/subscriptions.ts` (pure, 14 tests): month-end clamping,
    roll-forward past today, per-cycle annualisation.
-8. Later still: recurring invoices, PO to OEM, customer statement, lot labels,
-   marketing broadcast, lead-capture form.
+8. Everything after this is sequenced in **`2026-09-05-orva-phase-g-roadmap.md`**
+   (G0 hygiene → G1 cash cycle → G2 owner's inbox + morning brief → G3 Marventine,
+   gated on a batch date → G4 leads). Recurring invoices, PO module and broadcast are
+   deferred there by explicit assumption (A1/A6/A7) — flip the assumption, not the plan.
 
 ### Note for whoever picks this up next
 
