@@ -21,7 +21,7 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 | ใบส่งของ / delivery note | all | ⏸ (sales_shipments upstream) | expose when Marventine ships parcels |
 | Customer statement (ใบแจ้งยอด) | Odoo/ERPNext | ❌ | Gap #3 — from AR open items |
 | Recurring invoices (annual maintenance) | Odoo/ERPNext | ❌ | phase F: recurring งวด from quote |
-| PromptPay QR on invoice | FlowAccount/PEAK | ❌ | phase F: EMVCo QR from bank details |
+| PromptPay QR on invoice | FlowAccount/PEAK | 🚫 | built then declined by owner 2026-09-04 ("ไม่เอา QR") — reverted in d430d3c; do NOT rebuild |
 | Price lists, products on quotes, discounts | Odoo | ✅ upstream | — |
 | Sales orders / channels | Odoo | ⏸ | not the business |
 | Deals pipeline / CRM | Odoo | ✅ upstream | keep; owner may drop later |
@@ -110,7 +110,16 @@ Out of this phase (F/G): recurring invoices, PromptPay QR, purchase orders, labe
 ## Phase F — in progress
 
 1. ✅ Payslip document (2026-09-04) — see HR above.
-2. **PromptPay QR on invoices / billing notes** — blocked on one decision: the QR image needs a generator. `@types/qrcode` is already a devDependency but the runtime `qrcode` package is not installed, and adding a dependency is ask-first. The EMVCo payload (tags + CRC16) can be built and unit-tested with no dependency; only the raster/SVG needs the library.
-3. Recurring invoices (annual maintenance → งวด on a schedule, via the `scheduler` module).
-4. Purchase order to the OEM (draft → bill → receive, closing the loop orva_stock already has from bill onward).
-5. Customer statement (ใบแจ้งยอด) from AR open items.
+2. 🚫 PromptPay QR — shipped in a3fc0aa, owner declined 2026-09-04 ("ไม่เอา QR"), reverted in d430d3c. Do not rebuild. Owner also redirected phase F: cover the OTHER departments (การตลาด / โปรเจกต์ / คลัง / Support), not more accounting documents.
+3. **โปรเจกต์ — projects overview** (Gap #4, first slice): a หน้าโปรเจกต์ under the
+   Projects group listing each quote as a project — customer, quote total, งวด issued
+   (from `sales_invoices.metadata->>'quoteId'`), amount billed / paid / remaining,
+   % progress, and a jump to the quote's installments widget to issue the next งวด.
+   Hours × rate profitability comes later once timesheets carry a rate.
+4. **การตลาด — `lead_source` select** on deals (custom field via `orva/ce.ts`) so
+   ช่องทางที่มา is captured and filterable on the pipeline.
+5. **คลัง — expiry / low-stock on the home screen**: the waiting card counts lots
+   expiring within 90 days (Marventine shelf life) so the owner sees it without
+   opening the stock pages.
+6. Support — software & subscription register with renewal reminders (later).
+7. Later still: recurring invoices, PO to OEM, customer statement, lot labels.

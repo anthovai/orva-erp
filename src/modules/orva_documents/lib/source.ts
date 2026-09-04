@@ -97,7 +97,7 @@ export function sellerFrom(settings: DocumentSettings | null): Party {
  * normalizeJsonRecord). Skipping the parse is exactly the bug that printed
  * every real customer as "ลูกค้าทั่วไป" while the ciphertext looked decrypted.
  */
-function jsonRecord(value: unknown): Record<string, unknown> {
+export function jsonRecord(value: unknown): Record<string, unknown> {
   if (value && typeof value === 'object' && !Array.isArray(value)) return value as Record<string, unknown>
   if (typeof value !== 'string') return {}
   const parsed = parseDecryptedFieldValue(value)
@@ -316,7 +316,7 @@ async function loadBuyerThaiIdentity(
  * moment anyone edited the quote. Mirror sales' own resolveCustomerName:
  * canonical shape first, flat legacy keys as fallback.
  */
-function snapshotName(snapshot: Record<string, unknown>): string | null {
+export function snapshotName(snapshot: Record<string, unknown>): string | null {
   const customer = snapshot.customer as Record<string, unknown> | undefined
   const contact = snapshot.contact as Record<string, unknown> | undefined
   if (typeof customer?.displayName === 'string' && customer.displayName) return customer.displayName
