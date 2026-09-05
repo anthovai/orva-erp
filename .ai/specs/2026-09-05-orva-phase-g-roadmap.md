@@ -363,7 +363,7 @@ inside `withTenantRls`. No `makeCrudRoute` needed — nothing here is a new CRUD
 |---|---|---|---|---|
 | **G0 — Make it real** ✅ 2026-09-05 | clean tenant, grants, launch.json, upstream write-ups | done | remaining: Railway env + filing the issues | met: `verify-rls` 7/7, 0 demo rows, grants already in place |
 | **G1 — Cash cycle** 🟡 slice 1 ✅ 2026-09-05 | send log + chase state on every overdue invoice; accepted→งวด row (derived, no event exists); 2 pre-existing bugs fixed. Statement + scan deferred with reasons | done so far | none | met: all three cadence states + acceptance row verified live |
-| **G2 — The owner's inbox** | email → ticket → email; morning brief; assistant tools across departments | 5–6 days | owner connects Gmail (OAuth) | J-003, J-004 pass; brief received 3 consecutive weekdays |
+| **G2 — The owner's inbox** 🟡 tools ✅ 2026-09-05 | assistant tools across Support/Projects shipped; email→ticket blocked on Gmail OAuth; brief blocked on `RESEND_API_KEY` (its value is push, not another screen) | tools done | owner: connect Gmail + set the Resend key | tools: registered + SQL verified; J-003/J-004 still pending |
 | **G3 — Marventine launch readiness** (gated A2) | expected receipt, lot label, full dry-run | 4 days | first OEM batch ordered | dry-run checklist all green on a real SKU |
 | **G4 — Leads** | portal lead form → deal | 1–2 days | none | test lead appears on pipeline with source |
 | **G5 — deferred by assumption** | recurring invoices (A1), broadcast (A7), purchase module (A6) | — | flip the assumption | child spec |
@@ -496,11 +496,43 @@ confirmed back to the real two records. Gates: typecheck clean, lint 0 errors,
    (section omission, empty day text, ordering); renders th email via document rails
    styling; sends notification + email; failure → admin notification. Integration: run
    with `--today`, assert one notification + one outbound message; idempotent on rerun.
-6. **Assistant tools** — `orva_support/ai-tools/support-pack.ts`: `list_tickets`,
-   `reply_ticket` (confirm-required), `list_renewals`, `mark_renewed` (confirm),
-   `orva_documents.list_projects`; registered alongside the finance pack. Test: tool
-   run creates `ai_pending_actions`, nothing mutates until approved.
+6. ✅ **Assistant tools** (2026-09-05) — the one pillar of G2 that needed nothing from
+   the owner, so it went first. `src/modules/orva_support/ai-tools.ts`:
+   `list_tickets` (open queue, urgent+overdue first, project joined, hours logged),
+   `reply_ticket` (mutation, approval-gated, status machine still applies),
+   `list_renewals` (lapsed first, days left, yearly run-rate), `mark_renewed`
+   (mutation, optimistic-locked). `src/modules/orva_documents/ai-tools.ts`:
+   `list_projects` (billing progress, left to bill/collect, open tickets per project).
+   Discovery is by convention — `.mercato/generated/ai-tools.generated.ts` imports
+   `src/modules/<id>/ai-tools`; both packs confirmed registered there.
+   Mutations reuse `createAiApiOperationRunner` against the same routes the screens
+   call, so RBAC, the transition check and optimistic locking are not re-implemented.
 7. Gates; brief received on 3 consecutive weekdays before closing the phase.
+
+**Research findings that change the plan**
+
+- ✅ **`inbox_ops` really does expose the seam the plan assumed** — `email.received`,
+  `email.processed`, `proposal.created` … all STABLE and supporting `async-subscriber`
+  (unlike `sales`, which had no acceptance event at all). Step 3 can be built as
+  designed once mail actually arrives.
+- ⚠ **`seedDefaults` runs at tenant creation only**, so a scheduled job declared in
+  `setup.ts` will never register itself on the existing Kaiser tenant — the same trap
+  as role features. The brief's schedule must be registered by hand
+  (`schedulerService.register` with a stable id, or SQL) exactly once.
+- ⚠ **The scheduler is not continuously reliable in dev**: it stopped for ~9 hours when
+  Postgres went away and did not catch up on resume. Verification must use the
+  `mercato scheduler run` CLI rather than waiting for a tick.
+- ⚠ **The brief's value is push delivery, and `RESEND_API_KEY` is still unset** (G0
+  owner action). An in-app-only brief just restates the home screen the owner is
+  already looking at, so building the delivery half now would be unverifiable and
+  probably wrong. Brief stays blocked on that key, not on engineering.
+
+**Verification reached without a login.** The session expired during a long idle and
+passwords are never handled here, so the LLM actually invoking these tools, and the
+approval card for the two mutations, remain unverified — that needs the owner signed in.
+What is proven: registration (generated registry), both tools' SQL run against the real
+schema with fixtures inside a rolled-back transaction (closed tickets excluded, urgent
+first, project joined, lapsed renewals first), and the derived arithmetic by unit test.
 
 ### Phase G3 — Marventine launch readiness (REQ-008) — gated on A2; child spec `orva-marventine-launch.md`
 
