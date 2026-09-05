@@ -586,7 +586,7 @@ first, project joined, lapsed renewals first), and the derived arithmetic by uni
   constrained, filterable select (free text cannot answer "which channel closes
   deals"), so the route writes both and keeps them in step — but this is worth
   revisiting rather than letting the two drift.
-- ✅ **Organization slug renamed  → ** (2026-09-05), so the
+- ✅ **Organization slug renamed `acme-corp` → `kaiser-klowns`** (2026-09-05), so the
   public URL reads `/kaiser-klowns/portal/lead`. Only two rows carried the old value
   (the organization itself and its query-index copy); reindexed with
   `mercato query_index reindex --entity directory:organization`, and a full data scan
