@@ -365,7 +365,7 @@ inside `withTenantRls`. No `makeCrudRoute` needed — nothing here is a new CRUD
 | **G1 — Cash cycle** 🟡 slice 1 ✅ 2026-09-05 | send log + chase state on every overdue invoice; accepted→งวด row (derived, no event exists); 2 pre-existing bugs fixed. Statement + scan deferred with reasons | done so far | none | met: all three cadence states + acceptance row verified live |
 | **G2 — The owner's inbox** 🟡 tools ✅ 2026-09-05 | assistant tools across Support/Projects shipped; email→ticket blocked on Gmail OAuth; brief blocked on `RESEND_API_KEY` (its value is push, not another screen) | tools done | owner: connect Gmail + set the Resend key | tools: registered + SQL verified; J-003/J-004 still pending |
 | **G3 — Marventine launch readiness** (gated A2) | expected receipt, lot label, full dry-run | 4 days | first OEM batch ordered | dry-run checklist all green on a real SKU |
-| **G4 — Leads** | portal lead form → deal | 1–2 days | none | test lead appears on pipeline with source |
+| **G4 — Leads** ✅ 2026-09-05 | public form → deal on the pipeline with its channel, honeypot + 24h dedupe | done | none | met: verified end to end without a login (public page) |
 | **G5 — deferred by assumption** | recurring invoices (A1), broadcast (A7), purchase module (A6) | — | flip the assumption | child spec |
 
 ## Implementation Plan
@@ -547,12 +547,48 @@ first, project joined, lapsed renewals first), and the derived arithmetic by uni
    MFG/EXP, net content; sheet layout for A4 label paper; printed from the lot row.
 4. Gates + physical print test.
 
-### Phase G4 — Leads (REQ-009)
+### Phase G4 — Leads (REQ-009) — ✅ 2026-09-05
 
-1. Public route `/portal/lead` + `POST /portal/api/lead`: honeypot, 5/min/IP, creates
-   person (if new) + deal with `lead_source`; `orva.new_lead` notification; th/en.
-2. Integration: submit → deal on pipeline with source; second submit same email in 24 h
-   → note appended, no duplicate deal.
+1. ✅ Public page `/[orgSlug]/portal/lead` + `POST /api/orva/lead`, owned by `orva`
+   (the module that already defines `lead_source` in `ce.ts`). Honeypot, 5/min/IP,
+   24-hour dedupe per email, th/en. The deal is created through
+   `customers.deals.create`, so the CRUD side effects, custom-field write and
+   `customers.deal.created` event behave exactly as from the backend form.
+2. ✅ Verified end to end — and this one was verifiable without a login, being public:
+   browser submit → success page → deal on the pipeline; `source` = LINE and the
+   `lead_source` custom field = LINE; resubmitting the same address with different
+   casing and whitespace produced **one** deal (log shows `deduplicated=false` then
+   `deduplicated=true` against the same `dealId`); a filled honeypot returns 200 and
+   creates nothing; an unknown slug is 404.
+
+**Findings**
+
+- **Scope is derived server-side from the org slug**, never from the payload — a public
+  caller must not be able to name the tenant it writes into. The app's own
+  `(frontend)/layout.tsx` already resolves `Organization` by slug; the route repeats
+  that lookup rather than trusting anything posted.
+- ⛔ **The dedupe was silently broken and the tests could not have caught it.**
+  `customer_deals.description` (which carries the enquirer's email) is **encrypted at
+  rest**, so `description ilike '%email%'` compared against ciphertext, matched nothing,
+  and would have opened a fresh deal on every resubmission. Fixed by bounding on
+  `created_at` (not encrypted) and comparing the decrypted text via
+  `findWithDecryption`. Folded into the existing encryption lesson as its quieter half:
+  displaying ciphertext is obvious, *matching* on it fails with no symptom at all.
+- **A deal with no stage is created off-board** — it exists but never appears on the
+  pipeline, which is the only place the owner looks. `deals.create` does not default
+  one, so the route resolves the default pipeline's first stage (`is_default desc,
+  position`) instead of hard-coding it.
+- **`page.meta.ts`, not an exported `metadata`** — a `"use client"` frontend page cannot
+  export `metadata` (Next.js rejects it at runtime even though the generator reads it
+  fine). Frontend pages use the same sidecar convention as backend pages.
+- ⚠ **Upstream deals already have a free-text `source` field**, which the phase-F
+  `lead_source` custom field overlaps. The custom field earns its place by being a
+  constrained, filterable select (free text cannot answer "which channel closes
+  deals"), so the route writes both and keeps them in step — but this is worth
+  revisiting rather than letting the two drift.
+- ⚠ **The organization slug is still the setup default `acme-corp`**, so the public URL
+  reads `/acme-corp/portal/lead`. Renaming it is the owner's call (it changes existing
+  portal links), but it should not stay on a link handed to prospects.
 
 ## Traceability
 

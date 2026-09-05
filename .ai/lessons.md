@@ -35,7 +35,7 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 
 - [ce.ts custom fields are inert until `yarn mercato entities install` syncs them](lessons/ce-fields-need-entities-install.md) — area:umes,module-data; module:orva,entities,customers,catalog; topic:custom-fields,ce-dsl,entities-install,definitions-cache
 - [A new entity class needs the dev server restarted, not just `yarn generate`](lessons/new-entity-needs-dev-restart.md) — area:module-data,debugging; module:platform,orva_documents,orva_support; topic:mikro-orm,entity-discovery,generated-bundle,dev-server
-- [Raw SQL on an encrypted column returns ciphertext, and `??` fallbacks then prefer it](lessons/raw-sql-on-encrypted-columns-leaks-ciphertext.md) — area:debugging,module-data; module:orva_finance,orva_documents,customers; topic:encryption,raw-sql,customer-entities,coalesce
+- [Raw SQL on an encrypted column returns ciphertext, and `??` fallbacks then prefer it](lessons/raw-sql-on-encrypted-columns-leaks-ciphertext.md) — area:debugging,module-data; module:orva_finance,orva,customers; topic:encryption,raw-sql,customer-entities,coalesce,dedupe
 
 ### backend-ui
 

@@ -1,8 +1,8 @@
 ---
 title: "Raw SQL on an encrypted column returns ciphertext, and `??` fallbacks then prefer it"
-modules: ["orva_finance", "orva_documents", "customers"]
+modules: ["orva_finance", "orva", "customers"]
 areas: ["debugging", "module-data"]
-topics: ["encryption", "raw-sql", "customer-entities", "coalesce"]
+topics: ["encryption", "raw-sql", "customer-entities", "coalesce", "dedupe"]
 ---
 
 # Raw SQL on an encrypted column returns ciphertext, and `??` fallbacks then prefer it
@@ -41,6 +41,17 @@ wrong value defeats every downstream fallback.
 **How to spot it**: a name field rendering as base64-ish text ending in `:v1`. Check
 whether any `coalesce`/`??` chain can produce a non-null value from an encrypted
 column before the decrypting branch is reached.
+
+**The quieter half of the same trap — matching, not displaying.** A `WHERE` on an
+encrypted column fails with no visible symptom at all. The public lead form
+(`orva/api/lead/route.ts`) deduplicated resubmissions with
+`description ilike '%<email>%'`; `customer_deals.description` is encrypted, so the
+predicate compared against ciphertext, matched nothing, and every resubmission would
+have opened a second deal — a silent duplicate rather than an obvious error. The fix
+is to filter on a column that is **not** encrypted (here `created_at`, bounding the
+scan to the dedupe window), then load through `findWithDecryption` and compare the
+decrypted value in code. Encrypted columns can be selected and returned; they cannot
+be searched, sorted or joined on.
 
 **Applies to**: `customer_entities.display_name` and any other column in the
 encryption map; `orva_finance/lib/reportQueries.ts` (fixed 2026-09-05), and any new

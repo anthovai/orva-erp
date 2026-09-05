@@ -14,7 +14,9 @@ type LayoutProps = {
   children: React.ReactNode
 }
 
-const PUBLIC_SUFFIXES = ['/portal/login', '/portal/signup', '/portal/invite', '/portal/reset-password', '/portal/verify']
+// '/portal/lead' is the public enquiry form (orva): it must render for a
+// visitor who has no account and never will until they become a customer.
+const PUBLIC_SUFFIXES = ['/portal/login', '/portal/signup', '/portal/invite', '/portal/reset-password', '/portal/verify', '/portal/lead']
 
 function isPublicPortalRoute(pathname: string): boolean {
   if (/^\/[^/]+\/portal\/?$/.test(pathname)) return true
