@@ -50,6 +50,9 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 .env.preview
+# Hand-made backups carry the same secrets as .env — never committable.
+.env.bak*
+.env.*.bak
 !.env.example
 
 # vercel
