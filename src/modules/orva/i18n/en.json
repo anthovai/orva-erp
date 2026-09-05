@@ -29,6 +29,7 @@
   "orva.lead.field.phone": "Phone",
   "orva.lead.field.source": "How did you hear about us",
   "orva.lead.field.sourcePlaceholder": "Select (optional)",
+  "orva.lead.orgNotFound": "Page not found — this link may have changed",
   "orva.lead.submit": "Send message",
   "orva.lead.submitting": "Sending…",
   "orva.lead.success.description": "Thank you for getting in touch. We will reply as soon as we can.",

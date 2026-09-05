@@ -586,9 +586,14 @@ first, project joined, lapsed renewals first), and the derived arithmetic by uni
   constrained, filterable select (free text cannot answer "which channel closes
   deals"), so the route writes both and keeps them in step — but this is worth
   revisiting rather than letting the two drift.
-- ⚠ **The organization slug is still the setup default `acme-corp`**, so the public URL
-  reads `/acme-corp/portal/lead`. Renaming it is the owner's call (it changes existing
-  portal links), but it should not stay on a link handed to prospects.
+- ✅ **Organization slug renamed  → ** (2026-09-05), so the
+  public URL reads `/kaiser-klowns/portal/lead`. Only two rows carried the old value
+  (the organization itself and its query-index copy); reindexed with
+  `mercato query_index reindex --entity directory:organization`, and a full data scan
+  confirms zero stale references. No portal accounts existed, so nothing was stranded.
+  A stale link now renders a not-found state — previously an unknown slug still drew
+  the whole form and only failed on submit, which is exactly what a renamed slug
+  produces.
 
 ## Traceability
 

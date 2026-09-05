@@ -6,7 +6,10 @@ import { EmailInput } from '@open-mercato/ui/primitives/email-input'
 import { Label } from '@open-mercato/ui/primitives/label'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { Alert, AlertDescription } from '@open-mercato/ui/primitives/alert'
-import { Check } from 'lucide-react'
+import { EmptyState } from '@open-mercato/ui/primitives/empty-state'
+import { Spinner } from '@open-mercato/ui/primitives/spinner'
+import { usePortalContext } from '@open-mercato/ui/portal/PortalContext'
+import { Check, SearchX } from 'lucide-react'
 import { apiCall } from '@open-mercato/ui/backend/utils/apiCall'
 import { LEAD_SOURCES } from '../../../../lib/lead'
 
@@ -23,6 +26,7 @@ type Props = { params: { orgSlug: string } }
 export default function LeadPage({ params }: Props) {
   const t = useT()
   const orgSlug = params.orgSlug
+  const { tenant } = usePortalContext()
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -63,6 +67,25 @@ export default function LeadPage({ params }: Props) {
     },
     [orgSlug, name, email, company, phone, source, message, website, t],
   )
+
+  if (tenant.loading) {
+    return <div className="flex items-center justify-center py-20"><Spinner /></div>
+  }
+
+  // A stale link — the slug was renamed, or mistyped — must say so before the
+  // visitor writes a message into a form that can only fail on submit.
+  if (tenant.error || !tenant.organizationId) {
+    return (
+      <div className="mx-auto w-full max-w-md py-12">
+        <EmptyState
+          variant="subtle"
+          size="lg"
+          icon={<SearchX className="h-6 w-6" aria-hidden />}
+          title={t('orva.lead.orgNotFound', 'ไม่พบหน้านี้ — ลิงก์อาจเปลี่ยนไปแล้ว')}
+        />
+      </div>
+    )
+  }
 
   if (success) {
     return (

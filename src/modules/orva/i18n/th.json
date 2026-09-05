@@ -8932,6 +8932,7 @@
   "orva.lead.field.phone": "เบอร์โทร",
   "orva.lead.field.source": "รู้จักเราจากไหน",
   "orva.lead.field.sourcePlaceholder": "เลือก (ไม่บังคับ)",
+  "orva.lead.orgNotFound": "ไม่พบหน้านี้ — ลิงก์อาจเปลี่ยนไปแล้ว",
   "orva.lead.submit": "ส่งข้อความ",
   "orva.lead.submitting": "กำลังส่ง…",
   "orva.lead.success.description": "ขอบคุณที่ติดต่อเข้ามา เราจะตอบกลับโดยเร็วที่สุด",
