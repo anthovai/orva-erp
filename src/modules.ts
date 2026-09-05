@@ -360,6 +360,7 @@ enabledModules.push({ id: 'orva_documents', from: '@app' })
 enabledModules.push({ id: 'orva_stock', from: '@app' })
 // Customer support for shipped software (benchmark spec F0 gap #7).
 enabledModules.push({ id: 'orva_support', from: '@app' })
+enabledModules.push({ id: 'orva_tasking', from: '@app' })
 
 // Orva branding: registered LAST so its i18n overrides every module's defaults
 // (dictionary merge is last-write-wins across enabledModules order).

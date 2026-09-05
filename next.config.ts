@@ -109,6 +109,26 @@ const nextConfig: NextConfig & { agentRules?: boolean } = {
       },
     ]
   },
+  /**
+   * KKG-Tasking is served from this origin so the two are one application to
+   * the user rather than two sites to log into and bookmark separately.
+   *
+   * `/tasks` carries the Vue client, whose asset URLs were baked with
+   * VIKUNJA_FRONTEND_BASE=/tasks/ at image build time — a proxy alone cannot
+   * fix those paths afterwards, which is why the base is a build argument.
+   *
+   * `/tasks-api` carries the Go API. It cannot live at `/api` because that
+   * belongs to Orva's own route handlers, so the client is built pointing at
+   * `/tasks-api/api/v1` and the prefix is stripped here.
+   */
+  async rewrites() {
+    const upstream = process.env.TASKING_INTERNAL_URL ?? 'http://localhost:3456'
+    return [
+      { source: '/tasks', destination: `${upstream}/` },
+      { source: '/tasks/:path*', destination: `${upstream}/:path*` },
+      { source: '/tasks-api/:path*', destination: `${upstream}/:path*` },
+    ]
+  },
 }
 
 export default nextConfig

@@ -1,0 +1,4 @@
+[submodule "vendor/kkg-tasking"]
+	path = vendor/kkg-tasking
+	url = https://github.com/anthovai/kkg-tasking.git
+	branch = kkg-tasking

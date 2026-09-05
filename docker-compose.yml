@@ -74,11 +74,52 @@ services:
     networks:
       - mercato-network
 
+  # KKG-Tasking — the company's Vikunja fork, run as part of this stack rather
+  # than as a separate deployment. Orva serves it under /tasks so the two are
+  # one application to the user; see the rewrites in next.config.ts.
+  #
+  # The source is a submodule (vendor/kkg-tasking) rather than copied files, so
+  # fork-update.sh keeps working and upstream Vikunja releases can still be
+  # merged. SQLite is deliberate: the fork adds no tables, which is exactly what
+  # makes those upstream merges cheap.
+  tasking:
+    build:
+      context: ./vendor/kkg-tasking
+      dockerfile: Dockerfile.th
+      args:
+        # Baked in at build time: Vite writes it into every asset URL and the
+        # Vue router reads it as BASE_URL.
+        VIKUNJA_FRONTEND_BASE: /tasks/
+        # /api belongs to Orva, so the Go service is proxied at /tasks-api.
+        VIKUNJA_API_URL: /tasks-api/api/v1
+        RELEASE_VERSION: kkg-th
+    restart: unless-stopped
+    environment:
+      VIKUNJA_SERVICE_PUBLICURL: ${TASKING_PUBLIC_URL:-http://localhost:3100/tasks/}
+      # One system means one place to get an account: Orva.
+      VIKUNJA_SERVICE_ENABLEREGISTRATION: "false"
+      VIKUNJA_LOG_LEVEL: INFO
+    ports:
+      # Exposed for debugging; normal use goes through Orva at /tasks.
+      - "${TASKING_PORT:-3456}:3456"
+    volumes:
+      - tasking_db:/db
+      - tasking_files:/app/vikunja/files
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3456/api/v1/info"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks:
+      - mercato-network
+
 volumes:
   postgres_data:
   redis_data:
   meilisearch_data:
   localstack_data:
+  tasking_db:
+  tasking_files:
 
 networks:
   mercato-network:

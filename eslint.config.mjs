@@ -7,6 +7,10 @@ const ignores = [
   'node_modules/**',
   '.next/**',
   '.mercato/**',
+  // vendor/ holds submodules with their own repo, toolchain and lint rules
+  // (KKG-Tasking is Go + Vue). Linting them here reports 34 errors that belong
+  // to another project and cannot be fixed from this one.
+  'vendor/**',
   '.ai/framework-context/**',
   'dist/**',
   'out/**',
