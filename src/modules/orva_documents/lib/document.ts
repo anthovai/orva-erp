@@ -11,7 +11,7 @@
  */
 import { bahtText } from './bahtText'
 
-export const DOCUMENT_TYPES = ['quotation', 'invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'credit_note', 'debit_note', 'billing_note', 'payslip'] as const
+export const DOCUMENT_TYPES = ['quotation', 'invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'credit_note', 'debit_note', 'billing_note', 'statement', 'payslip'] as const
 export type DocumentType = (typeof DOCUMENT_TYPES)[number]
 
 export const TEMPLATE_IDS = ['classic', 'modern', 'compact', 'brand'] as const
@@ -23,7 +23,7 @@ export const TEMPLATE_IDS = ['classic', 'modern', 'compact', 'brand'] as const
  */
 export function typesForSourceKind(sourceKind: string | undefined): readonly DocumentType[] {
   if (sourceKind === 'quote') return ['quotation']
-  if (sourceKind === 'invoice') return ['invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'billing_note']
+  if (sourceKind === 'invoice') return ['invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'billing_note', 'statement']
   if (sourceKind === 'credit_memo') return ['credit_note', 'debit_note']
   if (sourceKind === 'payroll_line') return ['payslip']
   return DOCUMENT_TYPES
@@ -52,6 +52,11 @@ const HEADINGS: Record<DocumentType, { th: string; en: string }> = {
   // ใบวางบิล is a collection request, not a tax document: it lists the open
   // invoices of one customer with the payment block.
   billing_note: { th: 'ใบวางบิล', en: 'Billing Note' },
+  // ใบแจ้งยอด is a statement of account, not a collection request: it shows
+  // everything billed and everything paid up to a date so both sides can
+  // agree on the balance. ใบวางบิล above says "pay these"; this says
+  // "here is how we got to this number".
+  statement: { th: 'ใบแจ้งยอด', en: 'Statement of Account' },
   // Not a tax document: it proves what the employee was paid and what was
   // withheld, and is the paper trail behind ภ.ง.ด.1 and สปส.1-10.
   payslip: { th: 'สลิปเงินเดือน', en: 'Payslip' },

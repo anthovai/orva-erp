@@ -37,6 +37,7 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, { key: string; fallback:
   credit_note: { key: 'orva_documents.type.credit_note', fallback: 'ใบลดหนี้' },
   debit_note: { key: 'orva_documents.type.debit_note', fallback: 'ใบเพิ่มหนี้' },
   billing_note: { key: 'orva_documents.type.billing_note', fallback: 'ใบวางบิล' },
+  statement: { key: 'orva_documents.type.statement', fallback: 'ใบแจ้งยอด' },
   payslip: { key: 'orva_documents.type.payslip', fallback: 'สลิปเงินเดือน' },
 }
 

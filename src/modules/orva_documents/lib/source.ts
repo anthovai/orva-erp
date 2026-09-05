@@ -68,6 +68,7 @@ export function templateFor(type: DocumentType, settings: DocumentSettings | nul
     credit_note: settings.templateTaxInvoice,
     debit_note: settings.templateTaxInvoice,
     billing_note: settings.templateInvoice,
+    statement: settings.templateInvoice,
     // the payslip has its own layout; the template choice only sets the accent
     payslip: settings.templateInvoice,
   }
@@ -405,9 +406,15 @@ function sourceFromQuote(row: QuoteRow, lines: QuoteRow[]): DocumentSource {
 /** Builds the printable document for one already-loaded quote row. */
 export async function documentFromQuote(
   tem: EntityManager,
-  args: { row: QuoteRow; type: DocumentType; template?: TemplateId; settings: DocumentSettings | null; brand?: string | null },
+  args: { row: QuoteRow; type: DocumentType; template?: TemplateId; settings: DocumentSettings | null; brand?: string | null; asOf?: string | null },
 ): Promise<PrintableDocument> {
-  const billing = args.type === 'billing_note' ? await billingNoteLines(tem, args.row) : null
+  // Both roll up a customer's invoices into their own line set, so neither
+  // uses the source row's own lines.
+  const billing = args.type === 'billing_note'
+    ? await billingNoteLines(tem, args.row)
+    : args.type === 'statement'
+      ? await statementLines(tem, args.row, args.asOf ?? null)
+      : null
   const [lines, buyerIdentity, settings] = await Promise.all([
     billing
       ? Promise.resolve(billing.lines)
@@ -419,9 +426,19 @@ export async function documentFromQuote(
     loadBuyerThaiIdentity(tem, args.row.customer_entity_id),
     brandedSettings(tem, args.settings, args.row.quote_number, args.brand),
   ])
-  // a billing note has no VAT of its own: it totals the open invoices (gross)
+  // Neither carries VAT of its own: the tax invoices already do. The billing
+  // note totals what is open; the statement totals billed minus paid, so its
+  // grand total IS the closing balance.
   const row = billing
-    ? { ...args.row, subtotal_net_amount: String(billing.total), discount_total_amount: '0', tax_total_amount: '0', grand_total_gross_amount: String(billing.total), valid_until: null, quote_number: `BN-${String(args.row.quote_number ?? '')}` }
+    ? {
+        ...args.row,
+        subtotal_net_amount: String(billing.total),
+        discount_total_amount: '0',
+        tax_total_amount: '0',
+        grand_total_gross_amount: String(billing.total),
+        valid_until: null,
+        quote_number: `${args.type === 'statement' ? 'ST' : 'BN'}-${String(args.row.quote_number ?? '')}`,
+      }
     : args.row
   return buildPrintableDocument({
     type: args.type,
@@ -589,6 +606,68 @@ async function billingNoteLines(tem: EntityManager, row: QuoteRow): Promise<{ li
     tax_rate: null,
   }))
   return { lines, total: rows.reduce((s, r) => s + Number(r.remaining), 0) }
+}
+
+/**
+ * ใบแจ้งยอด: one customer's account as at a date — every invoice billed and
+ * every payment received, oldest first, so the closing balance is arithmetic
+ * the customer can follow rather than a number to be trusted.
+ *
+ * Unlike ใบวางบิล this includes settled invoices and their payments: the
+ * point is agreeing how the balance arose, not asking for money. Payments
+ * come from what `record-payment` stamps on the invoice (`paidTotalAmount`
+ * plus `metadata.paidDate`), which is the same source the AR screens read.
+ */
+async function statementLines(
+  tem: EntityManager,
+  row: QuoteRow,
+  asOf: string | null,
+): Promise<{ lines: QuoteRow[]; total: number }> {
+  const customerEntityId = typeof row.customer_entity_id === 'string' ? row.customer_entity_id : null
+  const rows = (await tem.execute(
+    `select invoice_number, to_char(issue_date, 'YYYY-MM-DD') as issue_date,
+            grand_total_gross_amount::text as gross,
+            coalesce(paid_total_amount, 0)::text as paid,
+            metadata->>'paidDate' as paid_date
+     from sales_invoices
+     where deleted_at is null and tenant_id = ?::uuid
+       and coalesce(status, '') not in ('cancelled', 'void', 'draft')
+       and (?::date is null or issue_date <= ?::date)
+       and (id = ?::uuid or (?::text is not null and metadata->>'customerEntityId' = ?::text))
+     order by issue_date, invoice_number`,
+    [row.tenant_id, asOf, asOf, row.id, customerEntityId, customerEntityId],
+  )) as Array<{ invoice_number: string; issue_date: string | null; gross: string; paid: string; paid_date: string | null }>
+
+  const lines: QuoteRow[] = []
+  let balance = 0
+  for (const item of rows) {
+    const gross = Number(item.gross)
+    balance += gross
+    lines.push({
+      name: `ใบแจ้งหนี้ ${item.invoice_number}${item.issue_date ? ` ลงวันที่ ${item.issue_date}` : ''}`,
+      description: null,
+      quantity: '1',
+      unit_price_net: item.gross,
+      total_net_amount: item.gross,
+      tax_rate: null,
+    } as unknown as QuoteRow)
+
+    const paid = Number(item.paid)
+    // A payment after the as-at date belongs to the next statement, not this one.
+    const paidWithinPeriod = paid > 0.005 && (!asOf || !item.paid_date || item.paid_date <= asOf)
+    if (paidWithinPeriod) {
+      balance -= paid
+      lines.push({
+        name: `รับชำระ ${item.invoice_number}${item.paid_date ? ` เมื่อ ${item.paid_date}` : ''}`,
+        description: null,
+        quantity: '1',
+        unit_price_net: (-paid).toFixed(4),
+        total_net_amount: (-paid).toFixed(4),
+        tax_rate: null,
+      } as unknown as QuoteRow)
+    }
+  }
+  return { lines, total: Math.round(balance * 100) / 100 }
 }
 
 // ───────────────────────────────── สลิปเงินเดือน (payslip) ──────────────────

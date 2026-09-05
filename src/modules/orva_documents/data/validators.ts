@@ -61,6 +61,12 @@ export const previewQuerySchema = z.object({
    * its first document is issued.
    */
   brand: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{2,6}$/).optional(),
+  /**
+   * ใบแจ้งยอด only: the date the account is stated as at. Invoices issued
+   * after it, and payments received after it, belong to the next statement.
+   * Absent means the whole account to date.
+   */
+  asOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 })
 
 /**

@@ -129,6 +129,11 @@ export default function OrvaInvoicesPage() {
                   href: `/backend/documents/preview?type=billing_note&documentId=${row.id}`,
                 },
                 {
+                  id: 'statement',
+                  label: t('orva_documents.rowAction.statement', 'ใบแจ้งยอด (ทั้งบัญชีลูกค้า)'),
+                  href: `/backend/documents/preview?type=statement&documentId=${row.id}`,
+                },
+                {
                   id: 'note',
                   label: t('orva_documents.rowAction.note', 'ออกใบลดหนี้/เพิ่มหนี้'),
                   onSelect: () => setNoteInvoice({ id: row.id, number: String((row as { invoice_number?: string }).invoice_number ?? '') }),

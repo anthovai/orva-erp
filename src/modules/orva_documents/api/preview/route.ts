@@ -61,7 +61,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const parsed = previewQuerySchema.safeParse(Object.fromEntries(url.searchParams))
   if (!parsed.success) return Response.json({ error: 'Invalid query' }, { status: 400 })
-  const { type, documentId, brand } = parsed.data
+  const { type, documentId, brand, asOf } = parsed.data
   const template = parsed.data.template as TemplateId | undefined
 
   const container = await createRequestContainer()
@@ -127,7 +127,7 @@ export async function GET(req: Request) {
         document: row?.kind === 'payroll_line'
           ? await documentFromPayroll(tem, { row, template, settings })
           : row
-          ? await documentFromQuote(tem, { row, type, template, settings, brand })
+          ? await documentFromQuote(tem, { row, type, template, settings, brand, asOf })
           : await sampleDocumentForBrand(tem, { type, template, settings, brand }),
       }
     })

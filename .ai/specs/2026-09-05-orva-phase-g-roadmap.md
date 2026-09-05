@@ -459,7 +459,22 @@ design below is what the seams actually support; no child spec was opened (AGENT
    - `pendingQuotes` excluded `'accepted'` but not `'confirmed'`, so a quote accepted
      through the link sat on the waiting card forever as "waiting on the customer" —
      and double-counted against the new row.
-6. **Deferred with reasons, not skipped:**
+6. ✅ **Both deferred items built on request (2026-09-05)** — the owner asked for them
+   after hearing the reasoning, so they are in:
+   - **ใบแจ้งยอด** as document type `statement`, printed from any invoice of the
+     customer like ใบวางบิล is. It differs from the billing note by including settled
+     invoices and their payments, so the closing balance is arithmetic the customer can
+     follow: one line per invoice (+gross), one per payment (−paid), grand total = the
+     balance. An `asOf` query parameter states the account at a date — a payment dated
+     after it belongs to the next statement. Reachable from the invoice row actions.
+   - **Overdue reminder scan** as a queue worker on a 07:00 Asia/Bangkok cron. It
+     **raises a notification and sends nothing** — chasing is a judgement call, and
+     RESEND_API_KEY is unset anyway. What it adds over the home card is persistence:
+     the card only speaks when the home page is open, a notification waits with an
+     unread badge. Targeted by feature (`orva_finance.ar.view`) rather than a named
+     user. Selection is the same `reminderState` cadence the home screen uses, so the
+     two cannot disagree.
+7. **Originally deferred for these reasons, kept on record:**
    - **REQ-004 statement** — `billing_note` (ใบวางบิล) already lists a customer's open
      invoices with remaining amounts and totals them, which is exactly what a reminder
      attaches. A true ใบแจ้งยอด adds receipts and a running balance — reconciliation
