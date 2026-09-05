@@ -88,15 +88,31 @@ describe('composeBrief', () => {
       quotes: [{ daysLeft: 2 }],
       acceptedAwaitingInstallment: 1,
     })
-    expect(brief).toEqual({
-      counts: { tax: 1, tickets: 3, renewals: 2, quotes: 1, installments: 1 },
-      total: 8,
-    })
+    expect(brief?.counts).toEqual({ tax: 1, tickets: 3, renewals: 2, quotes: 1, installments: 1 })
+    expect(brief?.total).toBe(8)
+    // fixed reading order: money and deadlines before housekeeping
+    expect(brief?.present.map((s) => s.key)).toEqual(['tax', 'installments', 'tickets', 'quotes', 'renewals'])
   })
 
   it('leaves overdue invoices alone — the reminder scan raises those itself', () => {
     // No input field exists for them on purpose: two notifications about the
     // same invoice on the same morning would be worse than one.
     expect(Object.keys(quiet())).not.toContain('overdueInvoices')
+  })
+})
+
+describe('composeBrief present sections', () => {
+  it('lists only the categories that have something', () => {
+    const brief = composeBrief({
+      tax: [{ daysLeft: 2, packSentAt: null, amount: '0.00' }],
+      ticketsAwaitingReply: 0,
+      ticketsOverdue: 0,
+      lapsedSubscriptions: 0,
+      renewingSubscriptions: 0,
+      quotes: [],
+      acceptedAwaitingInstallment: 0,
+    })
+    // the zeros must not reach the reader — one number, not five
+    expect(brief?.present).toEqual([{ key: 'tax', count: 1 }])
   })
 })

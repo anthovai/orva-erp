@@ -6,6 +6,7 @@ import { Page, PageBody, PageHeader } from '@open-mercato/ui/backend/Page'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { Input } from '@open-mercato/ui/primitives/input'
 import { apiCall, readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
+import { fetchCrudList } from '@open-mercato/ui/backend/utils/crud'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
@@ -46,10 +47,23 @@ export default function ExpensesPage() {
   })
   const accounts = useQuery({
     queryKey: ['orva_finance.accounts.all', scopeVersion],
-    queryFn: async () => (await readApiResultOrThrow<{ items: Account[] }>('/api/orva_finance/gl/accounts?pageSize=100&sortField=code&sortDir=asc')).items,
+    // fetchCrudList is the helper every other caller of this endpoint uses; it
+    // builds the query string the CRUD factory expects instead of hand-rolling
+    // one. The Array.isArray guard is not ceremony: this page crashed in use
+    // with "(accounts.data ?? []).filter is not a function", which only happens
+    // when `items` comes back as something other than an array. A shared list
+    // endpoint's payload is not this screen's to assume, and an empty account
+    // picker is a far better failure than a blank page.
+    queryFn: async () => {
+      const res = await fetchCrudList<Account>('orva_finance/gl/accounts', {
+        pageSize: 100, sortField: 'code', sortDir: 'asc',
+      })
+      return Array.isArray(res?.items) ? res.items : []
+    },
   })
-  const expenseAccounts = (accounts.data ?? []).filter((a) => a.account_type === 'expense')
-  const cashAccounts = (accounts.data ?? []).filter((a) => a.account_type === 'asset' && a.code.startsWith('10'))
+  const allAccounts = accounts.data ?? []
+  const expenseAccounts = allAccounts.filter((a) => a.account_type === 'expense')
+  const cashAccounts = allAccounts.filter((a) => a.account_type === 'asset' && a.code.startsWith('10'))
 
   const amount = Number(form.amount || 0)
   const vat = form.vatMode === 'inclusive'

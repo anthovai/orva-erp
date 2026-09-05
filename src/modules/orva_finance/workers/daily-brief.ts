@@ -7,6 +7,7 @@ import { withTenantRls } from '@/lib/rls'
 import { notificationTypes } from '../notifications'
 import { buildHomeOverview } from '../lib/homeOverviewData'
 import { composeBrief } from '../lib/dailyBrief'
+import th from '../i18n/th.json'
 
 /**
  * One notification each weekday morning covering what nothing else announces:
@@ -88,17 +89,23 @@ export default async function handle(job: QueuedJob<BriefPayload>, ctx: HandlerC
     const typeDef = notificationTypes.find((type) => type.type === 'orva_finance.daily_brief')
     if (!typeDef) return
 
+    // The notification builder takes an i18n key plus variables and offers no
+    // free-text body, and a worker has no request to resolve a locale from. So
+    // the category labels are read from this module's own Thai catalogue and
+    // joined here, which keeps the wording in the translation files rather than
+    // hard-coded in the worker, and lets the body carry only what is pending.
+    const summary = brief.present
+      .map((section) => {
+        const label = th[`orva_finance.notifications.dailyBrief.section.${section.key}`] ?? section.key
+        return `${label} ${section.count}`
+      })
+      .join(' · ')
+
     await resolveNotificationService(container).createForFeature(
       buildFeatureNotificationFromType(typeDef, {
         requiredFeature: 'orva_finance.gl.view',
         titleVariables: { total: String(brief.total) },
-        bodyVariables: {
-          tax: String(brief.counts.tax),
-          tickets: String(brief.counts.tickets),
-          renewals: String(brief.counts.renewals),
-          quotes: String(brief.counts.quotes),
-          installments: String(brief.counts.installments),
-        },
+        bodyVariables: { summary },
         linkHref: '/backend',
         // One per day: a retry, or a second tick, must not send two briefs.
         groupKey: `orva_finance.daily_brief:${today}`,

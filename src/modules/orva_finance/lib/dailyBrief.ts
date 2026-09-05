@@ -51,7 +51,12 @@ export type Brief = {
   counts: BriefCounts
   /** Everything the brief is about, so the caller can title it. */
   total: number
+  /** Categories that actually have something, in the order they should read. */
+  present: Array<{ key: keyof BriefCounts; count: number }>
 }
+
+/** Fixed reading order: money and deadlines before housekeeping. */
+const ORDER: Array<keyof BriefCounts> = ['tax', 'installments', 'tickets', 'quotes', 'renewals']
 
 /**
  * Returns null when there is nothing to say.
@@ -79,5 +84,9 @@ export function composeBrief(input: BriefInput): Brief | null {
     installments: input.acceptedAwaitingInstallment,
   }
   const total = counts.tax + counts.tickets + counts.renewals + counts.quotes + counts.installments
-  return total > 0 ? { counts, total } : null
+  if (total === 0) return null
+  // Only what is actually pending: a line reading "ภาษี 2 · ซัพพอร์ต 0 · ต่ออายุ 0"
+  // buries the one number that matters under four that do not.
+  const present = ORDER.filter((key) => counts[key] > 0).map((key) => ({ key, count: counts[key] }))
+  return { counts, total, present }
 }
