@@ -1,3 +1,14 @@
 {
-  "orva_tasking.page.title": "งาน"
+  "orva_tasking.add": "เพิ่ม",
+  "orva_tasking.col.due": "กำหนดเสร็จ",
+  "orva_tasking.col.task": "งาน",
+  "orva_tasking.empty": "ยังไม่มีงานในโปรเจกต์นี้",
+  "orva_tasking.newTask": "เพิ่มงานใหม่…",
+  "orva_tasking.noProjects": "ยังไม่มีโปรเจกต์ในระบบงาน",
+  "orva_tasking.page.description": "งานของแต่ละโปรเจกต์ — งานที่ยังไม่เสร็จและใกล้ครบกำหนดขึ้นก่อน",
+  "orva_tasking.page.title": "งาน",
+  "orva_tasking.progress": "เสร็จ {pct}% ({done}/{total})",
+  "orva_tasking.setup.body": "สร้าง API token ใน KKG-Tasking แล้วใส่ TASKING_TOKEN ใน .env จากนั้นรีสตาร์ทเซิร์ฟเวอร์",
+  "orva_tasking.setup.title": "ยังไม่ได้เชื่อมระบบงาน",
+  "orva_tasking.toggle": "ทำเครื่องหมายว่าเสร็จ"
 }

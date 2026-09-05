@@ -1,3 +1,14 @@
 {
-  "orva_tasking.page.title": "Tasks"
+  "orva_tasking.add": "Add",
+  "orva_tasking.col.due": "Due",
+  "orva_tasking.col.task": "Task",
+  "orva_tasking.empty": "No tasks in this project yet",
+  "orva_tasking.newTask": "Add a task…",
+  "orva_tasking.noProjects": "No projects in the task system yet",
+  "orva_tasking.page.description": "Work per project — unfinished and soonest-due first.",
+  "orva_tasking.page.title": "Tasks",
+  "orva_tasking.progress": "{pct}% done ({done}/{total})",
+  "orva_tasking.setup.body": "Create an API token in KKG-Tasking, set TASKING_TOKEN in .env, then restart the server.",
+  "orva_tasking.setup.title": "Tasks are not connected yet",
+  "orva_tasking.toggle": "Mark done"
 }
