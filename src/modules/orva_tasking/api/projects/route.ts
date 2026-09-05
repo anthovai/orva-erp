@@ -1,78 +1,169 @@
+import type { EntityManager } from '@mikro-orm/postgresql'
 import { getAuthFromRequest } from '@open-mercato/shared/lib/auth/server'
 import { resolveActiveOrganizationId, organizationScopeRequiredResponse } from '@open-mercato/shared/lib/auth/organizationScope'
+import { createRequestContainer } from '@open-mercato/shared/lib/di/container'
+import { readJsonSafe } from '@open-mercato/shared/lib/http/readJsonSafe'
 import type { OpenApiRouteDoc } from '@open-mercato/shared/lib/openapi'
 import { z } from 'zod'
-import { listProjects, listTasks, readTaskingConfig, taskProgress } from '../../lib/client'
+import { withTenantRls } from '@/lib/rls'
+import { TaskProject } from '../../data/entities'
+import { projectCreateSchema, projectUpdateSchema } from '../../data/validators'
+import { donePct } from '../../lib/progress'
 
 export const metadata = {
   GET: { requireAuth: true, requireFeatures: ['orva_tasking.view'] },
+  POST: { requireAuth: true, requireFeatures: ['orva_tasking.manage'] },
+  PUT: { requireAuth: true, requireFeatures: ['orva_tasking.manage'] },
 }
 
 const projectSchema = z.object({
-  id: z.number(),
-  title: z.string(),
+  id: z.string(),
+  name: z.string(),
   description: z.string().nullable(),
+  quoteId: z.string().nullable(),
+  quoteNumber: z.string().nullable(),
+  isArchived: z.boolean(),
   total: z.number(),
   done: z.number(),
   donePct: z.number(),
+  overdue: z.number(),
+  updatedAt: z.string(),
 })
 
-const responseSchema = z.object({
-  configured: z.boolean(),
-  items: z.array(projectSchema),
-})
+type Row = {
+  id: string; name: string; description: string | null
+  quote_id: string | null; quote_number: string | null; is_archived: boolean
+  total: number; done: number; overdue: number; updated_at: string
+}
 
 /**
- * The task projects, each with how much of its work is finished.
+ * Projects with their work counted in the same query.
  *
- * The Tasking token stays on the server: the browser talks only to Orva, so a
- * token that can read every project never reaches a page where a user could
- * read it out.
+ * The counts are a join rather than a call per project: tasks live in this
+ * database, which is the whole reason this module owns them instead of asking
+ * a separate service one project at a time.
  */
 export async function GET(req: Request) {
   const auth = await getAuthFromRequest(req)
   if (!auth?.tenantId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!resolveActiveOrganizationId(auth)) return organizationScopeRequiredResponse()
+  const organizationId = resolveActiveOrganizationId(auth)
+  if (!organizationId) return organizationScopeRequiredResponse()
+  const today = new Date().toISOString().slice(0, 10)
+  const container = await createRequestContainer()
+  const em = container.resolve<EntityManager>('em')
 
-  const config = readTaskingConfig()
-  // Not an error: the module ships before the token is issued, and the screen
-  // explains how to finish the setup rather than showing a failure.
-  if (!config) return Response.json({ configured: false, items: [] })
+  const items = await withTenantRls(em, auth.tenantId, async (tem) => {
+    const rows = (await tem.execute(
+      `select p.id::text, p.name, p.description, p.quote_id::text, q.quote_number,
+              p.is_archived, p.updated_at::text,
+              count(t.id)::int as total,
+              count(t.id) filter (where t.done)::int as done,
+              count(t.id) filter (where not t.done and t.due_on is not null and t.due_on < ?::date)::int as overdue
+       from orva_tasking_projects p
+       left join orva_tasking_tasks t
+         on t.project_id = p.id and t.deleted_at is null
+       left join sales_quotes q
+         on q.id = p.quote_id and q.deleted_at is null
+       where p.deleted_at is null and p.tenant_id = ?::uuid and p.organization_id = ?::uuid
+       group by p.id, q.quote_number
+       order by p.is_archived, p.position, p.created_at`,
+      [today, auth.tenantId, organizationId],
+    )) as Row[]
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      quoteId: row.quote_id,
+      quoteNumber: row.quote_number,
+      isArchived: row.is_archived,
+      total: row.total,
+      done: row.done,
+      donePct: donePct({ total: row.total, done: row.done }),
+      overdue: row.overdue,
+      updatedAt: row.updated_at,
+    }))
+  })
+  return Response.json({ items })
+}
+
+export async function POST(req: Request) {
+  const auth = await getAuthFromRequest(req)
+  if (!auth?.tenantId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const organizationId = resolveActiveOrganizationId(auth)
+  if (!organizationId) return organizationScopeRequiredResponse()
+  const parsed = projectCreateSchema.safeParse(await readJsonSafe(req))
+  if (!parsed.success) return Response.json({ error: 'Invalid payload', issues: parsed.error.issues }, { status: 400 })
+  const container = await createRequestContainer()
+  const em = container.resolve<EntityManager>('em')
 
   try {
-    const projects = await listProjects(config)
-    const items = await Promise.all(
-      projects.map(async (project) => {
-        const progress = taskProgress(await listTasks(config, project.id))
-        return {
-          id: project.id,
-          title: project.title,
-          description: project.description ?? null,
-          ...progress,
-        }
-      }),
-    )
-    return Response.json({ configured: true, items })
+    const created = await withTenantRls(em, auth.tenantId, async (tem) => {
+      const now = new Date()
+      const project = tem.create(TaskProject, {
+        tenantId: auth.tenantId!, organizationId,
+        name: parsed.data.name,
+        description: parsed.data.description ?? null,
+        quoteId: parsed.data.quoteId ?? null,
+        isArchived: false, position: 0,
+        createdBy: auth.sub ?? null,
+        createdAt: now, updatedAt: now,
+      })
+      tem.persist(project)
+      await tem.flush()
+      return { id: project.id }
+    })
+    return Response.json({ ok: true, ...created })
   } catch (error) {
+    // The unique index on (tenant, quote) is what enforces one project per
+    // quotation; report it as a conflict rather than a server error.
+    const message = error instanceof Error ? error.message : 'Could not create the project'
+    const conflict = /orva_tasking_projects_quote_unique/.test(message)
     return Response.json(
-      { error: error instanceof Error ? error.message : 'Could not reach KKG-Tasking' },
-      { status: 502 },
+      { error: conflict ? 'ใบเสนอราคานี้มีโปรเจกต์อยู่แล้ว' : message },
+      { status: conflict ? 409 : 500 },
     )
+  }
+}
+
+export async function PUT(req: Request) {
+  const auth = await getAuthFromRequest(req)
+  if (!auth?.tenantId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  const organizationId = resolveActiveOrganizationId(auth)
+  if (!organizationId) return organizationScopeRequiredResponse()
+  const parsed = projectUpdateSchema.safeParse(await readJsonSafe(req))
+  if (!parsed.success) return Response.json({ error: 'Invalid payload' }, { status: 400 })
+  const input = parsed.data
+  const container = await createRequestContainer()
+  const em = container.resolve<EntityManager>('em')
+
+  try {
+    const saved = await withTenantRls(em, auth.tenantId, async (tem) => {
+      const project = await tem.findOne(TaskProject, { id: input.id, tenantId: auth.tenantId!, organizationId, deletedAt: null })
+      if (!project) throw Object.assign(new Error('Project not found'), { status: 404 })
+      if (project.updatedAt.toISOString() !== new Date(input.updatedAt).toISOString()) {
+        throw Object.assign(new Error('Conflict — reload and retry'), { status: 409 })
+      }
+      if (input.name !== undefined) project.name = input.name
+      if (input.description !== undefined) project.description = input.description
+      if (input.quoteId !== undefined) project.quoteId = input.quoteId
+      if (input.isArchived !== undefined) project.isArchived = input.isArchived
+      project.updatedAt = new Date()
+      await tem.flush()
+      return { id: project.id, updatedAt: project.updatedAt.toISOString() }
+    })
+    return Response.json({ ok: true, ...saved })
+  } catch (error) {
+    const status = (error as { status?: number }).status ?? 500
+    return Response.json({ error: error instanceof Error ? error.message : 'Update failed' }, { status })
   }
 }
 
 export const openApi: OpenApiRouteDoc = {
   tag: 'Orva Tasking',
-  summary: 'Task projects with work progress',
+  summary: 'Work projects',
   methods: {
-    GET: {
-      summary: 'Projects from KKG-Tasking, each with tasks done vs total',
-      tags: ['Orva Tasking'],
-      responses: [{ status: 200, description: 'Projects, or configured=false when no token is set.', schema: responseSchema }],
-      errors: [
-        { status: 401, description: 'Authentication required', schema: z.object({ error: z.string() }) },
-        { status: 502, description: 'KKG-Tasking unreachable', schema: z.object({ error: z.string() }) },
-      ],
-    },
+    GET: { summary: 'Projects with tasks done, total and overdue counted in one query', tags: ['Orva Tasking'], responses: [{ status: 200, description: 'Projects.', schema: z.object({ items: z.array(projectSchema) }) }] },
+    POST: { summary: 'Create a project, optionally against a quotation', tags: ['Orva Tasking'], requestBody: { schema: projectCreateSchema }, responses: [{ status: 200, description: 'Created.', schema: z.object({ ok: z.boolean(), id: z.string() }) }], errors: [{ status: 409, description: 'That quotation already has a project', schema: z.object({ error: z.string() }) }] },
+    PUT: { summary: 'Rename, relink or archive a project', tags: ['Orva Tasking'], requestBody: { schema: projectUpdateSchema }, responses: [{ status: 200, description: 'Saved.', schema: z.object({ ok: z.boolean(), id: z.string(), updatedAt: z.string() }) }], errors: [{ status: 409, description: 'Stale version', schema: z.object({ error: z.string() }) }] },
   },
 }

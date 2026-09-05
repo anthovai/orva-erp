@@ -1,9 +1,13 @@
+import type { EntityManager } from '@mikro-orm/postgresql'
 import { getAuthFromRequest } from '@open-mercato/shared/lib/auth/server'
 import { resolveActiveOrganizationId, organizationScopeRequiredResponse } from '@open-mercato/shared/lib/auth/organizationScope'
+import { createRequestContainer } from '@open-mercato/shared/lib/di/container'
 import { readJsonSafe } from '@open-mercato/shared/lib/http/readJsonSafe'
 import type { OpenApiRouteDoc } from '@open-mercato/shared/lib/openapi'
 import { z } from 'zod'
-import { cleanDate, createTask, listTasks, readTaskingConfig, setTaskDone } from '../../lib/client'
+import { withTenantRls } from '@/lib/rls'
+import { Task, TaskProject } from '../../data/entities'
+import { taskCreateSchema, taskListSchema, taskUpdateSchema } from '../../data/validators'
 
 export const metadata = {
   GET: { requireAuth: true, requireFeatures: ['orva_tasking.view'] },
@@ -11,114 +15,163 @@ export const metadata = {
   PUT: { requireAuth: true, requireFeatures: ['orva_tasking.manage'] },
 }
 
-const listQuery = z.object({ projectId: z.coerce.number().int().positive() })
-
-const createBody = z.object({
-  projectId: z.coerce.number().int().positive(),
-  title: z.string().trim().min(1).max(250),
-  description: z.string().trim().max(4000).optional().nullable(),
-  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
-  priority: z.coerce.number().int().min(0).max(5).optional(),
-})
-
-const doneBody = z.object({
-  taskId: z.coerce.number().int().positive(),
-  done: z.boolean(),
-})
-
 const taskSchema = z.object({
-  id: z.number(),
-  identifier: z.string().nullable(),
+  id: z.string(),
+  projectId: z.string(),
   title: z.string(),
   description: z.string().nullable(),
   done: z.boolean(),
-  dueDate: z.string().nullable(),
+  doneAt: z.string().nullable(),
+  dueOn: z.string().nullable(),
+  daysOverdue: z.number(),
   priority: z.number(),
-  percentDone: z.number(),
+  updatedAt: z.string(),
 })
 
-/** Shapes a Tasking task for Orva's screens, normalising Go's zero dates. */
-const toJson = (task: Awaited<ReturnType<typeof listTasks>>[number]) => ({
-  id: task.id,
-  identifier: task.identifier ?? null,
-  title: task.title,
-  description: task.description ?? null,
-  done: task.done,
-  dueDate: cleanDate(task.due_date)?.slice(0, 10) ?? null,
-  priority: task.priority ?? 0,
-  percentDone: task.percent_done ?? 0,
-})
+type Row = {
+  id: string; project_id: string; title: string; description: string | null
+  done: boolean; done_at: string | null; due_on: string | null
+  priority: number; updated_at: string
+}
 
-const notConfigured = () =>
-  Response.json({ error: 'KKG-Tasking is not configured (TASKING_TOKEN)' }, { status: 503 })
+const daysBetween = (from: string, to: string) => {
+  const u = (iso: string) => Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)))
+  return Math.round((u(to) - u(from)) / 864e5)
+}
 
 export async function GET(req: Request) {
   const auth = await getAuthFromRequest(req)
   if (!auth?.tenantId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!resolveActiveOrganizationId(auth)) return organizationScopeRequiredResponse()
-  const parsed = listQuery.safeParse(Object.fromEntries(new URL(req.url).searchParams))
+  const organizationId = resolveActiveOrganizationId(auth)
+  if (!organizationId) return organizationScopeRequiredResponse()
+  const parsed = taskListSchema.safeParse(Object.fromEntries(new URL(req.url).searchParams))
   if (!parsed.success) return Response.json({ error: 'Invalid query' }, { status: 400 })
-  const config = readTaskingConfig()
-  if (!config) return notConfigured()
-  try {
-    const tasks = await listTasks(config, parsed.data.projectId)
-    // Unfinished work first, then the nearest deadline — the order someone
-    // opening the screen actually wants to read.
-    const items = tasks.map(toJson).sort((a, b) =>
-      Number(a.done) - Number(b.done)
-      || (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999')
-      || a.title.localeCompare(b.title),
-    )
-    return Response.json({ items })
-  } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : 'Tasking unreachable' }, { status: 502 })
-  }
+  const q = parsed.data
+  const today = new Date().toISOString().slice(0, 10)
+  const container = await createRequestContainer()
+  const em = container.resolve<EntityManager>('em')
+
+  const items = await withTenantRls(em, auth.tenantId, async (tem) => {
+    const rows = (await tem.execute(
+      `select t.id::text, t.project_id::text, t.title, t.description, t.done,
+              t.done_at::text, to_char(t.due_on, 'YYYY-MM-DD') as due_on,
+              t.priority, t.updated_at::text
+       from orva_tasking_tasks t
+       where t.deleted_at is null and t.tenant_id = ?::uuid and t.organization_id = ?::uuid
+         and (?::uuid is null or t.project_id = ?::uuid)
+         and (?::boolean is true or not t.done)
+       order by t.done,
+                -- unfinished work sorted by how soon it is due; undated last
+                case when t.done then null else t.due_on end asc nulls last,
+                t.priority desc, t.position, t.created_at`,
+      [auth.tenantId, organizationId, q.projectId ?? null, q.projectId ?? null, q.bucket === 'all'],
+    )) as Row[]
+    return rows.map((row) => ({
+      id: row.id,
+      projectId: row.project_id,
+      title: row.title,
+      description: row.description,
+      done: row.done,
+      doneAt: row.done_at,
+      dueOn: row.due_on,
+      daysOverdue: !row.done && row.due_on ? Math.max(0, daysBetween(row.due_on, today)) : 0,
+      priority: row.priority,
+      updatedAt: row.updated_at,
+    }))
+  })
+  return Response.json({ items })
 }
 
 export async function POST(req: Request) {
   const auth = await getAuthFromRequest(req)
   if (!auth?.tenantId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!resolveActiveOrganizationId(auth)) return organizationScopeRequiredResponse()
-  const parsed = createBody.safeParse(await readJsonSafe(req))
+  const organizationId = resolveActiveOrganizationId(auth)
+  if (!organizationId) return organizationScopeRequiredResponse()
+  const parsed = taskCreateSchema.safeParse(await readJsonSafe(req))
   if (!parsed.success) return Response.json({ error: 'Invalid payload', issues: parsed.error.issues }, { status: 400 })
-  const config = readTaskingConfig()
-  if (!config) return notConfigured()
+  const input = parsed.data
+  const container = await createRequestContainer()
+  const em = container.resolve<EntityManager>('em')
+
   try {
-    const created = await createTask(config, parsed.data.projectId, {
-      title: parsed.data.title,
-      description: parsed.data.description ?? null,
-      due_date: parsed.data.dueDate ?? null,
-      priority: parsed.data.priority,
+    const created = await withTenantRls(em, auth.tenantId, async (tem) => {
+      // The task carries its own tenant/org rather than trusting the payload,
+      // and the project must belong to the same scope.
+      const project = await tem.findOne(TaskProject, {
+        id: input.projectId, tenantId: auth.tenantId!, organizationId, deletedAt: null,
+      })
+      if (!project) throw Object.assign(new Error('Project not found'), { status: 404 })
+      const now = new Date()
+      const task = tem.create(Task, {
+        tenantId: auth.tenantId!, organizationId,
+        projectId: project.id,
+        title: input.title,
+        description: input.description ?? null,
+        done: false, doneAt: null,
+        dueOn: input.dueOn ?? null,
+        priority: input.priority ?? 0,
+        position: 0,
+        assigneeUserId: input.assigneeUserId ?? null,
+        createdBy: auth.sub ?? null,
+        createdAt: now, updatedAt: now,
+      })
+      tem.persist(task)
+      await tem.flush()
+      return { id: task.id }
     })
-    return Response.json({ ok: true, task: toJson(created) })
+    return Response.json({ ok: true, ...created })
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : 'Could not create the task' }, { status: 502 })
+    const status = (error as { status?: number }).status ?? 500
+    return Response.json({ error: error instanceof Error ? error.message : 'Could not create the task' }, { status })
   }
 }
 
-/** Ticking a task off is the one edit worth doing without leaving the list. */
 export async function PUT(req: Request) {
   const auth = await getAuthFromRequest(req)
   if (!auth?.tenantId) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!resolveActiveOrganizationId(auth)) return organizationScopeRequiredResponse()
-  const parsed = doneBody.safeParse(await readJsonSafe(req))
+  const organizationId = resolveActiveOrganizationId(auth)
+  if (!organizationId) return organizationScopeRequiredResponse()
+  const parsed = taskUpdateSchema.safeParse(await readJsonSafe(req))
   if (!parsed.success) return Response.json({ error: 'Invalid payload' }, { status: 400 })
-  const config = readTaskingConfig()
-  if (!config) return notConfigured()
+  const input = parsed.data
+  const container = await createRequestContainer()
+  const em = container.resolve<EntityManager>('em')
+
   try {
-    const task = await setTaskDone(config, parsed.data.taskId, parsed.data.done)
-    return Response.json({ ok: true, task: toJson(task) })
+    const saved = await withTenantRls(em, auth.tenantId, async (tem) => {
+      const task = await tem.findOne(Task, { id: input.id, tenantId: auth.tenantId!, organizationId, deletedAt: null })
+      if (!task) throw Object.assign(new Error('Task not found'), { status: 404 })
+      if (task.updatedAt.toISOString() !== new Date(input.updatedAt).toISOString()) {
+        throw Object.assign(new Error('Conflict — reload and retry'), { status: 409 })
+      }
+      if (input.title !== undefined) task.title = input.title
+      if (input.description !== undefined) task.description = input.description
+      if (input.dueOn !== undefined) task.dueOn = input.dueOn
+      if (input.priority !== undefined) task.priority = input.priority
+      if (input.assigneeUserId !== undefined) task.assigneeUserId = input.assigneeUserId
+      if (input.done !== undefined && input.done !== task.done) {
+        task.done = input.done
+        // Stamped, never derived — reopening clears it so "finished last week"
+        // cannot be answered with a date the task no longer deserves.
+        task.doneAt = input.done ? new Date() : null
+      }
+      task.updatedAt = new Date()
+      await tem.flush()
+      return { id: task.id, done: task.done, updatedAt: task.updatedAt.toISOString() }
+    })
+    return Response.json({ ok: true, ...saved })
   } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : 'Could not update the task' }, { status: 502 })
+    const status = (error as { status?: number }).status ?? 500
+    return Response.json({ error: error instanceof Error ? error.message : 'Update failed' }, { status })
   }
 }
 
 export const openApi: OpenApiRouteDoc = {
   tag: 'Orva Tasking',
-  summary: 'Tasks in a KKG-Tasking project',
+  summary: 'Tasks',
   methods: {
-    GET: { summary: 'Tasks of one project, unfinished and soonest-due first', tags: ['Orva Tasking'], query: listQuery, responses: [{ status: 200, description: 'Tasks.', schema: z.object({ items: z.array(taskSchema) }) }] },
-    POST: { summary: 'Create a task', tags: ['Orva Tasking'], requestBody: { schema: createBody }, responses: [{ status: 200, description: 'Created.', schema: z.object({ ok: z.boolean(), task: taskSchema }) }] },
-    PUT: { summary: 'Mark a task done or not done', tags: ['Orva Tasking'], requestBody: { schema: doneBody }, responses: [{ status: 200, description: 'Updated.', schema: z.object({ ok: z.boolean(), task: taskSchema }) }] },
+    GET: { summary: 'Tasks, unfinished and soonest-due first', tags: ['Orva Tasking'], query: taskListSchema, responses: [{ status: 200, description: 'Tasks.', schema: z.object({ items: z.array(taskSchema) }) }] },
+    POST: { summary: 'Add a task to a project', tags: ['Orva Tasking'], requestBody: { schema: taskCreateSchema }, responses: [{ status: 200, description: 'Created.', schema: z.object({ ok: z.boolean(), id: z.string() }) }] },
+    PUT: { summary: 'Edit a task or tick it off', tags: ['Orva Tasking'], requestBody: { schema: taskUpdateSchema }, responses: [{ status: 200, description: 'Saved.', schema: z.object({ ok: z.boolean(), id: z.string(), done: z.boolean(), updatedAt: z.string() }) }], errors: [{ status: 409, description: 'Stale version', schema: z.object({ error: z.string() }) }] },
   },
 }
