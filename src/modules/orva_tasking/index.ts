@@ -5,7 +5,7 @@ export const metadata: ModuleInfo = {
   title: 'Orva Tasking',
   version: '0.1.0',
   description:
-    'KKG-Tasking (the company Vikunja fork) as part of Orva: navigation into the task app served at /tasks, and the seam that will put work progress beside billing progress on a project.',
+    'Work planned and tracked in Orva itself: projects, tasks, dates, labels, comments and files, linked to the quotation the work bills against.',
   author: 'Anthovai',
   license: 'MIT',
 }

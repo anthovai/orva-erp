@@ -2070,6 +2070,24 @@
       "rule": "arbitrary-tailwind",
       "match": "w-[794px]",
       "reason": "A4 paper width at 96dpi — the 50 ทวิ certificate is a printed statutory form and must match the page exactly."
+    },
+    {
+      "file": "src/modules/orva_tasking/components/TaskDrawer.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A label colour is user data read from orva_tasking_labels.hex_color at runtime, not a design decision made in code. The rule exists to stop hard-coded palette values; there is no token that can express a colour the user picked. The swatch is decorative (aria-hidden) and the label text carries the meaning, so no information depends on the colour."
+    },
+    {
+      "file": "src/modules/orva_tasking/components/TasksPage.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "The progress bar width is a computed percentage; a fill that cannot vary is not a progress bar. Colour and shape come from tokens (bg-primary, rounded-full) — only the width is inline."
+    },
+    {
+      "file": "src/modules/orva_tasking/components/TasksPage.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A label colour is user data read from orva_tasking_labels.hex_color at runtime, not a design decision made in code. The rule exists to stop hard-coded palette values; there is no token that can express a colour the user picked. The swatch is decorative (aria-hidden) and the label text carries the meaning, so no information depends on the colour."
     }
   ]
 }

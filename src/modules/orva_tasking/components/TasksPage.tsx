@@ -8,6 +8,7 @@ import { apiCall, readApiResultOrThrow } from '@open-mercato/ui/backend/utils/ap
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { TaskDrawer } from './TaskDrawer'
 
 type Project = {
   id: string; name: string; description: string | null
@@ -17,6 +18,10 @@ type Project = {
 type Task = {
   id: string; projectId: string; title: string; description: string | null
   done: boolean; doneAt: string | null; dueOn: string | null
+  startDate: string | null; endDate: string | null
+  percentDone: number; identifier: string
+  labels: { id: string; title: string; hexColor: string }[]
+  commentCount: number; relationCount: number
   daysOverdue: number; priority: number; updatedAt: string
 }
 type QuoteOption = { quoteId: string; quoteNumber: string; customerName: string | null }
@@ -39,6 +44,7 @@ export default function TasksPage() {
   const [title, setTitle] = React.useState('')
   const [dueOn, setDueOn] = React.useState('')
   const [busy, setBusy] = React.useState(false)
+  const [openTaskId, setOpenTaskId] = React.useState<string | null>(null)
 
   const projects = useQuery({
     queryKey: ['orva_tasking.projects', scopeVersion],
@@ -199,13 +205,14 @@ export default function TasksPage() {
                   <tr className="border-b bg-muted/50 text-left">
                     <th className="w-10 px-3 py-2" />
                     <th className="px-3 py-2">{t('orva_tasking.col.task', 'งาน')}</th>
+                    <th className="px-3 py-2">{t('orva_tasking.col.labels', 'ป้ายกำกับ')}</th>
                     <th className="px-3 py-2">{t('orva_tasking.col.due', 'กำหนดเสร็จ')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {tasks.isLoading ? <tr><td colSpan={3} className="px-3 py-8 text-center text-muted-foreground">…</td></tr> : null}
+                  {tasks.isLoading ? <tr><td colSpan={4} className="px-3 py-8 text-center text-muted-foreground">…</td></tr> : null}
                   {tasks.data?.items.length === 0 ? (
-                    <tr><td colSpan={3} className="px-3 py-8 text-center text-muted-foreground">{t('orva_tasking.empty', 'ยังไม่มีงานค้างในโปรเจกต์นี้')}</td></tr>
+                    <tr><td colSpan={4} className="px-3 py-8 text-center text-muted-foreground">{t('orva_tasking.empty', 'ยังไม่มีงานค้างในโปรเจกต์นี้')}</td></tr>
                   ) : null}
                   {(tasks.data?.items ?? []).map((task) => (
                     <tr key={task.id} className="border-b last:border-b-0">
@@ -218,7 +225,36 @@ export default function TasksPage() {
                           aria-label={t('orva_tasking.toggle', 'ทำเครื่องหมายว่าเสร็จ')}
                         />
                       </td>
-                      <td className={`px-3 py-2 ${task.done ? 'text-muted-foreground line-through' : ''}`}>{task.title}</td>
+                      <td className="px-3 py-2">
+                        {/* The title opens the detail; the checkbox stays a checkbox,
+                            so ticking work off never costs a round trip through a form. */}
+                        <button
+                          type="button"
+                          onClick={() => setOpenTaskId(task.id)}
+                          className={`text-left hover:underline ${task.done ? 'text-muted-foreground line-through' : ''}`}
+                        >
+                          {task.title}
+                        </button>
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {task.percentDone > 0 && !task.done ? `${task.percentDone}%` : null}
+                          {task.commentCount > 0 ? ` 💬${task.commentCount}` : null}
+                          {task.relationCount > 0 ? ` ⛓${task.relationCount}` : null}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className="flex flex-wrap gap-1">
+                          {task.labels.map((label) => (
+                            <span key={label.id} className="rounded-full border px-2 py-0.5 text-xs">
+                              <span
+                                aria-hidden="true"
+                                className="mr-1 inline-block size-2 rounded-full align-middle"
+                                style={{ backgroundColor: label.hexColor }}
+                              />
+                              {label.title}
+                            </span>
+                          ))}
+                        </span>
+                      </td>
                       <td className="px-3 py-2 tabular-nums">
                         {task.dueOn ? (
                           <span className={task.daysOverdue > 0 ? 'text-status-error-text' : 'text-muted-foreground'}>
@@ -236,6 +272,12 @@ export default function TasksPage() {
         ) : projects.data ? (
           <p className="text-sm text-muted-foreground">{t('orva_tasking.noProjects', 'ยังไม่มีโปรเจกต์ — สร้างโปรเจกต์แรกเพื่อเริ่มบันทึกงาน')}</p>
         ) : null}
+
+        <TaskDrawer
+          task={(tasks.data?.items ?? []).find((item) => item.id === openTaskId) ?? null}
+          onClose={() => setOpenTaskId(null)}
+          onSaved={refresh}
+        />
       </PageBody>
     </Page>
   )
