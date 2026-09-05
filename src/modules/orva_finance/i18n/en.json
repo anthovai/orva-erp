@@ -324,6 +324,8 @@
   "orva_finance.monthPack.send.noAddress": "Enter the accountant's email first",
   "orva_finance.monthPack.sending": "Sending…",
   "orva_finance.nav.accounting": "Accounting",
+  "orva_finance.notifications.dailyBrief.body": "Filings {tax} · Support {tickets} · Renewals {renewals} · Quotes expiring {quotes} · Awaiting first installment {installments}",
+  "orva_finance.notifications.dailyBrief.title": "This morning — {total} things need you",
   "orva_finance.notifications.reminderDue.body": "{invoiceNumber} — {customer} owes {amount} THB, {days} days overdue",
   "orva_finance.notifications.reminderDue.title": "Overdue invoice needs chasing",
   "orva_finance.payments.actions.certificate": "Print 50 Tawi",

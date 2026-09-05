@@ -324,6 +324,8 @@
   "orva_finance.monthPack.send.noAddress": "ใส่อีเมลสำนักงานบัญชีก่อน",
   "orva_finance.monthPack.sending": "กำลังส่ง…",
   "orva_finance.nav.accounting": "บัญชี",
+  "orva_finance.notifications.dailyBrief.body": "ภาษี {tax} · ซัพพอร์ต {tickets} · ต่ออายุ {renewals} · ใบเสนอราคาใกล้หมดอายุ {quotes} · รอออกงวดแรก {installments}",
+  "orva_finance.notifications.dailyBrief.title": "สรุปเช้านี้ — มี {total} เรื่องต้องดู",
   "orva_finance.notifications.reminderDue.body": "{invoiceNumber} — {customer} ค้าง {amount} บาท เกินกำหนด {days} วัน",
   "orva_finance.notifications.reminderDue.title": "ใบแจ้งหนี้ค้างชำระ รอการติดตาม",
   "orva_finance.payments.actions.certificate": "พิมพ์ 50 ทวิ",

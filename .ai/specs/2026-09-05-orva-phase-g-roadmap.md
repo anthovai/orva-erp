@@ -526,11 +526,37 @@ confirmed back to the real two records. Gates: typecheck clean, lint 0 errors,
    `messages` on `thread_id`; reply saved before send; failure flagged. UI: checkbox
    default on when `thread_id` exists; badges "จากอีเมล", "จับคู่ลูกค้า"; row action
    "รวมเข้าเรื่อง…".
-5. **Morning brief job** (`orva_finance/jobs/morningBrief.ts`, weekdays 07:30
-   Asia/Bangkok) — pure `composeBrief(overview, tickets, subs, today)` with tests
-   (section omission, empty day text, ordering); renders th email via document rails
-   styling; sends notification + email; failure → admin notification. Integration: run
-   with `--today`, assert one notification + one outbound message; idempotent on rerun.
+5. ✅ **Weekday morning brief** (2026-09-05) — one notification at 07:30 Asia/Bangkok,
+   Mon–Fri, covering what nothing else announces: filings coming due, clients waiting
+   on a reply, licences lapsing, quotes near expiry, and accepted work not yet billed.
+   Overdue invoices are deliberately excluded — the reminder scan already raises those
+   individually with amount and days, which beats a count, and two notifications about
+   the same invoice on one morning would be worse than one.
+   Figures come from `buildHomeOverview`, the same function behind the home screen and
+   the assistant tool, so the brief cannot quietly disagree with the screen the owner
+   opens after reading it. `composeBrief` is pure (12 tests) and returns null on a
+   quiet day: an email digest should send unconditionally so that silence reads as
+   failure, but lighting the in-app bell every morning for nothing is how a badge gets
+   ignored.
+
+   **Delivery decision reversed from A4.** The plan wanted notification + email digest
+   and treated the brief as blocked on `RESEND_API_KEY`. Once the reminder scan proved
+   notifications actually arrive, the notification half became worth shipping on its
+   own — it persists with an unread badge, which the home card does not. The email half
+   still waits on the key.
+
+   Verified against real data, no fixture required: the tenant genuinely has two ภ.พ.30
+   filings pending, so the brief raised `total=2 counts={tax:2,…}` — three notifications
+   for the three users holding `orva_finance.gl.view`, all sharing the group key
+   `orva_finance.daily_brief:2026-09-05` so a retry cannot double-send. Those rows were
+   left in place rather than cleaned up, because they are true.
+
+   ⚠ Rough edge visible only by running it: the body renders every category including
+   the zeros ("ภาษี 2 · ซัพพอร์ต 0 · ต่ออายุ 0 …"). The notification builder takes an i18n
+   key plus variables and offers no free-text body, and a worker has no request context
+   to resolve translations with, so omitting the empty categories needs a locale
+   decision that should be the owner's rather than an invented default.
+
 6. ✅ **Assistant tools** (2026-09-05) — the one pillar of G2 that needed nothing from
    the owner, so it went first. `src/modules/orva_support/ai-tools.ts`:
    `list_tickets` (open queue, urgent+overdue first, project joined, hours logged),

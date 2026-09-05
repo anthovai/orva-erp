@@ -11,6 +11,9 @@ type SchedulerServiceLike = {
 export const overdueScanScheduleId = (organizationId: string) =>
   `orva_finance.overdue_reminder_scan:${organizationId}`
 
+export const dailyBriefScheduleId = (organizationId: string) =>
+  `orva_finance.daily_brief:${organizationId}`
+
 export const setup: ModuleSetupConfig = {
   defaultRoleFeatures: {
     superadmin: ['orva_finance.*'],
@@ -51,6 +54,31 @@ export const setup: ModuleSetupConfig = {
       })
     } catch (error) {
       logger.warn('Could not register the overdue reminder scan', {
+        error: error instanceof Error ? error.message : error,
+      })
+    }
+
+    try {
+      await scheduler.register({
+        id: dailyBriefScheduleId(organizationId),
+        name: 'Orva — weekday morning brief',
+        description: 'One notification covering filings, tickets, renewals, expiring quotes and unbilled accepted work.',
+        scopeType: 'organization',
+        organizationId,
+        tenantId,
+        scheduleType: 'cron',
+        // 07:30 Asia/Bangkok, Monday to Friday — the owner has a day job.
+        scheduleValue: '30 7 * * 1-5',
+        timezone: 'Asia/Bangkok',
+        targetType: 'queue',
+        targetQueue: 'orva_finance.daily_brief',
+        targetPayload: { scope: { tenantId, organizationId } },
+        sourceType: 'module',
+        sourceModule: 'orva_finance',
+        isEnabled: true,
+      })
+    } catch (error) {
+      logger.warn('Could not register the morning brief', {
         error: error instanceof Error ? error.message : error,
       })
     }

@@ -30,6 +30,26 @@ export const notificationTypes: NotificationTypeDefinition[] = [
     // stale nudge on a settled invoice helps nobody.
     expiresAfterHours: 168,
   },
+  {
+    type: 'orva_finance.daily_brief',
+    module: 'orva_finance',
+    titleKey: 'orva_finance.notifications.dailyBrief.title',
+    bodyKey: 'orva_finance.notifications.dailyBrief.body',
+    icon: 'sun',
+    severity: 'info',
+    actions: [
+      {
+        id: 'view',
+        labelKey: 'common.view',
+        variant: 'outline',
+        href: '/backend',
+        icon: 'external-link',
+      },
+    ],
+    linkHref: '/backend',
+    // Yesterday's brief is worthless once today's exists.
+    expiresAfterHours: 24,
+  },
 ]
 
 export default notificationTypes
