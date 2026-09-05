@@ -56,6 +56,19 @@ export class SupportTicket {
   @Property({ name: 'contact_email', type: 'text', nullable: true })
   contactEmail?: string | null
 
+  /** manual | email — how the ticket arrived. */
+  @Property({ type: 'text' })
+  source: string = 'manual'
+
+  /** Mail thread this belongs to, so a reply lands on the same conversation. */
+  @Property({ name: 'thread_id', type: 'text', nullable: true })
+  @Index()
+  threadId?: string | null
+
+  /** The inbox_emails row that opened it — unique, so a redelivery cannot
+   *  open a second ticket for the same email. */
+  @Property({ name: 'source_email_id', type: 'uuid', nullable: true })
+  sourceEmailId?: string | null
   /** The quotation/project this ticket belongs to, when it is contract work. */
   @Property({ name: 'quote_id', type: 'uuid', nullable: true })
   quoteId?: string | null

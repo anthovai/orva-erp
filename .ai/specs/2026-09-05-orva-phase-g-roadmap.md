@@ -497,11 +497,31 @@ confirmed back to the real two records. Gates: typecheck clean, lint 0 errors,
    done, steps 2–4 are verified with a fixture email through `inbox_ops`.
 2. **Ticket columns** — migration adding `thread_id`, `source` (ends with
    `orva_apply_rls()`); entity + validators; **restart dev server** (lesson).
-3. **Proposal handler** `orva_support/inbox/createTicket.ts` — pure
-   `matchCustomer(sender, contacts)` and `inferProject(text, projects)` in `lib/` with
-   tests (exact email, domain, ambiguous domain → null, quote-number in subject, single
-   active project, none); handler creates/appends tickets. Integration: fixture email →
-   ticket; second email same thread → reply appended.
+3. ✅ **Email → ticket** (2026-09-05, built ahead of the Gmail connection).
+   `orva_support/lib/emailTriage.ts` holds the judgement, 21 tests: exact address
+   wins; a company domain matches only when every contact on it belongs to one
+   customer; **public mail domains never domain-match** (two clients on Gmail are not
+   one company); a quoted quote number links the project even when the sender is
+   unknown; a number belonging to a different customer than the sender links nothing,
+   because one of the two is wrong. Kind is guessed, defaulting to `question` so the
+   bug count is not inflated.
+   `subscribers/email-to-ticket.ts` listens on `inbox_ops.email.processed`; a reply on
+   a known thread is appended as the customer speaking and reopens a
+   `waiting_customer` ticket rather than opening a second one. Migration adds
+   `source`, `thread_id` and `source_email_id` with a unique index on the last, so a
+   redelivery cannot open a duplicate — a database guarantee, not a hope about retries.
+
+   Two traps avoided by checking rather than assuming: `email.processed` really is
+   emitted (unlike `sales.quote.accepted`, which is declared nowhere), and its payload
+   — not the handler context — is what reliably carries tenant scope, so the handler
+   reads the payload first. Reading only the context would have made it do nothing,
+   silently.
+
+   Verified: the triage rules by unit test; the handler's two queries against a fixture
+   email in the real schema; registration in the generated subscriber registry; the
+   migration's columns, check constraint and unique index in the database. **Not**
+   verified: an event actually reaching the handler, which needs either a connected
+   mailbox or an authenticated reprocess call.
 4. **Reply by email** — `POST /api/orva_support/replies` gains `sendEmail`; sends via
    `messages` on `thread_id`; reply saved before send; failure flagged. UI: checkbox
    default on when `thread_id` exists; badges "จากอีเมล", "จับคู่ลูกค้า"; row action

@@ -165,6 +165,9 @@ export async function POST(req: Request) {
       customerEntityId: input.customerEntityId ?? null,
       customerName: await customerNameFor(tem, scope, input.customerEntityId),
       contactEmail: input.contactEmail ?? null, quoteId: input.quoteId ?? null,
+      // Opened by hand on the queue screen; the inbound-email subscriber is
+      // the only thing that writes 'email'.
+      source: 'manual',
       dueOn: input.dueOn ?? null, minutesSpent: 0,
       createdBy: auth.sub, createdAt: now, updatedAt: now,
     })
