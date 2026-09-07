@@ -31,9 +31,28 @@ export function TimelineView({
   const [busy, setBusy] = React.useState(false)
   const [announcement, setAnnouncement] = React.useState('')
 
-  const dated = tasks.filter((task) => task.startDate && task.endDate)
+  /**
+   * A task earns a place on the timeline if it carries any date at all.
+   *
+   * Spans are drawn from start→end where both exist. A task with only a due
+   * date becomes a one-day marker on that date rather than being dropped:
+   * most of the imported work has a deadline and no span, and a timeline that
+   * shows a third of the dated tasks is worse than one that shows a marker.
+   */
+  const dated = React.useMemo(() => tasks
+    .map((task) => {
+      const from = task.startDate ?? task.dueOn ?? task.endDate
+      const to = task.endDate ?? task.dueOn ?? task.startDate
+      if (!from || !to) return null
+      // Guard against a reversed pair rather than drawing a negative bar.
+      const [start, end] = from <= to ? [from, to] : [to, from]
+      return { task, start, end, isMarker: !task.startDate || !task.endDate }
+    })
+    .filter((row): row is { task: BoardTask; start: string; end: string; isMarker: boolean } => row !== null),
+  [tasks])
+
   const undated = tasks.length - dated.length
-  const span = timelineSpan(dated)
+  const span = timelineSpan(dated.map((row) => ({ startDate: row.start, endDate: row.end })))
 
   const shift = async (task: BoardTask, days: number) => {
     if (!task.startDate || !task.endDate || days === 0) return
@@ -94,7 +113,7 @@ export function TimelineView({
     return (
       <div className="rounded-md border p-6 text-center">
         <p className="text-sm text-muted-foreground">
-          {t('orva_tasking.noDatedTasks', 'ยังไม่มีงานที่มีทั้งวันเริ่มและวันจบ')}
+          {t('orva_tasking.noDatedTasks', 'ยังไม่มีงานที่ใส่วันไว้')}
         </p>
         {undated > 0 ? (
           <p className="mt-1 text-xs text-muted-foreground">
@@ -119,11 +138,13 @@ export function TimelineView({
           </div>
 
           <ul>
-            {dated.map((task) => {
-              const from = dayIndex(span.from, task.startDate!)
-              const length = dayIndex(task.startDate!, task.endDate!) + 1
+            {dated.map(({ task, start, end, isMarker }) => {
+              const from = dayIndex(span.from, start)
+              const length = dayIndex(start, end) + 1
               const left = (from / span.days) * 100
-              const width = (length / span.days) * 100
+              // A one-day marker would be a hairline at month scale, so give it
+              // a floor wide enough to see and to grab.
+              const width = Math.max((length / span.days) * 100, 1.5)
               return (
                 <li key={task.id} className="flex items-center border-b px-3 py-2 last:border-b-0">
                   <button
@@ -145,16 +166,20 @@ export function TimelineView({
                       }}
                       aria-label={t('orva_tasking.a11y.bar', '{title} · {from} ถึง {to} · ลูกศรซ้ายขวาเลื่อนวัน')
                         .replace('{title}', task.title)
-                        .replace('{from}', task.startDate!)
-                        .replace('{to}', task.endDate!)}
-                      className={`absolute top-1 h-5 cursor-ew-resize rounded px-2 text-left text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                        .replace('{from}', start)
+                        .replace('{to}', end)}
+                      className={`absolute top-1 h-5 cursor-ew-resize rounded text-left text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isMarker ? 'px-0' : 'px-2'} ${
                         task.done ? 'bg-muted-foreground/40' : task.daysOverdue > 0 ? 'bg-status-error-bg' : 'bg-primary'
                       }`}
                       style={{ left: `${left}%`, width: `${width}%` }}
                     >
-                      <span className={`truncate ${task.done || task.daysOverdue > 0 ? '' : 'text-primary-foreground'}`}>
-                        {length} {t('orva_tasking.days', 'วัน')}
-                      </span>
+                      {/* A marker has no duration to state, so it says nothing
+                          rather than claiming "1 วัน" about a deadline. */}
+                      {isMarker ? null : (
+                        <span className={`truncate ${task.done || task.daysOverdue > 0 ? '' : 'text-primary-foreground'}`}>
+                          {length} {t('orva_tasking.days', 'วัน')}
+                        </span>
+                      )}
                     </button>
                   </div>
                 </li>

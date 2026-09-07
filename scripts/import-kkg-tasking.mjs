@@ -116,10 +116,57 @@ const htmlToText = (html) =>
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 
+/**
+ * Vikunja's twelve relation kinds against Orva's three.
+ *
+ * Only the forward halves are listed: Orva writes the inverse itself, so
+ * importing `parenttask` as well would just fight the pair it already wrote.
+ * The nine that are dropped (duplicateof, precedes, copiedfrom and friends)
+ * have no Orva equivalent and are counted rather than silently ignored.
+ */
+const RELATION_MAP = { subtask: 'subtask', blocking: 'blocks', related: 'related' }
+
+/** Vikunja anchors a relative reminder on a named date; Orva shortens it. */
+const REMINDER_ANCHOR = { due_date: 'due', start_date: 'start', end_date: 'end' }
+
+/**
+ * Vikunja repeat modes: 0 = from the original due date, 1 = monthly,
+ * 2 = from the day it was completed.
+ *
+ * Monthly has no fixed number of days, so it is reported rather than turned
+ * into "every 30 days" — a monthly task quietly drifting off its date is worse
+ * than one the owner is told to set again.
+ */
+const REPEAT_MODE = { 0: 'from_due', 2: 'from_completion' }
+
 const hex = (value) => {
   const candidate = `#${String(value ?? '').replace(/^#/, '')}`
   return /^#[0-9a-fA-F]{6}$/.test(candidate) ? candidate.toLowerCase() : '#64748b'
 }
+
+/**
+ * The repeat pair, or neither half.
+ *
+ * Orva's check constraint wants both columns or neither, and separately wants
+ * a date to move forward from. A repeat with nothing to shift would have the
+ * roll worker producing identical copies for ever, so it is dropped here and
+ * counted.
+ */
+function repeatColumns(task, startDate, endDate) {
+  const seconds = Number(task.repeat_after) || 0
+  if (seconds <= 0) return { repeat_every_days: null, repeat_mode: null }
+  const mode = REPEAT_MODE[Number(task.repeat_mode)]
+  const days = Math.round(seconds / 86400)
+  const hasAnchor = Boolean(mapDate(task.due_date) || startDate || endDate)
+  if (!mode || days < 1 || !hasAnchor) {
+    repeatSkips.push(`"${task.title}": ${!mode ? 'monthly repeats have no fixed length' : days < 1 ? 'repeats more often than daily' : 'no date to repeat from'}`)
+    return { repeat_every_days: null, repeat_mode: null }
+  }
+  return { repeat_every_days: days, repeat_mode: mode }
+}
+
+/** Collected by repeatColumns and folded into the report at the end. */
+const repeatSkips = []
 
 // ---------------------------------------------------------------- run
 
@@ -132,6 +179,9 @@ const report = {
   labels: { created: 0, updated: 0 },
   tasks: { created: 0, updated: 0 },
   comments: { created: 0, skipped: 0 },
+  relations: { created: 0, skipped: 0 },
+  reminders: { created: 0, skipped: 0 },
+  repeats: { created: 0, skipped: 0 },
   assignees: { matched: 0, unmatched: 0 },
   warnings: [],
 }
@@ -160,6 +210,10 @@ try {
   const orvaUserCount = userRows.length
 
   const scoped = (kind, id) => `${SOURCE}:${kind}:${id}`
+
+  // Relations can cross projects, so they are applied after every task exists.
+  const orvaTaskId = new Map()
+  const pendingRelations = []
 
   const upsert = async (table, importRef, columns) => {
     const keys = Object.keys(columns)
@@ -316,10 +370,55 @@ try {
         priority: mapPriority(task.priority),
         position: Math.round(Number(task.position) || 0),
         assignee_user_id: null,
+        ...repeatColumns(task, spanOk ? startDate : null, spanOk ? endDate : null),
       })
       report.tasks[taskResult.created ? 'created' : 'updated'] += 1
       const taskId = taskResult.id
       if (!taskId) continue
+      orvaTaskId.set(task.id, taskId)
+
+      // Held for the second pass: the other end may live in a project this
+      // loop has not reached yet.
+      const rel = task.related_tasks && typeof task.related_tasks === 'object' ? task.related_tasks : {}
+      for (const [vikunjaKind, others] of Object.entries(rel)) {
+        if (!Array.isArray(others) || !others.length) continue
+        const kind = RELATION_MAP[vikunjaKind]
+        if (!kind) { report.relations.skipped += others.length; continue }
+        for (const other of others) pendingRelations.push({ from: task.id, to: other.id, kind })
+      }
+
+      // ---- reminders -------------------------------------------------------
+      for (const reminder of Array.isArray(task.reminders) ? task.reminders : []) {
+        const anchor = REMINDER_ANCHOR[reminder.relative_to]
+        const absolute = mapTimestamp(reminder.reminder)
+        // Vikunja counts a period in seconds, negative for "before"; Orva
+        // stores positive minutes before the anchor.
+        const minutes = anchor && reminder.relative_period !== undefined
+          ? Math.round(-Number(reminder.relative_period) / 60)
+          : null
+        const isRelative = Boolean(anchor) && minutes !== null && Number.isFinite(minutes)
+        if (!isRelative && !absolute) { report.reminders.skipped += 1; continue }
+        if (DRY) { report.reminders.created += 1; continue }
+        // No import_ref on this table, so existence is checked on the values
+        // themselves. That keeps a re-run from stacking duplicates without
+        // wiping a reminder someone added in Orva by hand.
+        const { rows: already } = await client.query(
+          `select id from orva_tasking_task_reminders
+           where task_id = $1
+             and coalesce(remind_at::text, '') = coalesce($2::timestamptz::text, '')
+             and coalesce(relative_to, '') = coalesce($3, '')
+             and coalesce(relative_minutes, -999999) = coalesce($4, -999999)`,
+          [taskId, isRelative ? null : absolute, isRelative ? anchor : null, isRelative ? minutes : null],
+        )
+        if (already.length) continue
+        await client.query(
+          `insert into orva_tasking_task_reminders
+             (tenant_id, organization_id, task_id, remind_at, relative_to, relative_minutes, created_at, updated_at)
+           values ($1, $2, $3, $4, $5, $6, now(), now())`,
+          [tenantId, organizationId, taskId, isRelative ? null : absolute, isRelative ? anchor : null, isRelative ? minutes : null],
+        )
+        report.reminders.created += 1
+      }
 
       if (Array.isArray(task.assignees) && task.assignees.length) {
         // Reported, not guessed: Orva emails are encrypted so they cannot be
@@ -370,6 +469,32 @@ try {
     }
   }
 
+  // ---- relations, once every task has an Orva id ----------------------------
+  for (const link of pendingRelations) {
+    const from = orvaTaskId.get(link.from)
+    const to = orvaTaskId.get(link.to)
+    // The other end can be missing legitimately: it may live in the Inbox or
+    // an archived project, both of which this importer skips.
+    if (!from || !to || from === to) { report.relations.skipped += 1; continue }
+    if (DRY) { report.relations.created += 1; continue }
+    const inverse = { subtask: 'parent', blocks: 'blocked_by', related: 'related' }[link.kind]
+    try {
+      // Both directions, as the API does, so reading one task never needs a
+      // union. `on conflict do nothing` makes a re-run a no-op.
+      await client.query(
+        `insert into orva_tasking_task_relations
+           (tenant_id, organization_id, task_id, other_task_id, kind, created_at)
+         values ($1, $2, $3, $4, $5, now()), ($1, $2, $4, $3, $6, now())
+         on conflict ("task_id", "other_task_id", "kind") do nothing`,
+        [tenantId, organizationId, from, to, link.kind, inverse],
+      )
+      report.relations.created += 1
+    } catch (error) {
+      report.relations.skipped += 1
+      report.warnings.push(`could not link two tasks: ${error.message.slice(0, 120)}`)
+    }
+  }
+
   // ---------------------------------------------------------------- report
   console.log('')
   console.log(DRY ? '--- DRY RUN — nothing was written ---' : '--- imported ---')
@@ -390,6 +515,10 @@ try {
     console.log(`NOTE: ${report.comments.skipped} comments were skipped.`)
     console.log('      Set KKG_IMPORT_FALLBACK_USER to an Orva user uuid to bring them in;')
     console.log('      each keeps its original author in the text.')
+  }
+  for (const skip of repeatSkips) {
+    report.repeats.skipped += 1
+    report.warnings.push(`repeat not carried across for ${skip}`)
   }
   if (report.warnings.length) {
     console.log('')

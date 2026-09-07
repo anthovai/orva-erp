@@ -63,10 +63,27 @@ export default function TasksPage() {
       (await readApiResultOrThrow<{ items: { id: string; name: string }[] }>('/api/orva_tasking/assignees')).items,
   })
 
-  const active = React.useMemo(() => {
-    const list = (projects.data?.items ?? []).filter((project) => !project.isArchived)
-    return list.find((project) => project.id === projectId) ?? list[0] ?? null
-  }, [projects.data, projectId])
+  /**
+   * Projects with unfinished, overdue work first, then the busiest.
+   *
+   * With one project the order is irrelevant; with eight — which is what the
+   * KKG-Tasking import brought over — a flat alphabetical list buries the one
+   * that needs attention.
+   */
+  const visibleProjects = React.useMemo(() => (
+    (projects.data?.items ?? [])
+      .filter((project) => !project.isArchived)
+      .sort((a, b) => b.overdue - a.overdue || (b.total - b.done) - (a.total - a.done) || a.name.localeCompare(b.name, 'th'))
+  ), [projects.data])
+
+  // Derived from the sorted list, so opening the page lands on the same
+  // project the picker puts at the top. Reading them from two differently
+  // ordered lists showed the picker sorted by lateness while selecting
+  // whichever project the API happened to return first.
+  const active = React.useMemo(
+    () => visibleProjects.find((project) => project.id === projectId) ?? visibleProjects[0] ?? null,
+    [visibleProjects, projectId],
+  )
 
   // The board and the timeline always need the whole project — a board that
   // hides finished cards has no Done column worth looking at.
@@ -174,7 +191,6 @@ export default function TasksPage() {
   const toggleDone = (task: BoardTask) =>
     send({ id: task.id, done: !task.done, updatedAt: task.updatedAt }, 'PUT', '/api/orva_tasking/tasks')
 
-  const visibleProjects = (projects.data?.items ?? []).filter((project) => !project.isArchived)
   const viewLabel: Record<View, string> = {
     table: t('orva_tasking.view.table', 'ตาราง'),
     board: t('orva_tasking.view.board', 'บอร์ด'),
@@ -211,23 +227,36 @@ export default function TasksPage() {
 
         {projects.isLoading ? <p className="text-sm text-muted-foreground">…</p> : null}
 
+        {/*
+          A picker rather than a wall of chips. Chips read well up to about
+          five projects and then wrap into rows that have to be scanned; a
+          select stays one line however many projects there are, and typing
+          jumps to one by name. The counts stay in the option text so the
+          picker still answers "which one is behind" without opening it.
+        */}
         {visibleProjects.length > 0 ? (
-          <div className="mb-4 flex flex-wrap gap-2">
-            {visibleProjects.map((project) => (
-              <button
-                key={project.id}
-                type="button"
-                onClick={() => setProjectId(project.id)}
-                aria-pressed={active?.id === project.id}
-                className={`rounded-full border px-3 py-1.5 text-sm ${active?.id === project.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
-              >
-                {project.name}
-                <span className="ml-2 tabular-nums opacity-70">{project.done}/{project.total}</span>
-                {project.overdue > 0 ? (
-                  <span className="ml-1.5 rounded-full bg-status-error-bg px-1.5 text-xs text-status-error-text">{project.overdue}</span>
-                ) : null}
-              </button>
-            ))}
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <label className="text-sm text-muted-foreground" htmlFor="project-picker">
+              {t('orva_tasking.pickProject', 'โปรเจกต์')}
+            </label>
+            <select
+              id="project-picker"
+              className="min-w-72 max-w-full rounded-md border bg-background px-3 py-2 text-sm"
+              value={active?.id ?? ''}
+              onChange={(event) => setProjectId(event.target.value)}
+            >
+              {visibleProjects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name} · {project.done}/{project.total}
+                  {project.overdue > 0
+                    ? ' · ' + t('orva_tasking.overdueShort', 'เลยกำหนด {n}').replace('{n}', String(project.overdue))
+                    : ''}
+                </option>
+              ))}
+            </select>
+            <span className="text-xs text-muted-foreground">
+              {t('orva_tasking.projectCount', '{n} โปรเจกต์').replace('{n}', String(visibleProjects.length))}
+            </span>
           </div>
         ) : null}
 
@@ -254,32 +283,41 @@ export default function TasksPage() {
                 <div className="h-full rounded-full bg-primary" style={{ width: `${active.donePct}%` }} />
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={active.customerVisible ? 'outline' : 'default'}
-                  onClick={togglePublish}
-                  disabled={publishing || !active.quoteId}
-                >
-                  {active.customerVisible
-                    ? t('orva_tasking.unpublish', 'ปิดไม่ให้ลูกค้าดู')
-                    : t('orva_tasking.publish', 'ให้ลูกค้าดูได้')}
-                </Button>
-                {active.customerVisible ? (
-                  <span className="rounded-full bg-status-success-bg px-2 py-0.5 text-xs text-status-success-text">
-                    {t('orva_tasking.publishedBadge', 'ลูกค้าดูได้')}
-                  </span>
-                ) : null}
-                {!active.quoteId ? (
-                  <span className="text-xs text-muted-foreground">
-                    {t('orva_tasking.publishNeedsQuote', 'ต้องผูกใบเสนอราคาก่อน จึงจะรู้ว่าลูกค้ารายไหนควรเห็น')}
-                  </span>
-                ) : null}
-              </div>
+              {/* Only speaks up when there is something to do: a published
+                  project says so, an unlinked one explains why it cannot be. */}
+              {active.quoteId || active.customerVisible ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={active.customerVisible ? 'outline' : 'default'}
+                    onClick={togglePublish}
+                    disabled={publishing}
+                  >
+                    {active.customerVisible
+                      ? t('orva_tasking.unpublish', 'ปิดไม่ให้ลูกค้าดู')
+                      : t('orva_tasking.publish', 'ให้ลูกค้าดูได้')}
+                  </Button>
+                  {active.customerVisible ? (
+                    <span className="rounded-full bg-status-success-bg px-2 py-0.5 text-xs text-status-success-text">
+                      {t('orva_tasking.publishedBadge', 'ลูกค้าดูได้')}
+                    </span>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
+                  {t('orva_tasking.publishNeedsQuote', 'ต้องผูกใบเสนอราคาก่อน จึงจะรู้ว่าลูกค้ารายไหนควรเห็น')}
+                </p>
+              )}
             </div>
 
-            <div className="mb-4 flex flex-wrap gap-1" role="tablist" aria-label={t('orva_tasking.viewSwitcher', 'มุมมอง')}>
+            {/* One joined control, so the selected view is obvious at a glance
+                rather than three loose buttons with a faint highlight. */}
+            <div
+              className="mb-4 inline-flex overflow-hidden rounded-md border"
+              role="tablist"
+              aria-label={t('orva_tasking.viewSwitcher', 'มุมมอง')}
+            >
               {VIEWS.map((candidate) => (
                 <button
                   key={candidate}
@@ -287,7 +325,11 @@ export default function TasksPage() {
                   role="tab"
                   aria-selected={view === candidate}
                   onClick={() => setView(candidate)}
-                  className={`rounded-md border px-3 py-1.5 text-sm ${view === candidate ? 'bg-muted font-medium' : 'hover:bg-muted'}`}
+                  className={`border-r px-4 py-1.5 text-sm last:border-r-0 ${
+                    view === candidate
+                      ? 'bg-primary font-medium text-primary-foreground'
+                      : 'hover:bg-muted'
+                  }`}
                 >
                   {viewLabel[candidate]}
                 </button>
