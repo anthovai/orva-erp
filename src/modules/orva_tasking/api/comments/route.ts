@@ -10,6 +10,7 @@ import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
 import { Task, TaskComment } from '../../data/entities'
 import { commentCreateSchema, commentDeleteSchema, commentListSchema, commentUpdateSchema } from '../../data/validators'
+import { raise } from '../../lib/notify'
 
 export const metadata = {
   GET: { requireAuth: true, requireFeatures: ['orva_tasking.view'] },
@@ -131,9 +132,16 @@ export async function POST(req: Request) {
       })
       tem.persist(comment)
       await tem.flush()
-      return { id: comment.id }
+      return { id: comment.id, taskTitle: task.title }
     })
-    return Response.json({ ok: true, ...created })
+    await raise(container, 'orva_tasking.comment.created', {
+      tenantId: auth.tenantId,
+      organizationId,
+      taskId: input.taskId,
+      groupKey: `orva_tasking.comment:${created.id}`,
+      bodyVariables: { title: created.taskTitle },
+    })
+    return Response.json({ ok: true, id: created.id })
   } catch (error) {
     const status = (error as { status?: number }).status ?? 500
     return Response.json({ error: error instanceof Error ? error.message : 'Could not save the comment' }, { status })

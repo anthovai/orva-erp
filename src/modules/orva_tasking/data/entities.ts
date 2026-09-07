@@ -70,6 +70,14 @@ export class TaskProject {
   @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
   updatedAt: Date = new Date()
 
+  /**
+   * Where this row came from when it was not typed into Orva, e.g.
+   * `kkg-tasking:task:412`. Uniquely indexed per tenant, which is what makes
+   * the importer re-runnable instead of duplicating on every run.
+   */
+  @Property({ name: 'import_ref', type: 'text', nullable: true })
+  importRef?: string | null
+
   @Property({ name: 'deleted_at', type: Date, nullable: true })
   deletedAt?: Date | null
 }
@@ -169,6 +177,30 @@ export class Task {
   @Property({ name: 'customer_visible', type: 'boolean' })
   customerVisible: boolean = true
 
+  /**
+   * How often the task comes back, in days. Null means it does not.
+   *
+   * `from_due` keeps the original rhythm even when the work finished late;
+   * `from_completion` measures from when it was actually ticked off.
+   */
+  @Property({ name: 'repeat_every_days', type: 'int', nullable: true })
+  repeatEveryDays?: number | null
+
+  @Property({ name: 'repeat_mode', type: 'text', nullable: true })
+  repeatMode?: 'from_due' | 'from_completion' | null
+
+  /**
+   * Which completed task this one was rolled from, and for which occurrence.
+   *
+   * The pair is uniquely indexed, which is what makes the roll worker
+   * idempotent: a second run finds the successor already there.
+   */
+  @Property({ name: 'repeat_source_id', type: 'uuid', nullable: true })
+  repeatSourceId?: string | null
+
+  @Property({ name: 'repeat_occurrence', type: 'date', nullable: true })
+  repeatOccurrence?: string | null
+
   @Property({ name: 'created_by', type: 'uuid', nullable: true })
   createdBy?: string | null
 
@@ -177,6 +209,14 @@ export class Task {
 
   @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
   updatedAt: Date = new Date()
+
+  /**
+   * Where this row came from when it was not typed into Orva, e.g.
+   * `kkg-tasking:task:412`. Uniquely indexed per tenant, which is what makes
+   * the importer re-runnable instead of duplicating on every run.
+   */
+  @Property({ name: 'import_ref', type: 'text', nullable: true })
+  importRef?: string | null
 
   @Property({ name: 'deleted_at', type: Date, nullable: true })
   deletedAt?: Date | null
@@ -213,6 +253,14 @@ export class TaskLabel {
 
   @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
   updatedAt: Date = new Date()
+
+  /**
+   * Where this row came from when it was not typed into Orva, e.g.
+   * `kkg-tasking:task:412`. Uniquely indexed per tenant, which is what makes
+   * the importer re-runnable instead of duplicating on every run.
+   */
+  @Property({ name: 'import_ref', type: 'text', nullable: true })
+  importRef?: string | null
 
   @Property({ name: 'deleted_at', type: Date, nullable: true })
   deletedAt?: Date | null
@@ -335,6 +383,14 @@ export class TaskComment {
   @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
   updatedAt: Date = new Date()
 
+  /**
+   * Where this row came from when it was not typed into Orva, e.g.
+   * `kkg-tasking:task:412`. Uniquely indexed per tenant, which is what makes
+   * the importer re-runnable instead of duplicating on every run.
+   */
+  @Property({ name: 'import_ref', type: 'text', nullable: true })
+  importRef?: string | null
+
   @Property({ name: 'deleted_at', type: Date, nullable: true })
   deletedAt?: Date | null
 }
@@ -429,6 +485,61 @@ export class TaskBucket {
   @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
   updatedAt: Date = new Date()
 
+  /**
+   * Where this row came from when it was not typed into Orva, e.g.
+   * `kkg-tasking:task:412`. Uniquely indexed per tenant, which is what makes
+   * the importer re-runnable instead of duplicating on every run.
+   */
+  @Property({ name: 'import_ref', type: 'text', nullable: true })
+  importRef?: string | null
+
   @Property({ name: 'deleted_at', type: Date, nullable: true })
   deletedAt?: Date | null
+}
+
+/**
+ * When to remind someone about a task.
+ *
+ * Either an absolute moment or an offset from one of the task's own dates,
+ * never both — a row that was both would fire twice. `lastFiredAt` is what
+ * keeps a re-run, a retry and a second tick of the schedule from nagging
+ * three times about the same thing.
+ */
+@Entity({ tableName: 'orva_tasking_task_reminders' })
+@Index({ properties: ['tenantId', 'taskId'] })
+export class TaskReminder {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ name: 'task_id', type: 'uuid' })
+  taskId!: string
+
+  @Property({ name: 'remind_at', type: Date, nullable: true })
+  remindAt?: Date | null
+
+  /** `due` · `start` · `end` — which of the task's dates to measure from. */
+  @Property({ name: 'relative_to', type: 'text', nullable: true })
+  relativeTo?: 'due' | 'start' | 'end' | null
+
+  /** Minutes before the anchor; negative means after it. */
+  @Property({ name: 'relative_minutes', type: 'int', nullable: true })
+  relativeMinutes?: number | null
+
+  @Property({ name: 'last_fired_at', type: Date, nullable: true })
+  lastFiredAt?: Date | null
+
+  @Property({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
 }

@@ -33,6 +33,16 @@ const projectSchema = z.object({
   remainingToBill: z.number(),
   remainingToCollect: z.number(),
   openTickets: z.number().int(),
+  tasksTotal: z.number().int(),
+  tasksDone: z.number().int(),
+  /** Null when no tasks are listed — never 0, which would read as alarming. */
+  workPct: z.number().nullable(),
+  drift: z.discriminatedUnion('verdict', [
+    z.object({ verdict: z.literal('no_tasks') }),
+    z.object({ verdict: z.literal('bill_behind'), gap: z.number() }),
+    z.object({ verdict: z.literal('work_behind'), gap: z.number() }),
+    z.object({ verdict: z.literal('in_step'), gap: z.number() }),
+  ]),
 })
 
 /** Every quote as a project with its installment-billing progress. */

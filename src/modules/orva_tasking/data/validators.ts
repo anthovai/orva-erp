@@ -65,6 +65,9 @@ export const taskUpdateSchema = z.object({
   assigneeUserId: z.string().uuid().optional().nullable(),
   /** When present, replaces the whole set — absent leaves labels untouched. */
   labelIds: z.array(z.string().uuid()).max(20).optional(),
+  /** How often the task comes back; null turns repeating off. */
+  repeatEveryDays: z.coerce.number().int().min(1).max(3650).optional().nullable(),
+  repeatMode: z.enum(['from_due', 'from_completion']).optional().nullable(),
   /** Optimistic lock — the row's updatedAt as read. */
   updatedAt: z.string().min(1),
 })
@@ -182,3 +185,25 @@ export const portalCommentSchema = z.object({
   taskId: z.string().uuid(),
   body: z.string().trim().min(1).max(4000),
 })
+
+export const reminderListSchema = z.object({ taskId: z.string().uuid() })
+
+/**
+ * A reminder is either an absolute moment or an offset from one of the task's
+ * own dates. The refine mirrors the database's own check constraint, so a bad
+ * payload is refused with a field error rather than a 500.
+ */
+export const reminderCreateSchema = z.object({
+  taskId: z.string().uuid(),
+  remindAt: z.string().datetime().optional().nullable(),
+  relativeTo: z.enum(['due', 'start', 'end']).optional().nullable(),
+  /** Minutes before the anchor; negative means after it. */
+  relativeMinutes: z.coerce.number().int().min(-525600).max(525600).optional().nullable(),
+}).refine(
+  (v) => (v.remindAt != null) !== (v.relativeTo != null && v.relativeMinutes != null),
+  { message: 'ต้องเลือกอย่างใดอย่างหนึ่ง: เวลาที่แน่นอน หรือระยะก่อนวันของงาน', path: ['remindAt'] },
+)
+
+export const reminderDeleteSchema = z.object({ id: z.string().uuid() })
+
+export const REPEAT_MODES = ['from_due', 'from_completion'] as const

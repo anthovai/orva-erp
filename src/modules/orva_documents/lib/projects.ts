@@ -2,6 +2,7 @@ import type { EntityManager } from '@mikro-orm/postgresql'
 import { findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
 import { SalesQuote } from '@open-mercato/core/modules/sales/data/entities'
 import { jsonRecord, snapshotName } from './source'
+import { donePct, workVsBilling, type WorkVsBilling } from '@/modules/orva_tasking/lib/progress'
 
 /**
  * โปรเจกต์ = ใบเสนอราคา. Kaiser Klowns sells software projects billed in
@@ -65,6 +66,17 @@ export type ProjectRow = ProjectProgress & {
   lastInvoiceDate: string | null
   /** open support tickets (open + in_progress + waiting_customer) linked to this project */
   openTickets: number
+  /** tasks written down for this project, and how many are finished */
+  tasksTotal: number
+  tasksDone: number
+  /**
+   * % of the project's tasks finished, or null when nobody has written any
+   * down. Null rather than 0 on purpose: "0% done" beside "30% billed" reads
+   * as alarming when the truth is simply that the work is not listed yet.
+   */
+  workPct: number | null
+  /** How the two percentages compare — the reason this pairing exists. */
+  drift: WorkVsBilling
 }
 
 type InvoiceAggregate = {
@@ -127,11 +139,30 @@ export async function listProjects(
     : []
   const ticketMap = new Map(ticketRows.map((r) => [r.quote_id, r.cnt]))
 
+  // Work progress, joined by the same scalar quote id — no cross-module ORM
+  // relation, and one query for the whole page rather than one per project.
+  const taskRows = quoteIds.length > 0
+    ? (await tem.execute(
+        `select p.quote_id::text as quote_id,
+                count(t.id)::int as total,
+                count(t.id) filter (where t.done)::int as done
+         from orva_tasking_projects p
+         left join orva_tasking_tasks t on t.project_id = p.id and t.deleted_at is null
+         where p.deleted_at is null and p.tenant_id = ?::uuid
+           and p.quote_id = any(?::uuid[])
+         group by 1`,
+        [scope.tenantId, `{${quoteIds.join(',')}}`],
+      )) as Array<{ quote_id: string; total: number; done: number }>
+    : []
+  const taskMap = new Map(taskRows.map((r) => [r.quote_id, { total: r.total, done: r.done }]))
+
   return quotes.map((quote) => {
     const agg = byQuote.get(quote.id)
     const quoteTotal = Number(quote.grandTotalGrossAmount ?? 0)
     const billed = Number(agg?.billed ?? 0)
     const paid = Number(agg?.paid ?? 0)
+    const progress = projectProgress({ quoteTotal, billed, paid })
+    const counts = taskMap.get(quote.id) ?? { total: 0, done: 0 }
     return {
       quoteId: quote.id,
       quoteNumber: quote.quoteNumber,
@@ -146,7 +177,11 @@ export async function listProjects(
       paid,
       lastInvoiceDate: agg?.last_issue ?? null,
       openTickets: ticketMap.get(quote.id) ?? 0,
-      ...projectProgress({ quoteTotal, billed, paid }),
+      tasksTotal: counts.total,
+      tasksDone: counts.done,
+      workPct: counts.total > 0 ? donePct(counts) : null,
+      drift: workVsBilling(counts, progress.billedPct),
+      ...progress,
     }
   })
 }

@@ -9,6 +9,7 @@ import { withTenantRls } from '@/lib/rls'
 import { Task, TaskProject } from '../../data/entities'
 import { taskCreateSchema, taskListSchema, taskUpdateSchema } from '../../data/validators'
 import { toUuidArray } from '../../lib/sql'
+import { raise } from '../../lib/notify'
 
 export const metadata = {
   GET: { requireAuth: true, requireFeatures: ['orva_tasking.view'] },
@@ -32,6 +33,8 @@ const taskSchema = z.object({
   identifier: z.string(),
   bucketId: z.string().nullable(),
   assigneeUserId: z.string().nullable(),
+  repeatEveryDays: z.number().nullable(),
+  repeatMode: z.string().nullable(),
   daysOverdue: z.number(),
   priority: z.number(),
   labels: z.array(labelChipSchema),
@@ -47,6 +50,8 @@ type Row = {
   percent_done: number; identifier_index: number; project_name: string
   bucket_id: string | null
   assignee_user_id: string | null
+  repeat_every_days: number | null
+  repeat_mode: 'from_due' | 'from_completion' | null
   priority: number; comment_count: number; relation_count: number
   labels: { id: string; title: string; hexColor: string }[] | null
   updated_at: string
@@ -112,6 +117,7 @@ export async function GET(req: Request) {
               to_char(t.end_date, 'YYYY-MM-DD') as end_date,
               t.percent_done, t.identifier_index, p.name as project_name,
               t.bucket_id::text, t.assignee_user_id::text,
+              t.repeat_every_days, t.repeat_mode,
               t.priority, t.updated_at::text,
               (select count(*)::int from orva_tasking_task_comments c
                 where c.task_id = t.id and c.deleted_at is null) as comment_count,
@@ -163,6 +169,8 @@ export async function GET(req: Request) {
       identifier: `${row.project_name}-${row.identifier_index}`,
       bucketId: row.bucket_id,
       assigneeUserId: row.assignee_user_id,
+      repeatEveryDays: row.repeat_every_days,
+      repeatMode: row.repeat_mode,
       daysOverdue: !row.done && row.due_on ? Math.max(0, daysBetween(row.due_on, today)) : 0,
       priority: row.priority,
       labels: row.labels ?? [],
@@ -268,7 +276,14 @@ export async function PUT(req: Request) {
       if (input.endDate !== undefined) task.endDate = input.endDate
       if (input.percentDone !== undefined) task.percentDone = input.percentDone
       if (input.priority !== undefined) task.priority = input.priority
+      const previousAssignee = task.assigneeUserId ?? null
       if (input.assigneeUserId !== undefined) task.assigneeUserId = input.assigneeUserId
+      if (input.repeatEveryDays !== undefined) task.repeatEveryDays = input.repeatEveryDays
+      if (input.repeatMode !== undefined) task.repeatMode = input.repeatMode
+      // Turning repeating off clears both halves, so the check constraint that
+      // requires them together cannot be left half-satisfied.
+      if (input.repeatEveryDays === null) task.repeatMode = null
+      if (task.repeatEveryDays && !task.repeatMode) task.repeatMode = 'from_due'
       // Only the fields that arrived are touched, so a partial edit from the
       // drawer cannot silently clear a date the form never showed. The dates
       // are re-checked together because one may be arriving while the other
@@ -290,8 +305,42 @@ export async function PUT(req: Request) {
       if (input.labelIds !== undefined) {
         await syncLabels(tem, auth.tenantId!, organizationId, task.id, input.labelIds)
       }
-      return { id: task.id, done: task.done, updatedAt: task.updatedAt.toISOString() }
+
+      // A reminder that measures from a date the task no longer has points at
+      // nothing. Rather than leaving it in the table to be filtered out of
+      // every scan for ever, it goes with the date.
+      const orphanedAnchors = (['due', 'start', 'end'] as const).filter((anchor) => {
+        const value = anchor === 'due' ? task.dueOn : anchor === 'start' ? task.startDate : task.endDate
+        return !value
+      })
+      if (orphanedAnchors.length) {
+        await tem.execute(
+          `delete from orva_tasking_task_reminders
+           where task_id = ?::uuid and relative_to = any(?::text[])`,
+          [task.id, `{${orphanedAnchors.join(',')}}`],
+        )
+      }
+
+      return {
+        id: task.id,
+        done: task.done,
+        updatedAt: task.updatedAt.toISOString(),
+        assigneeChangedTo: input.assigneeUserId !== undefined && input.assigneeUserId !== previousAssignee
+          ? task.assigneeUserId ?? null
+          : undefined,
+        title: task.title,
+      }
     })
+    // Post-commit, and never able to fail the save: the work is already stored.
+    if (saved.assigneeChangedTo) {
+      await raise(container, 'orva_tasking.task.assigned', {
+        tenantId: auth.tenantId,
+        organizationId,
+        taskId: saved.id,
+        groupKey: `orva_tasking.assigned:${saved.id}:${saved.assigneeChangedTo}`,
+        bodyVariables: { title: saved.title },
+      })
+    }
     return Response.json({ ok: true, ...saved })
   } catch (error) {
     const status = (error as { status?: number }).status ?? 500

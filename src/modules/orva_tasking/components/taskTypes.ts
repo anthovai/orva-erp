@@ -13,6 +13,8 @@ export type BoardTask = {
   identifier: string
   bucketId: string | null
   assigneeUserId: string | null
+  repeatEveryDays: number | null
+  repeatMode: 'from_due' | 'from_completion' | null
   labels: { id: string; title: string; hexColor: string }[]
   commentCount: number
   relationCount: number

@@ -2112,6 +2112,18 @@
       "rule": "inline-style",
       "match": "style=",
       "reason": "A progress bar width is a computed percentage. Colour and shape come from tokens (bg-primary, rounded-full); only the width is inline, and a fill that cannot vary is not a progress bar."
+    },
+    {
+      "file": "src/modules/orva_documents/backend/projects/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "The billed and paid bars are computed percentages of the quotation total. Colour and shape come from tokens (bg-primary, bg-primary/30, rounded-full); only the width is inline, and a fill that cannot vary is not a progress bar. Pre-existing; the exception is written down now that this file gained the work-progress column beside them."
+    },
+    {
+      "file": "src/modules/orva_documents/backend/projects/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "The billed and paid bars are computed percentages of the quotation total. Colour and shape come from tokens (bg-primary, bg-primary/30, rounded-full); only the width is inline, and a fill that cannot vary is not a progress bar. Pre-existing; the exception is written down now that this file gained the work-progress column beside them."
     }
   ]
 }

@@ -1,5 +1,6 @@
 "use client"
 import * as React from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Page, PageBody } from '@open-mercato/ui/backend/Page'
 import { DataTable } from '@open-mercato/ui/backend/DataTable'
@@ -37,6 +38,14 @@ type ProjectRow = {
   remainingToBill: number
   remainingToCollect: number
   openTickets: number
+  tasksTotal: number
+  tasksDone: number
+  workPct: number | null
+  drift:
+    | { verdict: 'no_tasks' }
+    | { verdict: 'bill_behind'; gap: number }
+    | { verdict: 'work_behind'; gap: number }
+    | { verdict: 'in_step'; gap: number }
 }
 
 const money = (value: number, currency: string) =>
@@ -113,6 +122,56 @@ export default function OrvaProjectsPage() {
           </span>
         </div>
       ),
+    },
+    {
+      /**
+       * The reason the tasking module exists: งาน% next to เรียกเก็บ%.
+       *
+       * A project with no tasks written down reads "ยังไม่ได้ลงงาน", never 0% —
+       * zero beside 30% billed looks alarming when the truth is only that
+       * nobody has listed the work yet.
+       */
+      id: 'work',
+      header: t('orva_documents.projects.column.work', 'งานที่ทำจริง'),
+      cell: ({ row }: { row: { original: ProjectRow } }) => {
+        const { workPct, drift, tasksDone, tasksTotal } = row.original
+        if (workPct === null) {
+          return (
+            <Link
+              href="/backend/tasking"
+              className="text-xs text-muted-foreground hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {t('orva_documents.projects.noTasks', 'ยังไม่ได้ลงงาน')}
+            </Link>
+          )
+        }
+        const driftLabel =
+          drift.verdict === 'bill_behind'
+            ? t('orva_documents.projects.billBehind', 'งานนำเงิน {gap} จุด — ถึงเวลาออกงวดถัดไป')
+                .replace('{gap}', String(drift.gap))
+            : drift.verdict === 'work_behind'
+              ? t('orva_documents.projects.workBehind', 'เงินนำงาน {gap} จุด')
+                  .replace('{gap}', String(drift.gap))
+              : null
+        return (
+          <div className="flex flex-col gap-1">
+            <span className="tabular-nums text-sm">
+              {t('orva_documents.projects.workText', 'ทำแล้ว {pct}% ({done}/{total})')
+                .replace('{pct}', String(workPct))
+                .replace('{done}', String(tasksDone))
+                .replace('{total}', String(tasksTotal))}
+            </span>
+            {driftLabel ? (
+              <span
+                className={`text-xs ${drift.verdict === 'bill_behind' ? 'text-status-warning-text' : 'text-muted-foreground'}`}
+              >
+                {driftLabel}
+              </span>
+            ) : null}
+          </div>
+        )
+      },
     },
     {
       id: 'installments',

@@ -30,6 +30,19 @@ type Comment = {
   isFromCustomer: boolean; editedAt: string | null; createdAt: string
 }
 type Relation = { otherTaskId: string; kind: string; title: string; done: boolean; identifier: string }
+type Reminder = {
+  id: string; remindAt: string | null; relativeTo: string | null
+  relativeMinutes: number | null; lastFiredAt: string | null
+}
+
+/** The lead times people actually pick, rather than a free-form minute box. */
+const LEAD_TIMES: { key: string; minutes: number }[] = [
+  { key: '15m', minutes: 15 },
+  { key: '1h', minutes: 60 },
+  { key: '1d', minutes: 24 * 60 },
+  { key: '3d', minutes: 3 * 24 * 60 },
+  { key: '1w', minutes: 7 * 24 * 60 },
+]
 type SiblingTask = { id: string; title: string; identifier: string }
 
 const RELATION_KINDS = ['subtask', 'blocks', 'related'] as const
@@ -59,6 +72,8 @@ export function TaskDrawer({
   const [relationKind, setRelationKind] = React.useState<(typeof RELATION_KINDS)[number]>('subtask')
   const [relationTarget, setRelationTarget] = React.useState('')
   const [newLabel, setNewLabel] = React.useState('')
+  const [reminderAnchor, setReminderAnchor] = React.useState<'due' | 'start' | 'end'>('due')
+  const [reminderLead, setReminderLead] = React.useState('')
   const [busy, setBusy] = React.useState(false)
 
   React.useEffect(() => { setDraft(task) }, [task])
@@ -79,6 +94,11 @@ export function TaskDrawer({
   const relations = useQuery({
     queryKey: ['orva_tasking.relations', taskId],
     queryFn: async () => (await readApiResultOrThrow<{ items: Relation[] }>(`/api/orva_tasking/relations?taskId=${taskId!}`)).items,
+    enabled: open && Boolean(taskId),
+  })
+  const reminders = useQuery({
+    queryKey: ['orva_tasking.reminders', taskId],
+    queryFn: async () => (await readApiResultOrThrow<{ items: Reminder[] }>('/api/orva_tasking/reminders?taskId=' + taskId!)).items,
     enabled: open && Boolean(taskId),
   })
   const siblings = useQuery({
@@ -120,6 +140,8 @@ export function TaskDrawer({
       percentDone: draft.percentDone,
       priority: draft.priority,
       assigneeUserId: draft.assigneeUserId,
+      repeatEveryDays: draft.repeatEveryDays,
+      repeatMode: draft.repeatMode,
       labelIds: draft.labels.map((label) => label.id),
       updatedAt: task.updatedAt,
     })
@@ -158,6 +180,36 @@ export function TaskDrawer({
       const created = refreshed.find((label) => label.title === title)
       if (created) toggleLabel(created)
     }
+  }
+
+  const addReminder = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!taskId || !reminderLead) return
+    const minutes = LEAD_TIMES.find((lead) => lead.key === reminderLead)?.minutes
+    if (minutes === undefined) return
+    const ok = await send('/api/orva_tasking/reminders', 'POST', {
+      taskId, relativeTo: reminderAnchor, relativeMinutes: minutes,
+    })
+    if (ok) {
+      setReminderLead('')
+      await qc.invalidateQueries({ queryKey: ['orva_tasking.reminders', taskId] })
+    }
+  }
+
+  const removeReminder = async (id: string) => {
+    const ok = await send('/api/orva_tasking/reminders', 'DELETE', { id })
+    if (ok) await qc.invalidateQueries({ queryKey: ['orva_tasking.reminders', taskId] })
+  }
+
+  const anchorLabel = (anchor: string) => ({
+    due: t('orva_tasking.reminder.anchor.due', 'due date'),
+    start: t('orva_tasking.reminder.anchor.start', 'start date'),
+    end: t('orva_tasking.reminder.anchor.end', 'end date'),
+  }[anchor] ?? anchor)
+
+  const leadLabel = (minutes: number) => {
+    const lead = LEAD_TIMES.find((candidate) => candidate.minutes === minutes)
+    return lead ? t('orva_tasking.reminder.' + lead.key, lead.key) : String(minutes) + ' min'
   }
 
   const addComment = async (event: React.FormEvent) => {
@@ -398,7 +450,116 @@ export function TaskDrawer({
           </section>
 
           <section className="space-y-2">
-            <h3 className="text-sm font-medium">{t('orva_tasking.field.comments', 'คอมเมนต์')}</h3>
+            <h3 className="text-sm font-medium">{t('orva_tasking.field.reminders', 'Reminders')}</h3>
+            {reminders.data?.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t('orva_tasking.noReminders', 'No reminders set')}</p>
+            ) : null}
+            <ul className="space-y-1">
+              {(reminders.data ?? []).map((reminder) => (
+                <li key={reminder.id} className="flex items-center gap-2 text-sm">
+                  <span>
+                    {reminder.relativeTo && reminder.relativeMinutes !== null
+                      ? t('orva_tasking.reminder.before', '{label} before the {anchor}')
+                          .replace('{anchor}', anchorLabel(reminder.relativeTo))
+                          .replace('{label}', leadLabel(reminder.relativeMinutes))
+                      : t('orva_tasking.reminder.at', 'at {when}')
+                          .replace('{when}', (reminder.remindAt ?? '').slice(0, 16).replace('T', ' '))}
+                  </span>
+                  {reminder.lastFiredAt ? (
+                    <span className="rounded bg-muted px-1.5 py-0.5 text-xs">
+                      {t('orva_tasking.reminder.fired', 'already sent')}
+                    </span>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="ml-auto"
+                    disabled={busy}
+                    onClick={() => removeReminder(reminder.id)}
+                  >
+                    {t('orva_tasking.unlink', 'Remove')}
+                  </Button>
+                </li>
+              ))}
+            </ul>
+            <form onSubmit={addReminder} className="flex flex-wrap items-end gap-2">
+              <select
+                aria-label={t('orva_tasking.field.reminders', 'Reminders')}
+                className="rounded-md border bg-background px-3 py-2 text-sm"
+                value={reminderLead}
+                onChange={(e) => setReminderLead(e.target.value)}
+              >
+                <option value="">{t('orva_tasking.reminder.pick', '— Pick a lead time —')}</option>
+                {LEAD_TIMES.map((lead) => (
+                  <option key={lead.key} value={lead.key}>{t('orva_tasking.reminder.' + lead.key, lead.key)}</option>
+                ))}
+              </select>
+              <select
+                aria-label={t('orva_tasking.reminder.anchor.due', 'due date')}
+                className="rounded-md border bg-background px-3 py-2 text-sm"
+                value={reminderAnchor}
+                onChange={(e) => setReminderAnchor(e.target.value as 'due' | 'start' | 'end')}
+              >
+                <option value="due">{anchorLabel('due')}</option>
+                <option value="start">{anchorLabel('start')}</option>
+                <option value="end">{anchorLabel('end')}</option>
+              </select>
+              <Button type="submit" variant="outline" disabled={busy || !reminderLead}>
+                {t('orva_tasking.addReminder', 'Add reminder')}
+              </Button>
+            </form>
+            {/* Said before the attempt fails, not after: a countdown needs a
+                date to count to, and the route refuses without one. */}
+            {!draft.dueOn && !draft.startDate && !draft.endDate ? (
+              <p className="text-xs text-muted-foreground">
+                {t('orva_tasking.reminder.needsDate', 'Give the task a date first')}
+              </p>
+            ) : null}
+          </section>
+
+          <section className="space-y-2">
+            <h3 className="text-sm font-medium">{t('orva_tasking.field.repeat', 'Repeat')}</h3>
+            <div className="flex flex-wrap items-end gap-2">
+              <Input
+                type="number"
+                min={1}
+                max={3650}
+                className="w-28"
+                value={draft.repeatEveryDays ?? ''}
+                onChange={(e) => {
+                  const value = e.target.value === '' ? null : Math.max(1, Number(e.target.value) || 1)
+                  setDraft({
+                    ...draft,
+                    repeatEveryDays: value,
+                    repeatMode: value === null ? null : draft.repeatMode ?? 'from_due',
+                  })
+                }}
+                aria-label={t('orva_tasking.field.repeat', 'Repeat')}
+                placeholder={t('orva_tasking.repeat.off', 'Does not repeat')}
+              />
+              <select
+                aria-label={t('orva_tasking.field.repeat', 'Repeat')}
+                className="rounded-md border bg-background px-3 py-2 text-sm"
+                value={draft.repeatMode ?? ''}
+                disabled={!draft.repeatEveryDays}
+                onChange={(e) => setDraft({ ...draft, repeatMode: (e.target.value || null) as typeof draft.repeatMode })}
+              >
+                <option value="from_due">{t('orva_tasking.repeat.mode.from_due', 'From the original due date')}</option>
+                <option value="from_completion">{t('orva_tasking.repeat.mode.from_completion', 'From the day it was finished')}</option>
+              </select>
+            </div>
+            {draft.repeatEveryDays ? (
+              <p className="text-xs text-muted-foreground">
+                {!draft.dueOn && !draft.startDate && !draft.endDate
+                  ? t('orva_tasking.repeat.needsDate', 'A repeating task needs a due, start or end date')
+                  : t('orva_tasking.repeat.hint', 'When you tick it off, the next one is created.')}
+              </p>
+            ) : null}
+          </section>
+
+          <section className="space-y-2">
+            <h3 className="text-sm font-medium">{t('orva_tasking.field.comments', 'Comments')}</h3>
             {comments.isLoading ? <p className="text-sm text-muted-foreground">…</p> : null}
             {comments.data?.length === 0 ? (
               <p className="text-sm text-muted-foreground">{t('orva_tasking.noComments', 'ยังไม่มีคอมเมนต์')}</p>
