@@ -23,6 +23,8 @@ const projectSchema = z.object({
   quoteId: z.string().nullable(),
   quoteNumber: z.string().nullable(),
   isArchived: z.boolean(),
+  customerVisible: z.boolean(),
+  customerLabel: z.string().nullable(),
   total: z.number(),
   done: z.number(),
   donePct: z.number(),
@@ -33,6 +35,7 @@ const projectSchema = z.object({
 type Row = {
   id: string; name: string; description: string | null
   quote_id: string | null; quote_number: string | null; is_archived: boolean
+  customer_visible: boolean; customer_label: string | null
   total: number; done: number; overdue: number; updated_at: string
 }
 
@@ -55,7 +58,7 @@ export async function GET(req: Request) {
   const items = await withTenantRls(em, auth.tenantId, async (tem) => {
     const rows = (await tem.execute(
       `select p.id::text, p.name, p.description, p.quote_id::text, q.quote_number,
-              p.is_archived, p.updated_at::text,
+              p.is_archived, p.customer_visible, p.customer_label, p.updated_at::text,
               count(t.id)::int as total,
               count(t.id) filter (where t.done)::int as done,
               count(t.id) filter (where not t.done and t.due_on is not null and t.due_on < ?::date)::int as overdue
@@ -76,6 +79,8 @@ export async function GET(req: Request) {
       quoteId: row.quote_id,
       quoteNumber: row.quote_number,
       isArchived: row.is_archived,
+      customerVisible: row.customer_visible,
+      customerLabel: row.customer_label,
       total: row.total,
       done: row.done,
       donePct: donePct({ total: row.total, done: row.done }),
@@ -105,6 +110,9 @@ export async function POST(req: Request) {
         description: parsed.data.description ?? null,
         quoteId: parsed.data.quoteId ?? null,
         isArchived: false, position: 0,
+        // Never published on creation. Linking a quotation is not consent to
+        // show the work to the customer named on it.
+        customerVisible: false, customerLabel: null,
         createdBy: auth.sub ?? null,
         createdAt: now, updatedAt: now,
       })

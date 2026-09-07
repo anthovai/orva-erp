@@ -2094,6 +2094,24 @@
       "rule": "inline-style",
       "match": "style=",
       "reason": "A label colour is user data read from orva_tasking_labels.hex_color at runtime, not a design decision made in code. The rule exists to stop hard-coded palette values; no token can express a colour the user picked. The swatch is decorative (aria-hidden) and the label text carries the meaning."
+    },
+    {
+      "file": "src/modules/orva_tasking/frontend/[orgSlug]/portal/work/[projectId]/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A label colour is user data read from orva_tasking_labels.hex_color at runtime, not a design decision made in code. No token can express a colour the user picked; the swatch is decorative (aria-hidden) and the label text carries the meaning."
+    },
+    {
+      "file": "src/modules/orva_tasking/frontend/[orgSlug]/portal/work/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A progress bar width is a computed percentage. Colour and shape come from tokens (bg-primary, rounded-full); only the width is inline, and a fill that cannot vary is not a progress bar."
+    },
+    {
+      "file": "src/modules/orva_tasking/widgets/injection/portal-work/widget.client.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A progress bar width is a computed percentage. Colour and shape come from tokens (bg-primary, rounded-full); only the width is inline, and a fill that cannot vary is not a progress bar."
     }
   ]
 }

@@ -37,6 +37,27 @@ export class TaskProject {
   @Property({ name: 'is_archived', type: 'boolean' })
   isArchived: boolean = false
 
+  /**
+   * Whether the customer named on the quotation may see this project.
+   *
+   * False by default and only allowed where `quoteId` is set, because the
+   * quotation is what says *which* customer. Linking a project to a quote must
+   * never be enough to publish it — that would make a careless link a
+   * disclosure.
+   */
+  @Property({ name: 'customer_visible', type: 'boolean' })
+  customerVisible: boolean = false
+
+  /** What the customer sees instead of the internal project name. */
+  @Property({ name: 'customer_label', type: 'text', nullable: true })
+  customerLabel?: string | null
+
+  @Property({ name: 'published_at', type: Date, nullable: true })
+  publishedAt?: Date | null
+
+  @Property({ name: 'published_by', type: 'uuid', nullable: true })
+  publishedBy?: string | null
+
   @Property({ type: 'int' })
   position: number = 0
 
@@ -136,6 +157,17 @@ export class Task {
   @Property({ name: 'bucket_id', type: 'uuid', nullable: true })
   @Index()
   bucketId?: string | null
+
+  /**
+   * Whether this particular task shows on the portal.
+   *
+   * True by default — the opposite of comments and files. A task inside a
+   * published project is the thing the customer came to look at; a note
+   * written beside it is not. Only ever read inside a published project, so
+   * an unpublished project exposes nothing whatever this says.
+   */
+  @Property({ name: 'customer_visible', type: 'boolean' })
+  customerVisible: boolean = true
 
   @Property({ name: 'created_by', type: 'uuid', nullable: true })
   createdBy?: string | null

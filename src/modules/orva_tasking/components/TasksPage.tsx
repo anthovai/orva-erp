@@ -41,6 +41,7 @@ export default function TasksPage() {
   const [projectDraft, setProjectDraft] = React.useState({ name: '', quoteId: '' })
   const [busy, setBusy] = React.useState(false)
   const [openTaskId, setOpenTaskId] = React.useState<string | null>(null)
+  const [publishing, setPublishing] = React.useState(false)
 
   const projects = useQuery({
     queryKey: ['orva_tasking.projects', scopeVersion],
@@ -130,6 +131,46 @@ export default function TasksPage() {
     await send({ projectId: active.id, title, dueOn: dueOn || null }, 'POST', '/api/orva_tasking/tasks')
   }
 
+  /**
+   * Show the project to its customer, or stop showing it.
+   *
+   * Turning it on says out loud how many tasks become readable and that
+   * comments and files stay internal, because the owner is about to change
+   * what someone outside the company can see.
+   */
+  const togglePublish = async () => {
+    if (!active) return
+    if (!active.quoteId) return
+    if (!active.customerVisible) {
+      const ok = window.confirm(
+        t('orva_tasking.confirmPublish', 'เปิดให้ลูกค้าดู "{name}" ไหม งาน {n} รายการจะมองเห็นได้ ส่วนคอมเมนต์และไฟล์ยังเป็นความลับจนกดเปิดทีละอัน')
+          .replace('{name}', active.name)
+          .replace('{n}', String(active.total)),
+      )
+      if (!ok) return
+    }
+    setPublishing(true)
+    try {
+      const res = await apiCall<{ ok: true; visibleTasks?: number }>('/api/orva_tasking/projects/publish', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: active.id, visible: !active.customerVisible, updatedAt: active.updatedAt }),
+      })
+      if (!res.ok || !res.result) {
+        throw new Error((res.result as { error?: string } | undefined)?.error ?? t('orva_tasking.saveFailed', 'บันทึกไม่สำเร็จ'))
+      }
+      flash(
+        active.customerVisible
+          ? t('orva_tasking.unpublished', 'ปิดการแสดงต่อลูกค้าแล้ว')
+          : t('orva_tasking.published', 'เปิดให้ลูกค้าดูแล้ว'),
+        'success',
+      )
+      await refresh()
+    } catch (err) {
+      flash(err instanceof Error ? err.message : String(err), 'error')
+    } finally { setPublishing(false) }
+  }
+
   const toggleDone = (task: BoardTask) =>
     send({ id: task.id, done: !task.done, updatedAt: task.updatedAt }, 'PUT', '/api/orva_tasking/tasks')
 
@@ -211,6 +252,30 @@ export default function TasksPage() {
               </div>
               <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
                 <div className="h-full rounded-full bg-primary" style={{ width: `${active.donePct}%` }} />
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={active.customerVisible ? 'outline' : 'default'}
+                  onClick={togglePublish}
+                  disabled={publishing || !active.quoteId}
+                >
+                  {active.customerVisible
+                    ? t('orva_tasking.unpublish', 'ปิดไม่ให้ลูกค้าดู')
+                    : t('orva_tasking.publish', 'ให้ลูกค้าดูได้')}
+                </Button>
+                {active.customerVisible ? (
+                  <span className="rounded-full bg-status-success-bg px-2 py-0.5 text-xs text-status-success-text">
+                    {t('orva_tasking.publishedBadge', 'ลูกค้าดูได้')}
+                  </span>
+                ) : null}
+                {!active.quoteId ? (
+                  <span className="text-xs text-muted-foreground">
+                    {t('orva_tasking.publishNeedsQuote', 'ต้องผูกใบเสนอราคาก่อน จึงจะรู้ว่าลูกค้ารายไหนควรเห็น')}
+                  </span>
+                ) : null}
               </div>
             </div>
 

@@ -211,6 +211,9 @@ export async function POST(req: Request) {
         endDate: input.endDate ?? null,
         percentDone: input.percentDone ?? 0,
         identifierIndex: next,
+        // Visible inside a published project unless hidden individually; the
+        // project's own flag is what decides whether anyone can see it at all.
+        customerVisible: true,
         priority: input.priority ?? 0,
         position: 0,
         assigneeUserId: input.assigneeUserId ?? null,

@@ -28,6 +28,8 @@ export type TaskProjectSummary = {
   quoteId: string | null
   quoteNumber: string | null
   isArchived: boolean
+  customerVisible: boolean
+  customerLabel: string | null
   total: number
   done: number
   donePct: number

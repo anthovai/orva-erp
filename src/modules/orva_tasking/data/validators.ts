@@ -161,3 +161,24 @@ export const attachmentFlagSchema = z.object({
   attachmentId: z.string().uuid(),
   isCustomerVisible: z.boolean(),
 })
+
+export const publishSchema = z.object({
+  id: z.string().uuid(),
+  visible: z.boolean(),
+  /** What the customer sees instead of the internal name. */
+  customerLabel: z.string().trim().max(120).optional().nullable(),
+  updatedAt: z.string().min(1),
+})
+
+export const taskVisibilitySchema = z.object({
+  id: z.string().uuid(),
+  customerVisible: z.boolean(),
+  updatedAt: z.string().min(1),
+})
+
+export const portalProjectSchema = z.object({ id: z.string().uuid() })
+
+export const portalCommentSchema = z.object({
+  taskId: z.string().uuid(),
+  body: z.string().trim().min(1).max(4000),
+})
