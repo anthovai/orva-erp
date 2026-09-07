@@ -41,7 +41,19 @@ export default function StockValuationPage() {
 
   const valuation = useQuery({ queryKey: ['orva_stock.valuation', scopeVersion], queryFn: () => readApiResultOrThrow<Valuation>('/api/orva_stock/valuation') })
   const settings = useQuery({ queryKey: ['orva_stock.settings', scopeVersion], queryFn: () => readApiResultOrThrow<Settings>('/api/orva_stock/settings') })
-  const accounts = useQuery({ queryKey: ['orva_finance.accounts.all', scopeVersion], queryFn: async () => (await readApiResultOrThrow<{ items: Account[] }>('/api/orva_finance/gl/accounts?pageSize=100&sortField=code&sortDir=asc')).items })
+  /*
+    Its own key, not the shared 'orva_finance.accounts.all'.
+
+    Seven finance/HR screens hold that key through `fetchCrudList`, which
+    caches the whole ListResponse envelope and asks for `isActive: true`. This
+    one unwraps to an array and asks for every account. Two shapes in one
+    React Query key means whichever screen renders first decides what the
+    other reads: coming here from บัญชีแยกประเภท handed this page an envelope
+    and line 71's `.filter` threw; going the other way left their account
+    pickers silently empty. Different data and a different shape is a
+    different key.
+  */
+  const accounts = useQuery({ queryKey: ['orva_stock.postingAccounts', scopeVersion], queryFn: async () => (await readApiResultOrThrow<{ items: Account[] }>('/api/orva_finance/gl/accounts?pageSize=100&sortField=code&sortDir=asc')).items })
   const cogs = useQuery({ queryKey: ['orva_stock.cogs', month, scopeVersion], queryFn: () => readApiResultOrThrow<CogsPreview>(`/api/orva_stock/cogs?month=${month}`), enabled: /^\d{4}-\d{2}$/.test(month) })
 
   const saveAccounts = async (patch: Partial<Settings>) => {

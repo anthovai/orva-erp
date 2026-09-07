@@ -178,7 +178,7 @@
   "orva_documents.projects.error": "Could not load projects. Try refreshing.",
   "orva_documents.projects.noCustomer": "No customer",
   "orva_documents.projects.noTasks": "No tasks listed yet",
-  "orva_documents.projects.page.title": "Projects",
+  "orva_documents.projects.page.title": "Project billing",
   "orva_documents.projects.progressText": "Billed {billed}% · Paid {paid}%",
   "orva_documents.projects.rowAction.quote": "Open quotation / issue next installment",
   "orva_documents.projects.rowAction.tickets": "View bugs / open issues for this project",

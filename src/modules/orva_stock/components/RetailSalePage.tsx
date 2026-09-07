@@ -84,7 +84,7 @@ export default function RetailSalePage() {
         <div className="grid gap-6 lg:grid-cols-5">
           <section className="lg:col-span-2">
             <h2 className="mb-2 text-sm font-semibold">{t('orva_stock.retail.lots', 'ล็อตที่มีในคลัง (หมดอายุก่อนขึ้นก่อน)')}</h2>
-            <div className="max-h-[32rem] overflow-y-auto rounded-md border text-sm">
+            <div className="max-h-128 overflow-y-auto rounded-md border text-sm">
               {(lots.data ?? []).length === 0 ? (
                 <div className="px-3 py-6 text-center text-muted-foreground">{t('orva_stock.retail.noStock', 'ยังไม่มีสินค้าในคลัง')}</div>
               ) : (lots.data ?? []).map((lot) => (

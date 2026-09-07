@@ -178,7 +178,7 @@
   "orva_documents.projects.error": "โหลดข้อมูลโปรเจกต์ไม่สำเร็จ ลองรีเฟรชอีกครั้ง",
   "orva_documents.projects.noCustomer": "ไม่ระบุลูกค้า",
   "orva_documents.projects.noTasks": "ยังไม่ได้ลงงาน",
-  "orva_documents.projects.page.title": "โปรเจกต์",
+  "orva_documents.projects.page.title": "การเรียกเก็บตามโปรเจกต์",
   "orva_documents.projects.progressText": "เรียกเก็บ {billed}% · รับแล้ว {paid}%",
   "orva_documents.projects.rowAction.quote": "เปิดใบเสนอราคา / ออกงวดถัดไป",
   "orva_documents.projects.rowAction.tickets": "ดูบั๊ก / เรื่องค้างในโปรเจกต์นี้",

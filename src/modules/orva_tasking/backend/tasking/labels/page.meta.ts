@@ -6,6 +6,6 @@ export const metadata = {
   pageGroup: 'Projects',
   pageGroupKey: 'orva.nav.project',
   pageOrder: 4,
-  icon: 'tags',
+  icon: 'tag',
   breadcrumb: [{ label: 'Labels', labelKey: 'orva_tasking.labels.title' }],
 } as const

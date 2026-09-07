@@ -1,5 +1,13 @@
 import { describe, expect, it } from '@jest/globals'
-import { addDays, dayIndex, timelineSpan } from '../timeline'
+import {
+  addDays,
+  dayIndex,
+  dayList,
+  defaultGanttRange,
+  ganttWindow,
+  monthGroups,
+  timelineSpan,
+} from '../timeline'
 
 describe('dayIndex', () => {
   it('counts whole days forwards and backwards', () => {
@@ -71,5 +79,68 @@ describe('timelineSpan', () => {
     // the end can only come from a task that has one.
     expect(span.from).toBe('2026-08-31')
     expect(span.to).toBe('2026-09-03')
+  })
+})
+
+describe('defaultGanttRange', () => {
+  it('opens fifteen days back and fifty-five forward, like Vikunja', () => {
+    expect(defaultGanttRange('2026-09-07')).toEqual({
+      from: '2026-08-23', to: '2026-11-01', days: 71,
+    })
+  })
+
+  it('crosses a year boundary', () => {
+    expect(defaultGanttRange('2027-01-05').from).toBe('2026-12-21')
+  })
+})
+
+describe('dayList', () => {
+  it('lists every date in the window inclusive of both ends', () => {
+    expect(dayList('2026-09-06', 3)).toEqual(['2026-09-06', '2026-09-07', '2026-09-08'])
+  })
+
+  it('never returns an empty list, so a header always has a column', () => {
+    expect(dayList('2026-09-06', 0)).toEqual(['2026-09-06'])
+  })
+})
+
+describe('monthGroups', () => {
+  it('groups the window into months and counts the days in each', () => {
+    // 30 Aug + 31 Aug, then all of September, then the 1st of October.
+    expect(monthGroups('2026-08-30', 33)).toEqual([
+      { key: '2026-08', year: 2026, month: 8, days: 2 },
+      { key: '2026-09', year: 2026, month: 9, days: 30 },
+      { key: '2026-10', year: 2026, month: 10, days: 1 },
+    ])
+  })
+
+  it('separates the same month in different years', () => {
+    const groups = monthGroups('2026-12-31', 2)
+    expect(groups.map((g) => g.key)).toEqual(['2026-12', '2027-01'])
+  })
+
+  it('day counts always add up to the window', () => {
+    const groups = monthGroups('2026-01-20', 100)
+    expect(groups.reduce((sum, g) => sum + g.days, 0)).toBe(100)
+  })
+})
+
+describe('ganttWindow', () => {
+  it('keeps the chosen range when every bar fits inside it', () => {
+    expect(ganttWindow(
+      { from: '2026-09-01', to: '2026-09-30' },
+      [{ start: '2026-09-05', end: '2026-09-10' }],
+    )).toEqual({ from: '2026-09-01', to: '2026-09-30', days: 30 })
+  })
+
+  it('stretches to reach a bar that starts before or ends after the range', () => {
+    expect(ganttWindow(
+      { from: '2026-09-01', to: '2026-09-30' },
+      [{ start: '2026-08-25', end: '2026-10-04' }],
+    )).toEqual({ from: '2026-08-25', to: '2026-10-04', days: 41 })
+  })
+
+  it('survives an empty chart', () => {
+    expect(ganttWindow({ from: '2026-09-01', to: '2026-09-01' }, []).days).toBe(1)
   })
 })

@@ -2084,6 +2084,12 @@
       "reason": "A label colour is user data read from orva_tasking_labels.hex_color at runtime, not a design decision made in code. The rule exists to stop hard-coded palette values; no token can express a colour the user picked. The swatch is decorative (aria-hidden) and the label text carries the meaning."
     },
     {
+      "file": "src/modules/orva_tasking/components/TaskListView.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A label colour is user data read from orva_tasking_labels.hex_color at runtime, not a design decision made in code. The rule exists to stop hard-coded palette values; no token can express a colour the user picked. The swatch is decorative (aria-hidden) and the label text carries the meaning."
+    },
+    {
       "file": "src/modules/orva_tasking/components/TaskTableView.tsx",
       "rule": "inline-style",
       "match": "style=",
@@ -2148,6 +2154,54 @@
       "rule": "inline-style",
       "match": "style=",
       "reason": "A progress bar width is a computed percentage. Colour and shape come from tokens; only the width is inline, and a fill that cannot vary is not a progress bar."
+    },
+    {
+      "file": "src/modules/orva_tasking/components/TimelineView.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A month header cell spans as many day columns as the month has days in the window: its width is a day count times DAY_WIDTH, computed from dates. No token can express \"as wide as 30 days\"."
+    },
+    {
+      "file": "src/modules/orva_tasking/components/TimelineView.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "The today marker is a line at a date, positioned by how many days that date sits from the start of the window. Its colour and thickness are tokens (bg-primary, w-px); only the offset is computed."
+    },
+    {
+      "file": "src/modules/orva_tasking/components/TimelineView.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A task bar's left offset and width ARE the task's start date and duration expressed as pixels. That is the chart. Colour, radius and spacing all come from tokens."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/payslip.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A brand colour is user data: it is read from the brand record the document is issued under (orva_documents brands, doc.accentColor / brand.brandColor) and chosen by the tenant, not by this code. The rule exists to stop hard-coded palette values; no design token can express a colour a customer picked. Layout, spacing, radius and the contrasting text colour all come from tokens — only the fill is inline."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/payslip.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A brand colour is user data: it is read from the brand record the document is issued under (orva_documents brands, doc.accentColor / brand.brandColor) and chosen by the tenant, not by this code. The rule exists to stop hard-coded palette values; no design token can express a colour a customer picked. Layout, spacing, radius and the contrasting text colour all come from tokens — only the fill is inline."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/payslip.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A brand colour is user data: it is read from the brand record the document is issued under (orva_documents brands, doc.accentColor / brand.brandColor) and chosen by the tenant, not by this code. The rule exists to stop hard-coded palette values; no design token can express a colour a customer picked. Layout, spacing, radius and the contrasting text colour all come from tokens — only the fill is inline."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/payslip.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A brand colour is user data: it is read from the brand record the document is issued under (orva_documents brands, doc.accentColor / brand.brandColor) and chosen by the tenant, not by this code. The rule exists to stop hard-coded palette values; no design token can express a colour a customer picked. Layout, spacing, radius and the contrasting text colour all come from tokens — only the fill is inline."
+    },
+    {
+      "file": "src/modules/orva_documents/components/BrandsPage.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A brand colour is user data: it is read from the brand record the document is issued under (orva_documents brands, doc.accentColor / brand.brandColor) and chosen by the tenant, not by this code. The rule exists to stop hard-coded palette values; no design token can express a colour a customer picked. Layout, spacing, radius and the contrasting text colour all come from tokens — only the fill is inline. On the brands screen the swatch exists to show that colour, and it is aria-hidden with the brand name beside it carrying the meaning."
     }
   ]
 }

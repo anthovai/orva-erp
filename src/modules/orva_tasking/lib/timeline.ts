@@ -50,3 +50,62 @@ export function timelineSpan(tasks: { startDate: string | null; endDate: string 
   const to = addDays(ends.reduce((a, b) => (a > b ? a : b)), 1)
   return { from, to, days: Math.max(1, dayIndex(from, to) + 1) }
 }
+
+/**
+ * The window a Gantt opens on: today minus 15 days to today plus 55.
+ *
+ * Vikunja's own defaults. Fifteen days back is enough to still see what
+ * slipped, and eight weeks forward is about as far as anyone plans in
+ * practice — wider than that and every bar becomes a sliver.
+ */
+export function defaultGanttRange(today: string): Span {
+  const from = addDays(today, -15)
+  const to = addDays(today, 55)
+  return { from, to, days: dayIndex(from, to) + 1 }
+}
+
+/** Every date in the window, as `YYYY-MM-DD`, so a header can be laid out. */
+export function dayList(from: string, days: number): string[] {
+  return Array.from({ length: Math.max(1, days) }, (_, index) => addDays(from, index))
+}
+
+export type MonthGroup = { key: string; year: number; month: number; days: number }
+
+/**
+ * The days grouped into the months they fall in, for the upper header row.
+ *
+ * `days` is a count, not a width: the caller multiplies by whatever a day is
+ * worth in pixels, so the same grouping works at any zoom.
+ */
+export function monthGroups(from: string, days: number): MonthGroup[] {
+  const groups: MonthGroup[] = []
+  for (const iso of dayList(from, days)) {
+    const year = Number(iso.slice(0, 4))
+    const month = Number(iso.slice(5, 7))
+    const key = iso.slice(0, 7)
+    const last = groups[groups.length - 1]
+    if (last && last.key === key) last.days += 1
+    else groups.push({ key, year, month, days: 1 })
+  }
+  return groups
+}
+
+/**
+ * The window that holds a range and every dated task in it.
+ *
+ * The chosen range wins; a task that starts before it or ends after it still
+ * has to be drawable, so the window stretches to reach. Without this a bar
+ * pinned outside the range renders at a negative offset.
+ */
+export function ganttWindow(
+  range: { from: string; to: string },
+  bars: { start: string; end: string }[],
+): Span {
+  let from = range.from
+  let to = range.to
+  for (const bar of bars) {
+    if (bar.start < from) from = bar.start
+    if (bar.end > to) to = bar.end
+  }
+  return { from, to, days: Math.max(1, dayIndex(from, to) + 1) }
+}

@@ -16,11 +16,13 @@ export type TaskFilters = {
 }
 
 /**
- * The list, with sorting and the four filters the team actually uses.
+ * The table, with sorting and the four filters the team actually uses.
  *
- * One table, not the list-plus-table pair Vikunja carries. A separate
- * unsortable list would be the same rows with fewer affordances, and the quick
- * add and the checkbox belong on the surface people read every day.
+ * Reversing an earlier call of mine that this could stand in for Vikunja's
+ * list view: it cannot. The two answer different questions — the table
+ * answers "which of these" by letting five columns be sorted and filtered,
+ * the list answers "what is next" by putting one task on one line. Vikunja
+ * carries both because both are used; TaskListView is the list.
  */
 export function TaskTableView({
   tasks,

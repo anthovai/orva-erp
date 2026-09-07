@@ -87,6 +87,19 @@ const NAV = {
 } as const
 const NAV_GROUP_ORDER = Object.values(NAV).map((g) => g.pageGroupKey)
 const regroup = (group: keyof typeof NAV, pageOrder: number) => ({ metadata: { ...NAV[group], pageOrder } })
+/**
+ * `regroup`, for a page that declares its own `pagePriority`.
+ *
+ * The sidebar comparator resolves `pagePriority ?? pageOrder ?? <large>`, so a
+ * page that ships a priority ignores whatever `pageOrder` a regroup gives it
+ * and sorts by the number its own module chose for a group it is no longer in.
+ * `place` sets both to the same value, which is the only way to state a
+ * position that actually holds. `regroup` is left alone so no other group
+ * shifts underneath pages that are ordered by an upstream priority today.
+ */
+const place = (group: keyof typeof NAV, pageOrder: number) => ({
+  metadata: { ...NAV[group], pageOrder, pagePriority: pageOrder },
+})
 
 export const enabledModules: ModuleEntry[] = [
   { id: 'dashboards', from: '@open-mercato/core', overrides: { nav: { groupOrder: NAV_GROUP_ORDER } } },
@@ -120,14 +133,17 @@ export const enabledModules: ModuleEntry[] = [
           '/backend/customers/companies/create': { ...regroup('sales', 21), load: () => import('@/modules/orva/components/CompanyCreatePage').then((mod) => mod.default) },
           '/backend/customers/people': regroup('sales', 30),
           '/backend/customers/people/create': regroup('sales', 31),
-          // The customers module's own task list has no table on this
-          // install — `customer_tasks` does not exist — so the page could only
-          // ever error. Work lives in orva_tasking; this is not a second home
-          // for it.
-          '/backend/customer-tasks': null,
-          // A calendar of deals and their dates, which is a sales question.
-          // It sat under Projects and read as a work calendar, which it is not.
-          '/backend/calendar': regroup('sales', 70),
+          // Restored on request (2026-09-07) after being closed in a434d67,
+          // and correcting the reason I closed it with: there is no
+          // `customer_tasks` table, but the screen never needed one — it
+          // renders CustomerTodosTable over `customer_todo_links`, and with
+          // no rows it shows its empty state, not an error. Verified in the
+          // browser. Day-to-day work still lives in orva_tasking.
+          '/backend/customer-tasks': place('project', 40),
+          // A calendar of deals and their dates. It reads as a work calendar
+          // and it is not one — but it is the only calendar on the install,
+          // and the owner looks for it beside the work, so it lives here.
+          '/backend/calendar': place('project', 30),
         },
       },
     },
@@ -255,11 +271,11 @@ export const enabledModules: ModuleEntry[] = [
           '/backend/instances': null,
           '/backend/events': null,
           // "User tasks" are approval steps inside durable workflows, not
-          // work someone does. Every other page of this module is already
-          // hidden above, and the table holds no rows, so surfacing this one
-          // under Projects only added a third thing called "tasks". One line
-          // to restore the day workflow approvals are actually used.
-          '/backend/tasks': null,
+          // work someone does, and the table holds no rows yet. Restored on
+          // request (2026-09-07): it sits last in the group, under its own
+          // name งานผู้ใช้, so it reads as a workflow inbox rather than a
+          // third thing called "tasks".
+          '/backend/tasks': place('project', 50),
         },
       },
     },
@@ -282,26 +298,30 @@ export const enabledModules: ModuleEntry[] = [
           '/backend/staff/team-roles': null,
           '/backend/staff/team-roles/create': null,
           '/backend/staff/profile/create': null,
-          // Reversing the earlier F0 note, which put timesheets under
-          // Projects: its "โครงการ" page is a timesheet cost centre and sat
-          // one line under orva_documents' "โปรเจกต์", which is a quotation.
-          // Two different things with the same name in the same group is the
-          // mess this group had become. Hours worked are an HR question.
-          // Own time entries are a personal tool, so they stay, under HR
-          // where hours worked belong.
-          '/backend/staff/timesheets': regroup('hr', 60),
-          // "โครงการ" is a timesheet cost centre. It sat one line under
-          // orva_documents' "โปรเจกต์", which is a quotation — two unrelated
-          // things with almost the same name in the same group, which is the
-          // mess this group had become.
+          // Own time entries: hours worked are an HR question, but they are
+          // logged against the work, and that is where the owner goes looking
+          // for them. Restored to โปรเจกต์และงาน on request (2026-09-07).
+          '/backend/staff/timesheets': place('project', 60),
+          // โครงการ — the timesheet cost centre, restored 2026-09-07.
           //
-          // Hidden rather than moved: all four staff_time_* tables are empty,
-          // so nothing is lost today, and moving it to HR did not render it
-          // for a reason I could not establish. Leaving a page that neither
-          // appears nor is explained is worse than one deliberately closed.
-          // Three lines to restore the day timesheets are actually used.
-          '/backend/staff/timesheets/projects': null,
-          '/backend/staff/timesheets/projects/create': null,
+          // Correcting myself twice over. I first hid this saying it "was
+          // never one of the seven that showed in this group": it was. Its
+          // page.meta carries a hand-built folder SVG as its icon, which is
+          // exactly the folder beside "โครงการ" in the menu the owner is
+          // working from. And the reason I gave for hiding rather than moving
+          // it — that moving it "did not render it for a reason I could not
+          // establish" — was me not looking: the page is gated on
+          // `staff.timesheets.projects.view`, granted to the employee role,
+          // and the account in use passes only because it is super admin.
+          //
+          // The four staff_time_* tables are still empty, so this screen has
+          // nothing to show yet. That is a reason to leave it visible and let
+          // it say so, not a reason to close a door the owner walked through.
+          //
+          // The create page is navHidden upstream; it is grouped only so its
+          // breadcrumb sits under the same heading.
+          '/backend/staff/timesheets/projects': place('project', 70),
+          '/backend/staff/timesheets/projects/create': place('project', 71),
           '/backend/staff/leave-requests': regroup('hr', 30),
           '/backend/staff/leave-requests/create': regroup('hr', 31),
           '/backend/staff/my-leave-requests': regroup('hr', 40),

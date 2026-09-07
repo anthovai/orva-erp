@@ -18,7 +18,7 @@ type QuoteProject = {
 }
 
 /**
- * โครงการ — every project on one screen.
+ * โปรเจกต์ — every project on one screen.
  *
  * This is Vikunja's ภาพรวม and โปรเจกต์ merged rather than built twice: with a
  * project count in single figures, a summary screen and a navigation screen
@@ -59,7 +59,7 @@ export default function ProjectListPage() {
   return (
     <Page>
       <PageHeader
-        title={t('orva_tasking.projectList.title', 'โครงการ')}
+        title={t('orva_tasking.projectList.title', 'โปรเจกต์')}
         description={t('orva_tasking.projectList.description', 'ทุกโปรเจกต์ที่กำลังทำ พร้อมความคืบหน้าของงานเทียบกับที่เรียกเก็บไปแล้ว')}
         actions={
           <Button asChild>

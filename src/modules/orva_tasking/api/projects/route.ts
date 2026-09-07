@@ -161,8 +161,15 @@ export async function PUT(req: Request) {
     })
     return Response.json({ ok: true, ...saved })
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Update failed'
+    // Relinking hits the same unique index POST does: one project per
+    // quotation. Without this the caller got a raw Postgres error at 500 for
+    // what is a conflict the UI can explain and recover from.
+    if (/orva_tasking_projects_quote_unique/.test(message)) {
+      return Response.json({ error: 'ใบเสนอราคานี้มีโปรเจกต์อยู่แล้ว' }, { status: 409 })
+    }
     const status = (error as { status?: number }).status ?? 500
-    return Response.json({ error: error instanceof Error ? error.message : 'Update failed' }, { status })
+    return Response.json({ error: message }, { status })
   }
 }
 
@@ -172,6 +179,6 @@ export const openApi: OpenApiRouteDoc = {
   methods: {
     GET: { summary: 'Projects with tasks done, total and overdue counted in one query', tags: ['Orva Tasking'], responses: [{ status: 200, description: 'Projects.', schema: z.object({ items: z.array(projectSchema) }) }] },
     POST: { summary: 'Create a project, optionally against a quotation', tags: ['Orva Tasking'], requestBody: { schema: projectCreateSchema }, responses: [{ status: 200, description: 'Created.', schema: z.object({ ok: z.boolean(), id: z.string() }) }], errors: [{ status: 409, description: 'That quotation already has a project', schema: z.object({ error: z.string() }) }] },
-    PUT: { summary: 'Rename, relink or archive a project', tags: ['Orva Tasking'], requestBody: { schema: projectUpdateSchema }, responses: [{ status: 200, description: 'Saved.', schema: z.object({ ok: z.boolean(), id: z.string(), updatedAt: z.string() }) }], errors: [{ status: 409, description: 'Stale version', schema: z.object({ error: z.string() }) }] },
+    PUT: { summary: 'Rename, relink or archive a project', tags: ['Orva Tasking'], requestBody: { schema: projectUpdateSchema }, responses: [{ status: 200, description: 'Saved.', schema: z.object({ ok: z.boolean(), id: z.string(), updatedAt: z.string() }) }], errors: [{ status: 409, description: 'Stale version, or that quotation already has a project', schema: z.object({ error: z.string() }) }] },
   },
 }

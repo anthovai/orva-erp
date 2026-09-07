@@ -20,7 +20,7 @@ export function PayslipTemplate({ doc, t }: TemplateProps) {
   const totalDeductions = deductions.reduce((sum, line) => sum + Math.abs(line.amount), 0)
 
   return (
-    <div className="flex flex-col gap-4 text-[13px] leading-6">
+    <div className="flex flex-col gap-4 text-sm leading-6">
       <header className="flex items-start justify-between gap-6 border-b pb-3">
         <div className="flex items-start gap-3">
           {doc.logoHeader ? (
@@ -125,7 +125,7 @@ export function PayslipTemplate({ doc, t }: TemplateProps) {
         </div>
       </div>
 
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         {t('orva_documents.payslip.confidential', 'เอกสารนี้เป็นข้อมูลส่วนบุคคล กรุณาเก็บรักษาเป็นความลับ')}
       </p>
     </div>
