@@ -14,6 +14,13 @@ export type TaskingProject = {
   organizationId: string
   name: string
   isArchived: boolean
+  /**
+   * The customer on the quotation this project bills against, when it has
+   * one. Resolved by the caller through `sales_quotes.customer_entity_id`,
+   * because the quotation is the only place the work knows a customer from
+   * (Phase 2 of the spec). Null for งานภายใน.
+   */
+  customerId?: string | null
 }
 
 /** A staff time project, reduced the same way. */
@@ -23,6 +30,7 @@ export type TimeProject = {
   name: string
   code: string
   status: 'active' | 'on_hold' | 'completed'
+  customerId?: string | null
 }
 
 export type Link = {
@@ -58,9 +66,16 @@ export function codeFor(taskingProjectId: string): string {
 
 export type SyncAction =
   /** No time project exists for this tasking project — create one and link it. */
-  | { kind: 'create'; taskingProjectId: string; organizationId: string; name: string; code: string; status: TimeProject['status'] }
+  | { kind: 'create'; taskingProjectId: string; organizationId: string; name: string; code: string; status: TimeProject['status']; customerId: string | null }
   /** The tasking side moved; write it to the time project and update the link. */
   | { kind: 'push'; linkId: string; timeProjectId: string; name: string; status: TimeProject['status'] }
+  /**
+   * The project's quotation named a customer the time project does not carry.
+   * Its own action, because it is not a rename and must not be mistaken for
+   * drift: the customer is derived, so the tasking side always wins and there
+   * is nothing for a human to decide.
+   */
+  | { kind: 'set-customer'; linkId: string; timeProjectId: string; customerId: string | null }
   /** The time side moved; write it back to the tasking project. */
   | { kind: 'pull'; linkId: string; taskingProjectId: string; name: string; isArchived: boolean }
   /** Both sides moved independently. Reported, never resolved silently. */
@@ -107,6 +122,7 @@ export function planSync(
         name: project.name,
         code,
         status: wantStatus,
+        customerId: project.customerId ?? null,
       })
       continue
     }
@@ -115,6 +131,17 @@ export function planSync(
     if (!time) {
       actions.push({ kind: 'orphan', linkId: link.id, missing: 'time' })
       continue
+    }
+
+    // Derived from the quotation, so it is never drift — a difference here is
+    // simply a value the time project has not been told yet.
+    if ((project.customerId ?? null) !== (time.customerId ?? null)) {
+      actions.push({
+        kind: 'set-customer',
+        linkId: link.id,
+        timeProjectId: time.id,
+        customerId: project.customerId ?? null,
+      })
     }
 
     const taskingMoved = project.name !== link.syncedName
@@ -166,7 +193,7 @@ export function planSync(
 
 /** A one-line-per-kind tally, for the CLI's summary and its dry run. */
 export function summarize(actions: SyncAction[]): Record<SyncAction['kind'], number> {
-  const tally = { create: 0, push: 0, pull: 0, drift: 0, orphan: 0, 'code-collision': 0 }
+  const tally = { create: 0, push: 0, pull: 0, 'set-customer': 0, drift: 0, orphan: 0, 'code-collision': 0 }
   for (const action of actions) tally[action.kind] += 1
   return tally
 }

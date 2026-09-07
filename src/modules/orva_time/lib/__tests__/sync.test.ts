@@ -53,8 +53,8 @@ describe('planSync', () => {
     const internal = tasking({ id: '77777777-0000-0000-0000-000000000000', name: 'งานภายใน' })
     const actions = planSync([tasking(), internal], [], [])
     expect(actions).toEqual([
-      { kind: 'create', taskingProjectId: tasking().id, organizationId: ORG, name: 'AQG Scoring', code: 'WORK-11111111', status: 'active' },
-      { kind: 'create', taskingProjectId: internal.id, organizationId: ORG, name: 'งานภายใน', code: 'WORK-77777777', status: 'active' },
+      { kind: 'create', taskingProjectId: tasking().id, organizationId: ORG, name: 'AQG Scoring', code: 'WORK-11111111', status: 'active', customerId: null },
+      { kind: 'create', taskingProjectId: internal.id, organizationId: ORG, name: 'งานภายใน', code: 'WORK-77777777', status: 'active', customerId: null },
     ])
   })
 
@@ -142,6 +142,50 @@ describe('planSync', () => {
     ])
   })
 
+  /**
+   * Phase 2: the customer comes from the quotation, so it is derived and the
+   * tasking side always wins. That is why it is its own action and not a push:
+   * a difference here must never be reported as drift for a human to settle.
+   */
+  it('carries the quotation customer onto a new time project', () => {
+    const CUSTOMER = 'cccccccc-0000-0000-0000-000000000000'
+    const actions = planSync([tasking({ customerId: CUSTOMER })], [], [])
+    expect(actions).toEqual([
+      { kind: 'create', taskingProjectId: tasking().id, organizationId: ORG, name: 'AQG Scoring', code: 'WORK-11111111', status: 'active', customerId: CUSTOMER },
+    ])
+  })
+
+  it('sets a customer the time project has not been told yet', () => {
+    const CUSTOMER = 'cccccccc-0000-0000-0000-000000000000'
+    const actions = planSync([tasking({ customerId: CUSTOMER })], [time()], [link()])
+    expect(actions).toEqual([
+      { kind: 'set-customer', linkId: 'link-1', timeProjectId: time().id, customerId: CUSTOMER },
+    ])
+  })
+
+  it('clears the customer when the quotation link is removed', () => {
+    const CUSTOMER = 'cccccccc-0000-0000-0000-000000000000'
+    const actions = planSync([tasking()], [time({ customerId: CUSTOMER })], [link()])
+    expect(actions).toEqual([
+      { kind: 'set-customer', linkId: 'link-1', timeProjectId: time().id, customerId: null },
+    ])
+  })
+
+  it('does not treat a customer difference as drift, even alongside a rename', () => {
+    const CUSTOMER = 'cccccccc-0000-0000-0000-000000000000'
+    const actions = planSync(
+      [tasking({ name: 'ชื่อใหม่', customerId: CUSTOMER })],
+      [time()],
+      [link()],
+    )
+    expect(actions.map((a) => a.kind)).toEqual(['set-customer', 'push'])
+  })
+
+  it('leaves the customer alone when both sides already agree', () => {
+    const CUSTOMER = 'cccccccc-0000-0000-0000-000000000000'
+    expect(planSync([tasking({ customerId: CUSTOMER })], [time({ customerId: CUSTOMER })], [link()])).toEqual([])
+  })
+
   it('refuses to write over a code another time project already holds', () => {
     const squatter = time({ id: 'dddddddd-0000-0000-0000-000000000000', code: 'WORK-11111111', name: 'อย่างอื่น' })
     expect(planSync([tasking()], [squatter], [])).toEqual([
@@ -155,7 +199,7 @@ describe('summarize', () => {
     // The importer shipped exactly this bug (afcf17e): a dry run that reported
     // zeros as if they were results. An empty plan must tally to all zeros and
     // the caller must be able to tell that apart from work to do.
-    expect(summarize([])).toEqual({ create: 0, push: 0, pull: 0, drift: 0, orphan: 0, 'code-collision': 0 })
+    expect(summarize([])).toEqual({ create: 0, push: 0, pull: 0, 'set-customer': 0, drift: 0, orphan: 0, 'code-collision': 0 })
 
     const tally = summarize(planSync([tasking(), tasking({ id: '77777777-0000-0000-0000-000000000000' })], [], []))
     expect(tally.create).toBe(2)

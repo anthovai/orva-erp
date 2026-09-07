@@ -207,19 +207,19 @@ API, never by reaching into its table.
 
 ## 📋 Phasing
 
-**Phase 1 — one direction, and the rows exist.** `orva_time` module skeleton,
+**Phase 1 — one direction, and the rows exist. SHIPPED (5932ec9).** `orva_time` module skeleton,
 the link table and its migration, the three tasking events, the subscriber, and
 `mercato orva_time sync` with the backfill for the existing 8. โครงการ shows 8
 rows. Integration test: create a tasking project → a time project appears with
 the generated code; run `sync` twice → no duplicates.
 
-**Phase 2 — the other direction, and the lock.** The after-interceptor
+**Phase 2 — the other direction, and the lock. SHIPPED.** The after-interceptor
 (rename/status back to tasking), the before-interceptor (409 on a `code`
 change), drift reporting in `sync`, and `customer_id` resolved from the
 quotation. Integration test: rename on each screen, assert the other follows
 and that the loop stops.
 
-**Phase 3 — hours where the work is.** Surface logged hours on the งาน project
+**Phase 3 — hours where the work is. NOT STARTED.** Surface logged hours on the งาน project
 card beside งาน% and เรียกเก็บ%, which is the pairing `orva_tasking`'s spec
 exists for. Read-only; no new writes.
 

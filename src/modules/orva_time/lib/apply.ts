@@ -23,33 +23,57 @@ const logger = createLogger('orva_time').child({ component: 'apply' })
 export type SyncScope = { tenantId: string; organizationId: string }
 
 export async function readTaskingProjects(em: EntityManager, scope: SyncScope): Promise<TaskingProject[]> {
+  /*
+    The customer arrives through the quotation, which is the only place the
+    work knows one from. A left join, not a second query and not a cross-module
+    relation: `quote_id` is a scalar id and the join is tenant-filtered, which
+    is what `AGENTS.md` asks for. A project with no quotation — งานภายใน —
+    simply reads null.
+  */
   const rows = (await em.execute(
-    `select id, organization_id, name, is_archived
-       from orva_tasking_projects
-      where tenant_id = ?::uuid and organization_id = ?::uuid and deleted_at is null`,
+    `select p.id, p.organization_id, p.name, p.is_archived, q.customer_entity_id
+       from orva_tasking_projects p
+       left join sales_quotes q
+              on q.id = p.quote_id and q.tenant_id = p.tenant_id and q.deleted_at is null
+      where p.tenant_id = ?::uuid and p.organization_id = ?::uuid and p.deleted_at is null`,
     [scope.tenantId, scope.organizationId],
-  )) as { id: string; organization_id: string; name: string; is_archived: boolean }[]
+  )) as {
+    id: string
+    organization_id: string
+    name: string
+    is_archived: boolean
+    customer_entity_id: string | null
+  }[]
   return rows.map((row) => ({
     id: row.id,
     organizationId: row.organization_id,
     name: row.name,
     isArchived: row.is_archived,
+    customerId: row.customer_entity_id ?? null,
   }))
 }
 
 export async function readTimeProjects(em: EntityManager, scope: SyncScope): Promise<TimeProject[]> {
   const rows = (await em.execute(
-    `select id, organization_id, name, code, status
+    `select id, organization_id, name, code, status, customer_id
        from staff_time_projects
       where tenant_id = ?::uuid and organization_id = ?::uuid and deleted_at is null`,
     [scope.tenantId, scope.organizationId],
-  )) as { id: string; organization_id: string; name: string; code: string; status: TimeProject['status'] }[]
+  )) as {
+    id: string
+    organization_id: string
+    name: string
+    code: string
+    status: TimeProject['status']
+    customer_id: string | null
+  }[]
   return rows.map((row) => ({
     id: row.id,
     organizationId: row.organization_id,
     name: row.name,
     code: row.code,
     status: row.status,
+    customerId: row.customer_id ?? null,
   }))
 }
 
@@ -103,10 +127,10 @@ export async function applyPlan(
         case 'create': {
           const inserted = (await tem.execute(
             `insert into staff_time_projects
-               (tenant_id, organization_id, name, code, status, created_at, updated_at)
-             values (?::uuid, ?::uuid, ?, ?, ?, now(), now())
+               (tenant_id, organization_id, name, code, status, customer_id, created_at, updated_at)
+             values (?::uuid, ?::uuid, ?, ?, ?, ?::uuid, now(), now())
              returning id`,
-            [scope.tenantId, action.organizationId, action.name, action.code, action.status],
+            [scope.tenantId, action.organizationId, action.name, action.code, action.status, action.customerId],
           )) as { id: string }[]
           const timeProjectId = inserted[0]?.id
           if (!timeProjectId) throw new Error('staff_time_projects insert returned no id')
@@ -139,6 +163,19 @@ export async function applyPlan(
                 set synced_name = ?, synced_status = ?, updated_at = now()
               where id = ?::uuid and tenant_id = ?::uuid`,
             [action.name, action.status, action.linkId, scope.tenantId],
+          )
+          applied += 1
+          break
+        }
+
+        case 'set-customer': {
+          // Derived from the quotation, so it is written without touching the
+          // link's synced_* values: those track the fields a human can edit on
+          // either screen, and this is not one of them.
+          await tem.execute(
+            `update staff_time_projects set customer_id = ?::uuid, updated_at = now()
+              where id = ?::uuid and tenant_id = ?::uuid`,
+            [action.customerId, action.timeProjectId, scope.tenantId],
           )
           applied += 1
           break
