@@ -29,6 +29,8 @@ const taskSchema = z.object({
   endDate: z.string().nullable(),
   percentDone: z.number(),
   identifier: z.string(),
+  bucketId: z.string().nullable(),
+  assigneeUserId: z.string().nullable(),
   daysOverdue: z.number(),
   priority: z.number(),
   labels: z.array(labelChipSchema),
@@ -42,6 +44,8 @@ type Row = {
   done: boolean; done_at: string | null; due_on: string | null
   start_date: string | null; end_date: string | null
   percent_done: number; identifier_index: number; project_name: string
+  bucket_id: string | null
+  assignee_user_id: string | null
   priority: number; comment_count: number; relation_count: number
   labels: { id: string; title: string; hexColor: string }[] | null
   updated_at: string
@@ -105,6 +109,7 @@ export async function GET(req: Request) {
               to_char(t.start_date, 'YYYY-MM-DD') as start_date,
               to_char(t.end_date, 'YYYY-MM-DD') as end_date,
               t.percent_done, t.identifier_index, p.name as project_name,
+              t.bucket_id::text, t.assignee_user_id::text,
               t.priority, t.updated_at::text,
               (select count(*)::int from orva_tasking_task_comments c
                 where c.task_id = t.id and c.deleted_at is null) as comment_count,
@@ -122,11 +127,25 @@ export async function GET(req: Request) {
          and (?::uuid is null or t.project_id = ?::uuid)
          and (?::boolean is true or not t.done)
          and (?::boolean is false or (t.start_date is not null and t.end_date is not null))
+         and (?::uuid is null or t.assignee_user_id = ?::uuid)
+         and (?::uuid is null or exists (
+               select 1 from orva_tasking_task_labels tlf
+                where tlf.task_id = t.id and tlf.label_id = ?::uuid))
+         -- Overdue work always qualifies for a due-window filter: the point of
+         -- asking "what is due this week" is to be shown what is already late.
+         and (?::int is null or (t.due_on is not null and t.due_on <= (?::date + ?::int)))
        order by t.done,
                 -- unfinished work sorted by how soon it is due; undated last
                 case when t.done then null else t.due_on end asc nulls last,
                 t.priority desc, t.position, t.created_at`,
-      [auth.tenantId, organizationId, q.projectId ?? null, q.projectId ?? null, q.bucket === 'all', q.hasDates === true],
+      [
+        auth.tenantId, organizationId,
+        q.projectId ?? null, q.projectId ?? null,
+        q.bucket === 'all', q.hasDates === true,
+        q.assigneeUserId ?? null, q.assigneeUserId ?? null,
+        q.labelId ?? null, q.labelId ?? null,
+        q.dueWithinDays ?? null, today, q.dueWithinDays ?? null,
+      ],
     )) as Row[]
     return rows.map((row) => ({
       id: row.id,
@@ -140,6 +159,8 @@ export async function GET(req: Request) {
       endDate: row.end_date,
       percentDone: row.percent_done,
       identifier: `${row.project_name}-${row.identifier_index}`,
+      bucketId: row.bucket_id,
+      assigneeUserId: row.assignee_user_id,
       daysOverdue: !row.done && row.due_on ? Math.max(0, daysBetween(row.due_on, today)) : 0,
       priority: row.priority,
       labels: row.labels ?? [],

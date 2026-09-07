@@ -9,22 +9,15 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { TaskDrawer } from './TaskDrawer'
+import { BoardView } from './BoardView'
+import { TimelineView } from './TimelineView'
+import { TaskTableView, type TaskFilters } from './TaskTableView'
+import type { BoardTask, TaskProjectSummary } from './taskTypes'
 
-type Project = {
-  id: string; name: string; description: string | null
-  quoteId: string | null; quoteNumber: string | null; isArchived: boolean
-  total: number; done: number; donePct: number; overdue: number; updatedAt: string
-}
-type Task = {
-  id: string; projectId: string; title: string; description: string | null
-  done: boolean; doneAt: string | null; dueOn: string | null
-  startDate: string | null; endDate: string | null
-  percentDone: number; identifier: string
-  labels: { id: string; title: string; hexColor: string }[]
-  commentCount: number; relationCount: number
-  daysOverdue: number; priority: number; updatedAt: string
-}
 type QuoteOption = { quoteId: string; quoteNumber: string; customerName: string | null }
+
+const VIEWS = ['table', 'board', 'timeline'] as const
+type View = (typeof VIEWS)[number]
 
 /**
  * งาน — work tracked beside the money it bills against.
@@ -32,40 +25,71 @@ type QuoteOption = { quoteId: string; quoteNumber: string; customerName: string 
  * Projects and tasks are Orva's own records in Orva's own database, so a
  * project can point straight at the quotation it bills against and the two
  * percentages can be read together.
+ *
+ * Three views over one list of tasks: a table to read and filter, a board to
+ * plan on, a timeline to see the shape of the month. The tasks are fetched
+ * once and each view renders them, so switching view costs nothing.
  */
 export default function TasksPage() {
   const t = useT()
   const qc = useQueryClient()
   const scopeVersion = useOrganizationScopeVersion()
   const [projectId, setProjectId] = React.useState<string | null>(null)
-  const [showDone, setShowDone] = React.useState(false)
+  const [view, setView] = React.useState<View>('table')
+  const [filters, setFilters] = React.useState<TaskFilters>({ showDone: false })
   const [creatingProject, setCreatingProject] = React.useState(false)
   const [projectDraft, setProjectDraft] = React.useState({ name: '', quoteId: '' })
-  const [title, setTitle] = React.useState('')
-  const [dueOn, setDueOn] = React.useState('')
   const [busy, setBusy] = React.useState(false)
   const [openTaskId, setOpenTaskId] = React.useState<string | null>(null)
 
   const projects = useQuery({
     queryKey: ['orva_tasking.projects', scopeVersion],
-    queryFn: () => readApiResultOrThrow<{ items: Project[] }>('/api/orva_tasking/projects'),
+    queryFn: () => readApiResultOrThrow<{ items: TaskProjectSummary[] }>('/api/orva_tasking/projects'),
   })
   const quotes = useQuery({
     queryKey: ['orva_documents.projects.pick', scopeVersion],
     queryFn: async () => (await readApiResultOrThrow<{ items: QuoteOption[] }>('/api/orva_documents/projects')).items,
     enabled: creatingProject,
   })
+  const labels = useQuery({
+    queryKey: ['orva_tasking.labels'],
+    queryFn: async () =>
+      (await readApiResultOrThrow<{ items: { id: string; title: string }[] }>('/api/orva_tasking/labels')).items,
+  })
+  const assignees = useQuery({
+    queryKey: ['orva_tasking.assignees', scopeVersion],
+    queryFn: async () =>
+      (await readApiResultOrThrow<{ items: { id: string; name: string }[] }>('/api/orva_tasking/assignees')).items,
+  })
 
   const active = React.useMemo(() => {
-    const list = (projects.data?.items ?? []).filter((p) => !p.isArchived)
-    return list.find((p) => p.id === projectId) ?? list[0] ?? null
+    const list = (projects.data?.items ?? []).filter((project) => !project.isArchived)
+    return list.find((project) => project.id === projectId) ?? list[0] ?? null
   }, [projects.data, projectId])
 
+  // The board and the timeline always need the whole project — a board that
+  // hides finished cards has no Done column worth looking at.
+  const wantsAll = view !== 'table' || filters.showDone
+
+  const taskQueryKey = [
+    'orva_tasking.tasks', active?.id, wantsAll,
+    view === 'table' ? filters.assigneeUserId ?? '' : '',
+    view === 'table' ? filters.labelId ?? '' : '',
+    view === 'table' ? filters.dueWithinDays ?? '' : '',
+    scopeVersion,
+  ]
+
   const tasks = useQuery({
-    queryKey: ['orva_tasking.tasks', active?.id, showDone, scopeVersion],
-    queryFn: () => readApiResultOrThrow<{ items: Task[] }>(
-      `/api/orva_tasking/tasks?projectId=${active!.id}&bucket=${showDone ? 'all' : 'open'}`,
-    ),
+    queryKey: taskQueryKey,
+    queryFn: () => {
+      const params = new URLSearchParams({ projectId: active!.id, bucket: wantsAll ? 'all' : 'open' })
+      if (view === 'table') {
+        if (filters.assigneeUserId) params.set('assigneeUserId', filters.assigneeUserId)
+        if (filters.labelId) params.set('labelId', filters.labelId)
+        if (filters.dueWithinDays !== undefined) params.set('dueWithinDays', String(filters.dueWithinDays))
+      }
+      return readApiResultOrThrow<{ items: BoardTask[] }>(`/api/orva_tasking/tasks?${params.toString()}`)
+    },
     enabled: Boolean(active),
   })
 
@@ -90,8 +114,8 @@ export default function TasksPage() {
     } finally { setBusy(false) }
   }
 
-  const addProject = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const addProject = async (event: React.FormEvent) => {
+    event.preventDefault()
     if (!projectDraft.name.trim()) return
     const ok = await send(
       { name: projectDraft.name, quoteId: projectDraft.quoteId || null },
@@ -101,41 +125,41 @@ export default function TasksPage() {
     if (ok) { setCreatingProject(false); setProjectDraft({ name: '', quoteId: '' }) }
   }
 
-  const addTask = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!active || !title.trim()) return
-    const ok = await send(
-      { projectId: active.id, title, dueOn: dueOn || null },
-      'POST', '/api/orva_tasking/tasks',
-    )
-    if (ok) { setTitle(''); setDueOn('') }
+  const quickAdd = async (title: string, dueOn: string) => {
+    if (!active) return
+    await send({ projectId: active.id, title, dueOn: dueOn || null }, 'POST', '/api/orva_tasking/tasks')
   }
 
-  const toggle = (task: Task) =>
+  const toggleDone = (task: BoardTask) =>
     send({ id: task.id, done: !task.done, updatedAt: task.updatedAt }, 'PUT', '/api/orva_tasking/tasks')
 
-  const visibleProjects = (projects.data?.items ?? []).filter((p) => !p.isArchived)
+  const visibleProjects = (projects.data?.items ?? []).filter((project) => !project.isArchived)
+  const viewLabel: Record<View, string> = {
+    table: t('orva_tasking.view.table', 'ตาราง'),
+    board: t('orva_tasking.view.board', 'บอร์ด'),
+    timeline: t('orva_tasking.view.timeline', 'ไทม์ไลน์'),
+  }
 
   return (
     <Page>
       <PageHeader
         title={t('orva_tasking.page.title', 'งาน')}
         description={t('orva_tasking.page.description', 'งานของแต่ละโปรเจกต์ ผูกกับใบเสนอราคาที่เรียกเก็บ — งานที่ยังไม่เสร็จและใกล้ครบกำหนดขึ้นก่อน')}
-        actions={<Button onClick={() => setCreatingProject((v) => !v)}>{t('orva_tasking.newProject', 'โปรเจกต์ใหม่')}</Button>}
+        actions={<Button onClick={() => setCreatingProject((open) => !open)}>{t('orva_tasking.newProject', 'โปรเจกต์ใหม่')}</Button>}
       />
       <PageBody>
         {creatingProject ? (
           <form onSubmit={addProject} className="mb-4 flex flex-wrap items-end gap-2 rounded-md border p-4">
             <label className="flex flex-col gap-1 text-sm">
               <span>{t('orva_tasking.projectName', 'ชื่อโปรเจกต์')}</span>
-              <Input className="w-64" value={projectDraft.name} onChange={(e) => setProjectDraft({ ...projectDraft, name: e.target.value })} required maxLength={200} />
+              <Input className="w-64" value={projectDraft.name} onChange={(event) => setProjectDraft({ ...projectDraft, name: event.target.value })} required maxLength={200} />
             </label>
             <label className="flex flex-col gap-1 text-sm">
               <span>{t('orva_tasking.linkedQuote', 'ใบเสนอราคาที่เรียกเก็บ')}</span>
-              <select className="rounded-md border bg-background px-3 py-2" value={projectDraft.quoteId} onChange={(e) => setProjectDraft({ ...projectDraft, quoteId: e.target.value })}>
+              <select className="rounded-md border bg-background px-3 py-2" value={projectDraft.quoteId} onChange={(event) => setProjectDraft({ ...projectDraft, quoteId: event.target.value })}>
                 <option value="">{t('orva_tasking.internalWork', '— งานภายใน ไม่ผูกใบเสนอราคา —')}</option>
-                {(quotes.data ?? []).map((q) => (
-                  <option key={q.quoteId} value={q.quoteId}>{q.quoteNumber}{q.customerName ? ` — ${q.customerName}` : ''}</option>
+                {(quotes.data ?? []).map((quote) => (
+                  <option key={quote.quoteId} value={quote.quoteId}>{quote.quoteNumber}{quote.customerName ? ` — ${quote.customerName}` : ''}</option>
                 ))}
               </select>
             </label>
@@ -153,6 +177,7 @@ export default function TasksPage() {
                 key={project.id}
                 type="button"
                 onClick={() => setProjectId(project.id)}
+                aria-pressed={active?.id === project.id}
                 className={`rounded-full border px-3 py-1.5 text-sm ${active?.id === project.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted'}`}
               >
                 {project.name}
@@ -189,85 +214,54 @@ export default function TasksPage() {
               </div>
             </div>
 
-            <form onSubmit={addTask} className="mb-4 flex flex-wrap items-end gap-2">
-              <Input className="max-w-96" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t('orva_tasking.newTask', 'เพิ่มงานใหม่…')} maxLength={250} />
-              <Input type="date" className="w-44" value={dueOn} onChange={(e) => setDueOn(e.target.value)} />
-              <Button type="submit" disabled={busy || !title.trim()}>{t('orva_tasking.add', 'เพิ่ม')}</Button>
-              <label className="ml-auto flex items-center gap-2 text-sm text-muted-foreground">
-                <input type="checkbox" checked={showDone} onChange={(e) => setShowDone(e.target.checked)} />
-                {t('orva_tasking.showDone', 'แสดงงานที่เสร็จแล้ว')}
-              </label>
-            </form>
-
-            <div className="overflow-x-auto rounded-md border">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b bg-muted/50 text-left">
-                    <th className="w-10 px-3 py-2" />
-                    <th className="px-3 py-2">{t('orva_tasking.col.task', 'งาน')}</th>
-                    <th className="px-3 py-2">{t('orva_tasking.col.labels', 'ป้ายกำกับ')}</th>
-                    <th className="px-3 py-2">{t('orva_tasking.col.due', 'กำหนดเสร็จ')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tasks.isLoading ? <tr><td colSpan={4} className="px-3 py-8 text-center text-muted-foreground">…</td></tr> : null}
-                  {tasks.data?.items.length === 0 ? (
-                    <tr><td colSpan={4} className="px-3 py-8 text-center text-muted-foreground">{t('orva_tasking.empty', 'ยังไม่มีงานค้างในโปรเจกต์นี้')}</td></tr>
-                  ) : null}
-                  {(tasks.data?.items ?? []).map((task) => (
-                    <tr key={task.id} className="border-b last:border-b-0">
-                      <td className="px-3 py-2">
-                        <input
-                          type="checkbox"
-                          checked={task.done}
-                          disabled={busy}
-                          onChange={() => toggle(task)}
-                          aria-label={t('orva_tasking.toggle', 'ทำเครื่องหมายว่าเสร็จ')}
-                        />
-                      </td>
-                      <td className="px-3 py-2">
-                        {/* The title opens the detail; the checkbox stays a checkbox,
-                            so ticking work off never costs a round trip through a form. */}
-                        <button
-                          type="button"
-                          onClick={() => setOpenTaskId(task.id)}
-                          className={`text-left hover:underline ${task.done ? 'text-muted-foreground line-through' : ''}`}
-                        >
-                          {task.title}
-                        </button>
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          {task.percentDone > 0 && !task.done ? `${task.percentDone}%` : null}
-                          {task.commentCount > 0 ? ` 💬${task.commentCount}` : null}
-                          {task.relationCount > 0 ? ` ⛓${task.relationCount}` : null}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2">
-                        <span className="flex flex-wrap gap-1">
-                          {task.labels.map((label) => (
-                            <span key={label.id} className="rounded-full border px-2 py-0.5 text-xs">
-                              <span
-                                aria-hidden="true"
-                                className="mr-1 inline-block size-2 rounded-full align-middle"
-                                style={{ backgroundColor: label.hexColor }}
-                              />
-                              {label.title}
-                            </span>
-                          ))}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">
-                        {task.dueOn ? (
-                          <span className={task.daysOverdue > 0 ? 'text-status-error-text' : 'text-muted-foreground'}>
-                            {task.dueOn}
-                            {task.daysOverdue > 0 ? ` · ${t('orva_tasking.overdue', 'เลย {days} วัน').replace('{days}', String(task.daysOverdue))}` : ''}
-                          </span>
-                        ) : <span className="text-muted-foreground">—</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="mb-4 flex flex-wrap gap-1" role="tablist" aria-label={t('orva_tasking.viewSwitcher', 'มุมมอง')}>
+              {VIEWS.map((candidate) => (
+                <button
+                  key={candidate}
+                  type="button"
+                  role="tab"
+                  aria-selected={view === candidate}
+                  onClick={() => setView(candidate)}
+                  className={`rounded-md border px-3 py-1.5 text-sm ${view === candidate ? 'bg-muted font-medium' : 'hover:bg-muted'}`}
+                >
+                  {viewLabel[candidate]}
+                </button>
+              ))}
             </div>
+
+            {view === 'table' ? (
+              <TaskTableView
+                tasks={tasks.data?.items ?? []}
+                isLoading={tasks.isLoading}
+                error={tasks.error ? t('orva_tasking.loadFailed', 'โหลดงานไม่สำเร็จ') : null}
+                labels={labels.data ?? []}
+                assignees={assignees.data ?? []}
+                filters={filters}
+                onFiltersChange={setFilters}
+                onOpenTask={setOpenTaskId}
+                onToggleDone={toggleDone}
+                onQuickAdd={quickAdd}
+                busy={busy}
+                canAdd
+              />
+            ) : null}
+
+            {view === 'board' ? (
+              <BoardView
+                projectId={active.id}
+                tasks={tasks.data?.items ?? []}
+                onOpenTask={setOpenTaskId}
+                onChanged={refresh}
+              />
+            ) : null}
+
+            {view === 'timeline' ? (
+              <TimelineView
+                tasks={tasks.data?.items ?? []}
+                onOpenTask={setOpenTaskId}
+                onChanged={refresh}
+              />
+            ) : null}
           </>
         ) : projects.data ? (
           <p className="text-sm text-muted-foreground">{t('orva_tasking.noProjects', 'ยังไม่มีโปรเจกต์ — สร้างโปรเจกต์แรกเพื่อเริ่มบันทึกงาน')}</p>
@@ -275,6 +269,7 @@ export default function TasksPage() {
 
         <TaskDrawer
           task={(tasks.data?.items ?? []).find((item) => item.id === openTaskId) ?? null}
+          assignees={assignees.data ?? []}
           onClose={() => setOpenTaskId(null)}
           onSaved={refresh}
         />

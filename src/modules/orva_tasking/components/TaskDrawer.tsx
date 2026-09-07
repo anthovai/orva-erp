@@ -17,17 +17,12 @@ import { AttachmentsSection } from '@open-mercato/ui/backend/detail/AttachmentsS
 import { apiCall, readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import type { BoardTask } from './taskTypes'
 
 /** How the attachments module addresses a task's files. */
 export const TASK_ATTACHMENT_ENTITY_ID = 'orva_tasking:task'
 
-export type DrawerTask = {
-  id: string; projectId: string; title: string; description: string | null
-  done: boolean; dueOn: string | null; startDate: string | null; endDate: string | null
-  percentDone: number; priority: number; identifier: string
-  labels: { id: string; title: string; hexColor: string }[]
-  updatedAt: string
-}
+export type DrawerTask = BoardTask
 
 type Label = { id: string; title: string; hexColor: string; usageCount: number; updatedAt: string }
 type Comment = {
@@ -47,10 +42,12 @@ const RELATION_KINDS = ['subtask', 'blocks', 'related'] as const
  */
 export function TaskDrawer({
   task,
+  assignees,
   onClose,
   onSaved,
 }: {
   task: DrawerTask | null
+  assignees: { id: string; name: string }[]
   onClose: () => void
   onSaved: () => void
 }) {
@@ -122,6 +119,7 @@ export function TaskDrawer({
       endDate: draft.endDate || null,
       percentDone: draft.percentDone,
       priority: draft.priority,
+      assigneeUserId: draft.assigneeUserId,
       labelIds: draft.labels.map((label) => label.id),
       updatedAt: task.updatedAt,
     })
@@ -253,6 +251,42 @@ export function TaskDrawer({
               {t('orva_tasking.datesOutOfOrder', 'วันเริ่มต้องไม่หลังวันจบ')}
             </p>
           ) : null}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1">
+              <label className="block text-sm font-medium" htmlFor="task-assignee">
+                {t('orva_tasking.col.assignee', 'ผู้รับผิดชอบ')}
+              </label>
+              <select
+                id="task-assignee"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                value={draft.assigneeUserId ?? ''}
+                onChange={(e) => setDraft({ ...draft, assigneeUserId: e.target.value || null })}
+              >
+                <option value="">{t('orva_tasking.unassigned', '— ยังไม่มีผู้รับผิดชอบ —')}</option>
+                {assignees.map((person) => (
+                  <option key={person.id} value={person.id}>{person.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-sm font-medium" htmlFor="task-priority">
+                {t('orva_tasking.field.priority', 'ความสำคัญ')}
+              </label>
+              <select
+                id="task-priority"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                value={draft.priority}
+                onChange={(e) => setDraft({ ...draft, priority: Number(e.target.value) })}
+              >
+                <option value={0}>{t('orva_tasking.priority.none', 'ไม่ระบุ')}</option>
+                <option value={1}>{t('orva_tasking.priority.low', 'ต่ำ')}</option>
+                <option value={2}>{t('orva_tasking.priority.normal', 'ปกติ')}</option>
+                <option value={3}>{t('orva_tasking.priority.high', 'สูง')}</option>
+                <option value={4}>{t('orva_tasking.priority.urgent', 'ด่วน')}</option>
+              </select>
+            </div>
+          </div>
 
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">{t('orva_tasking.field.labels', 'ป้ายกำกับ')}</legend>

@@ -25,6 +25,11 @@ export const taskListSchema = z.object({
    * which would make `hasDates=0` filter instead of not filtering.
    */
   hasDates: z.enum(['0', '1', 'true', 'false']).optional().transform((v) => v === '1' || v === 'true'),
+  /** Table-view filters. Absent means no filtering on that field. */
+  assigneeUserId: z.string().uuid().optional(),
+  labelId: z.string().uuid().optional(),
+  /** Due within N days, counting today. Overdue work always qualifies. */
+  dueWithinDays: z.coerce.number().int().min(0).max(365).optional(),
 })
 
 /** A duration runs forwards; the database enforces it too. */
@@ -109,6 +114,46 @@ export const relationCreateSchema = z.object({
 export const relationDeleteSchema = z.object({
   taskId: z.string().uuid(),
   otherTaskId: z.string().uuid(),
+})
+
+export const bucketListSchema = z.object({ projectId: z.string().uuid() })
+
+export const bucketCreateSchema = z.object({
+  projectId: z.string().uuid(),
+  title: z.string().trim().min(1).max(80),
+  wipLimit: z.coerce.number().int().min(0).max(999).optional().default(0),
+  isDoneBucket: z.boolean().optional().default(false),
+})
+
+export const bucketUpdateSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().trim().min(1).max(80).optional(),
+  wipLimit: z.coerce.number().int().min(0).max(999).optional(),
+  isDoneBucket: z.boolean().optional(),
+  /** Whole-board reorder: bucket ids in their new left-to-right order. */
+  order: z.array(z.string().uuid()).max(30).optional(),
+  updatedAt: z.string().min(1),
+})
+
+export const bucketDeleteSchema = z.object({ id: z.string().uuid() })
+
+/**
+ * Create a starter board.
+ *
+ * The three titles come from the caller so they arrive in the language the user
+ * is reading; the last one becomes the done column.
+ */
+export const bucketDefaultsSchema = z.object({
+  projectId: z.string().uuid(),
+  titles: z.array(z.string().trim().min(1).max(80)).min(2).max(6),
+})
+
+export const taskMoveSchema = z.object({
+  id: z.string().uuid(),
+  bucketId: z.string().uuid(),
+  /** Where in the destination column, 0 = top. Clamped server-side. */
+  index: z.coerce.number().int().min(0).max(9999),
+  updatedAt: z.string().min(1),
 })
 
 export const attachmentFlagSchema = z.object({

@@ -128,6 +128,15 @@ export class Task {
   @Property({ name: 'identifier_index', type: 'int' })
   identifierIndex: number = 0
 
+  /**
+   * Which column of the board it sits in. Null until the project has a board,
+   * which is why the board reads "unplaced" cards into its first column rather
+   * than hiding work that predates it.
+   */
+  @Property({ name: 'bucket_id', type: 'uuid', nullable: true })
+  @Index()
+  bucketId?: string | null
+
   @Property({ name: 'created_by', type: 'uuid', nullable: true })
   createdBy?: string | null
 
@@ -332,4 +341,62 @@ export class TaskAttachmentFlag {
 
   @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
   updatedAt: Date = new Date()
+}
+
+/**
+ * A column on a project's board.
+ *
+ * Buckets hang off the project, not off a saved view. Vikunja attaches them to
+ * a view because it lets a user define many views per project; this module has
+ * four fixed views instead, so a second level of indirection would buy nothing
+ * and cost every read a join.
+ */
+@Entity({ tableName: 'orva_tasking_buckets' })
+@Index({ properties: ['tenantId', 'projectId'] })
+export class TaskBucket {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ name: 'project_id', type: 'uuid' })
+  projectId!: string
+
+  @Property({ type: 'text' })
+  title!: string
+
+  @Property({ type: 'int' })
+  position: number = 0
+
+  /**
+   * How many unfinished cards this column should hold. 0 means no limit.
+   *
+   * Exceeding it warns and still allows the drop. A hard block teaches people
+   * to keep their real work list somewhere the tool cannot see it.
+   */
+  @Property({ name: 'wip_limit', type: 'int' })
+  wipLimit: number = 0
+
+  /**
+   * At most one per project. Dropping a card here ticks it done, and taking it
+   * out reopens it, so the board and the checkbox can never disagree.
+   */
+  @Property({ name: 'is_done_bucket', type: 'boolean' })
+  isDoneBucket: boolean = false
+
+  @Property({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+
+  @Property({ name: 'deleted_at', type: Date, nullable: true })
+  deletedAt?: Date | null
 }
