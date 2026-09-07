@@ -120,8 +120,14 @@ export const enabledModules: ModuleEntry[] = [
           '/backend/customers/companies/create': { ...regroup('sales', 21), load: () => import('@/modules/orva/components/CompanyCreatePage').then((mod) => mod.default) },
           '/backend/customers/people': regroup('sales', 30),
           '/backend/customers/people/create': regroup('sales', 31),
-          '/backend/customer-tasks': regroup('project', 10),
-          '/backend/calendar': regroup('project', 20),
+          // The customers module's own task list has no table on this
+          // install — `customer_tasks` does not exist — so the page could only
+          // ever error. Work lives in orva_tasking; this is not a second home
+          // for it.
+          '/backend/customer-tasks': null,
+          // A calendar of deals and their dates, which is a sales question.
+          // It sat under Projects and read as a work calendar, which it is not.
+          '/backend/calendar': regroup('sales', 70),
         },
       },
     },
@@ -248,7 +254,12 @@ export const enabledModules: ModuleEntry[] = [
           '/backend/definitions/visual-editor': null,
           '/backend/instances': null,
           '/backend/events': null,
-          '/backend/tasks': regroup('project', 30),
+          // "User tasks" are approval steps inside durable workflows, not
+          // work someone does. Every other page of this module is already
+          // hidden above, and the table holds no rows, so surfacing this one
+          // under Projects only added a third thing called "tasks". One line
+          // to restore the day workflow approvals are actually used.
+          '/backend/tasks': null,
         },
       },
     },
@@ -271,10 +282,26 @@ export const enabledModules: ModuleEntry[] = [
           '/backend/staff/team-roles': null,
           '/backend/staff/team-roles/create': null,
           '/backend/staff/profile/create': null,
-          // benchmark F0: timesheets belong to project work, leave to HR
-          '/backend/staff/timesheets': regroup('project', 40),
-          '/backend/staff/timesheets/projects': regroup('project', 50),
-          '/backend/staff/timesheets/projects/create': regroup('project', 51),
+          // Reversing the earlier F0 note, which put timesheets under
+          // Projects: its "โครงการ" page is a timesheet cost centre and sat
+          // one line under orva_documents' "โปรเจกต์", which is a quotation.
+          // Two different things with the same name in the same group is the
+          // mess this group had become. Hours worked are an HR question.
+          // Own time entries are a personal tool, so they stay, under HR
+          // where hours worked belong.
+          '/backend/staff/timesheets': regroup('hr', 60),
+          // "โครงการ" is a timesheet cost centre. It sat one line under
+          // orva_documents' "โปรเจกต์", which is a quotation — two unrelated
+          // things with almost the same name in the same group, which is the
+          // mess this group had become.
+          //
+          // Hidden rather than moved: all four staff_time_* tables are empty,
+          // so nothing is lost today, and moving it to HR did not render it
+          // for a reason I could not establish. Leaving a page that neither
+          // appears nor is explained is worse than one deliberately closed.
+          // Three lines to restore the day timesheets are actually used.
+          '/backend/staff/timesheets/projects': null,
+          '/backend/staff/timesheets/projects/create': null,
           '/backend/staff/leave-requests': regroup('hr', 30),
           '/backend/staff/leave-requests/create': regroup('hr', 31),
           '/backend/staff/my-leave-requests': regroup('hr', 40),
