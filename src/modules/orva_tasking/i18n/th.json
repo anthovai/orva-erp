@@ -2,6 +2,7 @@
   "orva_tasking.a11y.bar": "{title} · {from} ถึง {to} · ลูกศรซ้ายขวาเลื่อนวัน",
   "orva_tasking.a11y.cancelled": "ยกเลิกการย้าย",
   "orva_tasking.a11y.card": "{title} · คอลัมน์ {column} · ตำแหน่งที่ {n}",
+  "orva_tasking.a11y.dropFailed": "ย้าย \"{title}\" ไม่สำเร็จ การ์ดอยู่ที่เดิม",
   "orva_tasking.a11y.dropped": "วาง \"{title}\" แล้ว",
   "orva_tasking.a11y.moved": "เลื่อน \"{title}\" ไป {days} วัน",
   "orva_tasking.a11y.picked": "ยก \"{title}\" ขึ้นแล้ว ใช้ลูกศรย้าย เว้นวรรคเพื่อวาง",

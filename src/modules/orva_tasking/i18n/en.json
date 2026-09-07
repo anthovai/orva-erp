@@ -2,6 +2,7 @@
   "orva_tasking.a11y.bar": "{title} · {from} to {to} · left and right arrows shift the dates",
   "orva_tasking.a11y.cancelled": "Move cancelled",
   "orva_tasking.a11y.card": "{title} · column {column} · position {n}",
+  "orva_tasking.a11y.dropFailed": "Could not move \"{title}\" — the card stayed where it was",
   "orva_tasking.a11y.dropped": "Dropped \"{title}\"",
   "orva_tasking.a11y.moved": "Moved \"{title}\" by {days} days",
   "orva_tasking.a11y.picked": "Picked up \"{title}\". Arrows to move, space to drop.",

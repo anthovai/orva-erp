@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
 import { Task, TaskProject } from '../../data/entities'
 import { taskCreateSchema, taskListSchema, taskUpdateSchema } from '../../data/validators'
+import { toUuidArray } from '../../lib/sql'
 
 export const metadata = {
   GET: { requireAuth: true, requireFeatures: ['orva_tasking.view'] },
@@ -70,10 +71,11 @@ async function syncLabels(
   taskId: string,
   labelIds: string[],
 ): Promise<void> {
+  const keep = toUuidArray(labelIds)
   await tem.execute(
     `delete from orva_tasking_task_labels
      where task_id = ?::uuid and (cardinality(?::uuid[]) = 0 or label_id <> all(?::uuid[]))`,
-    [taskId, labelIds, labelIds],
+    [taskId, keep, keep],
   )
   if (!labelIds.length) return
   await tem.execute(
@@ -83,7 +85,7 @@ async function syncLabels(
      where l.id = any(?::uuid[]) and l.deleted_at is null
        and l.tenant_id = ?::uuid and l.organization_id = ?::uuid
      on conflict ("task_id", "label_id") do nothing`,
-    [taskId, labelIds, tenantId, organizationId],
+    [taskId, keep, tenantId, organizationId],
   )
 }
 

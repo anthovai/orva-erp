@@ -9,6 +9,7 @@ import { withTenantRls } from '@/lib/rls'
 import { Task, TaskBucket } from '../../../data/entities'
 import { taskMoveSchema } from '../../../data/validators'
 import { placeCard, wipState } from '../../../lib/board'
+import { toUuidArray } from '../../../lib/sql'
 
 export const metadata = {
   PUT: { requireAuth: true, requireFeatures: ['orva_tasking.manage'] },
@@ -83,7 +84,7 @@ export async function PUT(req: Request) {
          set position = o.ord - 1
          from unnest(?::uuid[]) with ordinality as o(id, ord)
          where t.id = o.id and t.bucket_id = ?::uuid`,
-        [ordered, bucket.id],
+        [toUuidArray(ordered), bucket.id],
       )
 
       const [{ open_count }] = (await tem.execute(

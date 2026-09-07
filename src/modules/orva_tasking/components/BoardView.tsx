@@ -80,9 +80,9 @@ export function BoardView({
   // column rather than hidden, so a new board never looks empty when it is not.
   const unplaced = tasks.filter((task) => !task.bucketId)
 
-  const move = async (taskId: string, bucketId: string, index: number) => {
+  const move = async (taskId: string, bucketId: string, index: number): Promise<boolean> => {
     const task = tasks.find((candidate) => candidate.id === taskId)
-    if (!task) return
+    if (!task) return false
     const result = await send('/api/orva_tasking/tasks/position', 'PUT', {
       id: taskId, bucketId, index, updatedAt: task.updatedAt,
     })
@@ -93,6 +93,7 @@ export function BoardView({
       )
     }
     await refresh()
+    return result !== null
   }
 
   const createDefaults = async () => {
@@ -185,8 +186,15 @@ export function BoardView({
       } else {
         const target = held
         setHeld(null)
-        setAnnouncement(t('orva_tasking.a11y.dropped', 'วาง "{title}" แล้ว').replace('{title}', task.title))
-        await move(target.taskId, target.bucketId, target.index)
+        // Announced only once the move has actually landed. Saying "dropped"
+        // before the server agrees tells a screen-reader user the work moved
+        // when it may not have.
+        const moved = await move(target.taskId, target.bucketId, target.index)
+        setAnnouncement(
+          moved
+            ? t('orva_tasking.a11y.dropped', 'วาง "{title}" แล้ว').replace('{title}', task.title)
+            : t('orva_tasking.a11y.dropFailed', 'ย้าย "{title}" ไม่สำเร็จ การ์ดอยู่ที่เดิม').replace('{title}', task.title),
+        )
       }
       return
     }

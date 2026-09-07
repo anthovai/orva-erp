@@ -14,6 +14,7 @@ import {
   bucketUpdateSchema,
 } from '../../data/validators'
 import { wipState } from '../../lib/board'
+import { toUuidArray } from '../../lib/sql'
 
 export const metadata = {
   GET: { requireAuth: true, requireFeatures: ['orva_tasking.view'] },
@@ -171,7 +172,7 @@ export async function PUT(req: Request) {
            set position = o.ord - 1, updated_at = now()
            from unnest(?::uuid[]) with ordinality as o(id, ord)
            where b.id = o.id and b.project_id = ?::uuid and b.deleted_at is null`,
-          [input.order, bucket.projectId],
+          [toUuidArray(input.order), bucket.projectId],
         )
       }
       return { id: bucket.id, updatedAt: bucket.updatedAt.toISOString() }
