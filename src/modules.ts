@@ -408,6 +408,11 @@ enabledModules.push({ id: 'orva_stock', from: '@app' })
 // Customer support for shipped software (benchmark spec F0 gap #7).
 enabledModules.push({ id: 'orva_support', from: '@app' })
 enabledModules.push({ id: 'orva_tasking', from: '@app' })
+// The seam between the work and the hours: keeps โครงการ (staff_time_projects)
+// in step with โปรเจกต์ (orva_tasking_projects). Registered after orva_tasking
+// because it listens to that module's events.
+// Spec: .ai/specs/2026-09-07-orva-time-tracking-ownership-and-project-sync.md
+enabledModules.push({ id: 'orva_time', from: '@app' })
 
 // Orva branding: registered LAST so its i18n overrides every module's defaults
 // (dictionary merge is last-write-wins across enabledModules order).

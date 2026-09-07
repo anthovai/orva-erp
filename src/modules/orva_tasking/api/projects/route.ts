@@ -8,6 +8,7 @@ import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
 import { TaskProject } from '../../data/entities'
 import { projectCreateSchema, projectUpdateSchema } from '../../data/validators'
+import { emitTaskingEvent, type TaskingProjectEvent } from '../../events'
 import { donePct } from '../../lib/progress'
 
 export const metadata = {
@@ -118,9 +119,23 @@ export async function POST(req: Request) {
       })
       tem.persist(project)
       await tem.flush()
-      return { id: project.id }
+      return {
+        id: project.id,
+        event: {
+          id: project.id,
+          tenantId: project.tenantId,
+          organizationId: project.organizationId,
+          name: project.name,
+          isArchived: project.isArchived,
+          quoteId: project.quoteId ?? null,
+          updatedAt: project.updatedAt.toISOString(),
+        } satisfies TaskingProjectEvent,
+      }
     })
-    return Response.json({ ok: true, ...created })
+    // Post-commit, outside withTenantRls: orva_time mirrors this into a staff
+    // timesheet project, and that write must not ride on this transaction.
+    await emitTaskingEvent('orva_tasking.project.created', created.event)
+    return Response.json({ ok: true, id: created.id })
   } catch (error) {
     // The unique index on (tenant, quote) is what enforces one project per
     // quotation; report it as a conflict rather than a server error.
@@ -151,15 +166,35 @@ export async function PUT(req: Request) {
       if (project.updatedAt.toISOString() !== new Date(input.updatedAt).toISOString()) {
         throw Object.assign(new Error('Conflict — reload and retry'), { status: 409 })
       }
+      const wasArchived = project.isArchived
       if (input.name !== undefined) project.name = input.name
       if (input.description !== undefined) project.description = input.description
       if (input.quoteId !== undefined) project.quoteId = input.quoteId
       if (input.isArchived !== undefined) project.isArchived = input.isArchived
       project.updatedAt = new Date()
       await tem.flush()
-      return { id: project.id, updatedAt: project.updatedAt.toISOString() }
+      return {
+        id: project.id,
+        updatedAt: project.updatedAt.toISOString(),
+        // Archiving is its own event because it means something different to
+        // a listener: the time project is completed, not renamed.
+        justArchived: !wasArchived && project.isArchived,
+        event: {
+          id: project.id,
+          tenantId: project.tenantId,
+          organizationId: project.organizationId,
+          name: project.name,
+          isArchived: project.isArchived,
+          quoteId: project.quoteId ?? null,
+          updatedAt: project.updatedAt.toISOString(),
+        } satisfies TaskingProjectEvent,
+      }
     })
-    return Response.json({ ok: true, ...saved })
+    await emitTaskingEvent(
+      saved.justArchived ? 'orva_tasking.project.archived' : 'orva_tasking.project.updated',
+      saved.event,
+    )
+    return Response.json({ ok: true, id: saved.id, updatedAt: saved.updatedAt })
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Update failed'
     // Relinking hits the same unique index POST does: one project per
