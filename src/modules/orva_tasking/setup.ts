@@ -29,12 +29,19 @@ export const setup: ModuleSetupConfig = {
   },
 
   /**
-   * NOTE: `seedDefaults` runs at tenant creation only. An organization that
-   * already exists — which is every organization on a running install — never
-   * reaches this, so the two schedules must be registered once by hand for it:
-   * `node scripts/register-tasking-jobs.mjs`. The same trap applies to
-   * `defaultRoleFeatures` and `defaultCustomerRoleFeatures` above, which also
-   * have to be granted after the fact.
+   * `seedDefaults` is NOT tenant-creation-only, contrary to what this comment
+   * said when it was copied from `orva_finance`. `mercato seed:defaults` walks
+   * every existing organization and calls it, which is how both schedules
+   * below appeared on this install without anyone registering them by hand.
+   * Verified: the rows exist with the right cron, timezone and scope payload.
+   *
+   *   yarn mercato seed:defaults --module orva_tasking
+   *
+   * The role grants above are a different matter and DO still need doing by
+   * hand on an existing tenant — checked on this install, where `admin`,
+   * `employee` and the three customer roles carry no `orva_tasking.*` feature.
+   * `superadmin` works only because it is flagged super-admin and bypasses the
+   * list entirely.
    */
   async seedDefaults({ tenantId, organizationId, container }) {
     const cradle = container as { hasRegistration?: (name: string) => boolean }

@@ -23,11 +23,15 @@ export const setup: ModuleSetupConfig = {
   },
 
   /**
-   * NOTE: `seedDefaults` runs at tenant creation only. An organization that
-   * already exists — which is every organization on a running install — will
-   * never reach this, so the schedule must be registered once by hand for it
-   * (`scripts/register-overdue-scan.mjs`). This is the same trap as
-   * `defaultRoleFeatures`, which also has to be granted by hand after the fact.
+   * CORRECTION (2026-09-07): this said `seedDefaults` runs at tenant creation
+   * only, and pointed at a `scripts/register-overdue-scan.mjs` that does not
+   * exist in the repository. Both were wrong. `mercato seed:defaults` walks
+   * every existing organization and calls this hook:
+   *
+   *   yarn mercato seed:defaults --module orva_finance
+   *
+   * `defaultRoleFeatures` above is the part that genuinely does not reach an
+   * existing tenant and still has to be granted by hand.
    */
   async seedDefaults({ tenantId, organizationId, container }) {
     const cradle = container as { hasRegistration?: (name: string) => boolean }
