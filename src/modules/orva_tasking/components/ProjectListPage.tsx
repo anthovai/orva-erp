@@ -8,6 +8,7 @@ import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import type { TaskProjectSummary } from './taskTypes'
+import { byProject, formatHours, hoursPerDoneTask, type ProjectHours } from '@/modules/orva_time/lib/hours'
 
 type QuoteProject = {
   quoteId: string
@@ -44,6 +45,20 @@ export default function ProjectListPage() {
     queryFn: async () =>
       (await readApiResultOrThrow<{ items: QuoteProject[] }>('/api/orva_documents/projects')).items,
   })
+
+  /**
+   * Hours come from orva_time, which owns the seam between the work and the
+   * timesheet. Fetched alongside and joined here, the same way billing is —
+   * a project card that had to wait for one combined endpoint would be a
+   * reason for orva_tasking to start reading staff tables.
+   */
+  const hours = useQuery({
+    queryKey: ['orva_time.projectHours', scopeVersion],
+    queryFn: async () =>
+      (await readApiResultOrThrow<{ items: ProjectHours[] }>('/api/orva_time/project-hours')).items,
+  })
+
+  const hoursByProject = React.useMemo(() => byProject(hours.data ?? []), [hours.data])
 
   const billedByQuote = React.useMemo(
     () => new Map((billing.data ?? []).map((row) => [row.quoteId, row])),
@@ -83,6 +98,8 @@ export default function ProjectListPage() {
             const billed = project.quoteId ? billedByQuote.get(project.quoteId) : undefined
             // Drift is only meaningful once there is work written down and a
             // quotation to compare it against.
+            const logged = hoursByProject.get(project.id)
+            const perTask = logged ? hoursPerDoneTask(logged.minutes, project.done) : null
             const gap = billed && project.total > 0
               ? Math.round((project.donePct - billed.billedPct) * 10) / 10
               : null
@@ -137,6 +154,29 @@ export default function ProjectListPage() {
                       <dd className="mt-1 h-2 w-full overflow-hidden rounded-full bg-muted">
                         <div className="h-full rounded-full bg-primary/40" style={{ width: `${billed.billedPct}%` }} />
                       </dd>
+                    </div>
+                  ) : null}
+
+                  {/*
+                    Hours have no denominator, so no bar: a percentage needs
+                    something to be a percentage of, and nobody has budgeted
+                    these projects. A number and, once tasks are finished, what
+                    it works out to per task.
+                  */}
+                  {logged ? (
+                    <div className="flex items-baseline justify-between text-xs text-muted-foreground">
+                      <span>{t('orva_time.projectList.hours', 'ชั่วโมงที่ลงเวลา')}</span>
+                      <span className="tabular-nums">
+                        {logged.entries === 0 && logged.running === 0
+                          ? t('orva_time.projectList.noHours', 'ยังไม่ได้ลงเวลา')
+                          : t('orva_time.projectList.hoursValue', '{h} ชม.').replace('{h}', formatHours(logged.minutes))}
+                        {perTask !== null
+                          ? ' · ' + t('orva_time.projectList.perTask', '{h} ชม./งาน').replace('{h}', String(perTask))
+                          : ''}
+                        {logged.running > 0
+                          ? ' · ' + t('orva_time.projectList.running', 'กำลังจับเวลา {n}').replace('{n}', String(logged.running))
+                          : ''}
+                      </span>
                     </div>
                   ) : null}
                 </dl>

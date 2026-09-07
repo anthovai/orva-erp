@@ -1,1 +1,7 @@
-{}
+{
+  "orva_time.projectList.hours": "Hours logged",
+  "orva_time.projectList.hoursValue": "{h} h",
+  "orva_time.projectList.noHours": "No time logged yet",
+  "orva_time.projectList.perTask": "{h} h/task",
+  "orva_time.projectList.running": "{n} timer running"
+}

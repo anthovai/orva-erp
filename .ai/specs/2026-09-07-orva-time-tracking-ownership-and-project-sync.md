@@ -219,7 +219,7 @@ change), drift reporting in `sync`, and `customer_id` resolved from the
 quotation. Integration test: rename on each screen, assert the other follows
 and that the loop stops.
 
-**Phase 3 — hours where the work is. NOT STARTED.** Surface logged hours on the งาน project
+**Phase 3 — hours where the work is. SHIPPED.** Surface logged hours on the งาน project
 card beside งาน% and เรียกเก็บ%, which is the pairing `orva_tasking`'s spec
 exists for. Read-only; no new writes.
 

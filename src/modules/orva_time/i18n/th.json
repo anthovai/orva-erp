@@ -1,1 +1,7 @@
-{}
+{
+  "orva_time.projectList.hours": "ชั่วโมงที่ลงเวลา",
+  "orva_time.projectList.hoursValue": "{h} ชม.",
+  "orva_time.projectList.noHours": "ยังไม่ได้ลงเวลา",
+  "orva_time.projectList.perTask": "{h} ชม./งาน",
+  "orva_time.projectList.running": "กำลังจับเวลา {n}"
+}
