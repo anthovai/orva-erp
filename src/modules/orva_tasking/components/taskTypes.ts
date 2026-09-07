@@ -11,6 +11,7 @@ export type BoardTask = {
   endDate: string | null
   percentDone: number
   identifier: string
+  projectName: string
   bucketId: string | null
   assigneeUserId: string | null
   repeatEveryDays: number | null

@@ -1,5 +1,6 @@
 "use client"
 import * as React from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Page, PageBody, PageHeader } from '@open-mercato/ui/backend/Page'
 import { Button } from '@open-mercato/ui/primitives/button'
@@ -34,7 +35,13 @@ export default function TasksPage() {
   const t = useT()
   const qc = useQueryClient()
   const scopeVersion = useOrganizationScopeVersion()
-  const [projectId, setProjectId] = React.useState<string | null>(null)
+  // A link from โครงการ or กำลังจะถึง names the project it came from. Without
+  // this the link looked like it would open that project and opened whichever
+  // one the sort happened to put first.
+  const searchParams = useSearchParams()
+  const [projectId, setProjectId] = React.useState<string | null>(
+    () => searchParams.get('project'),
+  )
   const [view, setView] = React.useState<View>('table')
   const [filters, setFilters] = React.useState<TaskFilters>({ showDone: false })
   const [creatingProject, setCreatingProject] = React.useState(false)

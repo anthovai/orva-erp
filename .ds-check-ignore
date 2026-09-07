@@ -2124,6 +2124,30 @@
       "rule": "inline-style",
       "match": "style=",
       "reason": "The billed and paid bars are computed percentages of the quotation total. Colour and shape come from tokens (bg-primary, bg-primary/30, rounded-full); only the width is inline, and a fill that cannot vary is not a progress bar. Pre-existing; the exception is written down now that this file gained the work-progress column beside them."
+    },
+    {
+      "file": "src/modules/orva_tasking/components/LabelsPage.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A label colour is user data read from orva_tasking_labels.hex_color at runtime, not a design decision made in code. No token can express a colour the user picked; the swatch is decorative (aria-hidden) and the label text carries the meaning. On the labels page the same values double as the palette buttons, which must show the colour they set."
+    },
+    {
+      "file": "src/modules/orva_tasking/components/UpcomingPage.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A label colour is user data read from orva_tasking_labels.hex_color at runtime, not a design decision made in code. No token can express a colour the user picked; the swatch is decorative (aria-hidden) and the label text carries the meaning. On the labels page the same values double as the palette buttons, which must show the colour they set."
+    },
+    {
+      "file": "src/modules/orva_tasking/components/ProjectListPage.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A progress bar width is a computed percentage. Colour and shape come from tokens; only the width is inline, and a fill that cannot vary is not a progress bar."
+    },
+    {
+      "file": "src/modules/orva_tasking/components/ProjectListPage.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "A progress bar width is a computed percentage. Colour and shape come from tokens; only the width is inline, and a fill that cannot vary is not a progress bar."
     }
   ]
 }
