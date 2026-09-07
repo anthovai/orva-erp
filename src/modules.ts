@@ -304,6 +304,22 @@ export const enabledModules: ModuleEntry[] = [
           '/backend/staff/timesheets': place('project', 60),
           // โครงการ — the timesheet cost centre, restored 2026-09-07.
           //
+          // It renders NESTED under บันทึกเวลาของฉัน, not beside it, and that
+          // is a deliberate choice (2026-09-07). `buildAdminNav` in
+          // @open-mercato/ui makes a route a child when another route's href
+          // is a prefix of it AND the two share a groupId — which is exactly
+          // what putting 60 and 70 in this group does. `CollapsibleNavSection`
+          // then only draws children when the parent is the active route
+          // (`showChildren = hasChildren && isActive`), so โครงการ is invisible
+          // until บันทึกเวลาของฉัน is opened.
+          //
+          // The alternatives were to move one of the two into HR, which would
+          // undo a placement the owner asked for, or to build an Orva route at
+          // a non-nested path. The owner chose to keep both here and live with
+          // the nesting. Do not "fix" this by splitting the groups without
+          // asking — and note `isActive` uses startsWith, so once you are on
+          // โครงการ the parent stays open around it.
+          //
           // Correcting myself twice over. I first hid this saying it "was
           // never one of the seven that showed in this group": it was. Its
           // page.meta carries a hand-built folder SVG as its icon, which is

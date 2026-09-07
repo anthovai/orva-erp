@@ -71,9 +71,9 @@ describe('the โปรเจกต์และงาน group', () => {
 
   it.each([
     ['/backend/tasking', 1],            // งาน
-    ['/backend/tasking/upcoming', 2],   // กำลังจะถึง
-    ['/backend/tasking/projects', 3],   // โปรเจกต์
-    ['/backend/tasking/labels', 4],     // ป้ายกำกับ
+    ['/backend/work-upcoming', 2],      // กำลังจะถึง
+    ['/backend/work-projects', 3],      // โปรเจกต์
+    ['/backend/work-labels', 4],        // ป้ายกำกับ
     ['/backend/projects', 20],          // การเรียกเก็บตามโปรเจกต์
   ])('keeps %s, which declares the group itself, at %i', (route, order) => {
     expect(own.get(route)).toBe(order)
@@ -110,15 +110,81 @@ describe('the โปรเจกต์และงาน group', () => {
     expect(new Set(orders).size).toBe(orders.length)
   })
 
+  /**
+   * โครงการ is nested under บันทึกเวลาของฉัน, on purpose.
+   *
+   * `buildAdminNav` makes a route a child when another route's href is a
+   * prefix of it *and* the two share a groupId; `CollapsibleNavSection` then
+   * draws children only while the parent is the active route. So putting
+   * `/backend/staff/timesheets` and `/backend/staff/timesheets/projects` in
+   * one group means the second is invisible until the first is opened. The
+   * owner was shown the alternatives on 2026-09-07 and chose to keep both
+   * here anyway.
+   *
+   * This test exists so the arrangement cannot change by accident. If it
+   * fails, someone has split the two apart or renamed a path — which is a
+   * decision to make on purpose, by editing this test, not a regression to
+   * paper over.
+   */
+  it('keeps โครงการ nested under บันทึกเวลาของฉัน, which is a decision and not an accident', () => {
+    const parent = '/backend/staff/timesheets'
+    const child = '/backend/staff/timesheets/projects'
+
+    // The two conditions buildAdminNav actually tests for.
+    expect(child.startsWith(`${parent}/`)).toBe(true)
+    expect(moved.has(parent)).toBe(true)
+    expect(moved.has(child)).toBe(true)
+
+    // Same group is what turns a path prefix into a parent.
+    expect(moved.get(parent)!.order).toBeLessThan(moved.get(child)!.order)
+  })
+
+  /**
+   * Nothing else in the group may nest by accident.
+   *
+   * Every other pair of paths in this group must be unrelated, so a page the
+   * owner expects to see flat does not quietly become a child of its
+   * neighbour the way โครงการ did.
+   */
+  it('nests nothing beyond the four already known to nest', () => {
+    const paths = [...own.keys(), ...moved.keys()]
+    /*
+      One of the nine entries is a child rather than a sibling, and so is
+      drawn only while its parent is the active route:
+
+        /backend/staff/timesheets/projects → under บันทึกเวลาของฉัน
+
+      It is an installed path and cannot be moved. The three tasking pages
+      used to be here too, at /backend/tasking/{upcoming,projects,labels};
+      they are app-owned, so they were flattened to /backend/work-* on
+      2026-09-07 and now render as siblings.
+
+      Anything NOT on this list nesting is a straight regression: it means a
+      page the owner expects to see in the sidebar disappears whenever they
+      are looking at something else.
+    */
+    const allowed = new Set([
+      '/backend/staff/timesheets/projects',
+      '/backend/staff/timesheets/projects/create',
+    ])
+    const accidental: string[] = []
+    for (const path of paths) {
+      if (allowed.has(path)) continue
+      const nestsUnder = paths.find((other) => other !== path && path.startsWith(`${other}/`))
+      if (nestsUnder) accidental.push(`${path} would render under ${nestsUnder}`)
+    }
+    expect(accidental).toEqual([])
+  })
+
   it('holds nothing beyond the pages named above', () => {
     // A page appearing here without a line in this test is a page nobody
     // decided to put in front of the owner.
     expect([...own.keys()].sort()).toEqual([
       '/backend/projects',
       '/backend/tasking',
-      '/backend/tasking/labels',
-      '/backend/tasking/projects',
-      '/backend/tasking/upcoming',
+      '/backend/work-labels',
+      '/backend/work-projects',
+      '/backend/work-upcoming',
     ])
     expect([...moved.keys()].sort()).toEqual([
       '/backend/calendar',
