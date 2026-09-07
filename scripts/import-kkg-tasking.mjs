@@ -177,7 +177,16 @@ try {
       }
       return { id: existing[0].id, created: false }
     }
-    if (DRY) return { id: null, created: true }
+    if (DRY) {
+      // A sentinel rather than null, so a dry run walks the whole tree and can
+      // actually report what it would import. Returning null here made every
+      // dry run stop at the projects and print "0 tasks" as though that were
+      // a finding — the one thing a dry run exists to get right.
+      //
+      // Deliberately not a uuid: if it ever reaches SQL, the cast fails loudly
+      // instead of quietly touching some other row.
+      return { id: 'dry-run', created: true }
+    }
     const { rows } = await client.query(
       `insert into ${table} (tenant_id, organization_id, import_ref, ${keys.map((k) => `"${k}"`).join(', ')}, created_at, updated_at)
        values ($1, $2, $3, ${keys.map((_, i) => `$${i + 4}`).join(', ')}, now(), now())
@@ -227,28 +236,44 @@ try {
     report.projects[projectResult.created ? 'created' : 'updated'] += 1
     const projectId = projectResult.id
     if (!projectId) continue
+    
 
-    // ---- buckets from the project's kanban view ----------------------------
+    /**
+     * Board columns come from the kanban view's task route, not from
+     * `/views/{id}/buckets`.
+     *
+     * Two reasons, both found by trying it. The buckets route is not in
+     * Vikunja's own read-only token preset and answers 401, and the plain
+     * `/projects/{id}/tasks` list returns bucket_id as 0 — Vikunja only fills
+     * it in when the tasks are read through a view. The kanban view's task
+     * route returns the buckets themselves, each with its title, limit and
+     * tasks, which answers both questions in one call and needs no wider
+     * permission than the read-only preset already grants.
+     */
     const bucketByRef = new Map()
+    const bucketOfTask = new Map()
     try {
       const views = await api(`/projects/${project.id}/views`)
       const kanban = (Array.isArray(views) ? views : []).find((view) => view.view_kind === 'kanban')
       if (kanban) {
-        const buckets = await apiAll(`/projects/${project.id}/views/${kanban.id}/buckets`)
-        for (const [index, bucket] of buckets.entries()) {
-          const ref = scoped('bucket', bucket.id)
+        const columns = await apiAll(`/projects/${project.id}/views/${kanban.id}/tasks`)
+        for (const [index, column] of columns.entries()) {
+          const ref = scoped('bucket', column.id)
           const result = await upsert('orva_tasking_buckets', ref, {
             project_id: projectId,
-            title: String(bucket.title ?? '').slice(0, 80) || 'column',
+            title: String(column.title ?? '').slice(0, 80) || 'column',
             position: index,
-            wip_limit: Math.max(0, Number(bucket.limit) || 0),
-            // The done bucket is a per-project flag in Orva, and the unique
+            wip_limit: Math.max(0, Number(column.limit) || 0),
+            // The done column is a per-project flag in Orva, and the unique
             // index allows only one, so the source's flag is honoured once.
-            is_done_bucket: Boolean(kanban.done_bucket_id && kanban.done_bucket_id === bucket.id),
+            is_done_bucket: Boolean(kanban.done_bucket_id && kanban.done_bucket_id === column.id),
           })
-          bucketByRef.set(bucket.id, result.id)
+          bucketByRef.set(column.id, result.id)
           report.buckets[result.created ? 'created' : 'updated'] += 1
+          for (const task of column.tasks ?? []) bucketOfTask.set(task.id, result.id)
         }
+      } else {
+        report.warnings.push(`"${project.title}" has no board in KKG-Tasking; its tasks arrive unplaced and land in the first column when a board is created`)
       }
     } catch (error) {
       report.warnings.push(`could not read the board for "${project.title}": ${error.message}`)
@@ -260,7 +285,9 @@ try {
       const taskRef = scoped('task', task.id)
       const done = Boolean(task.done)
       const doneAt = mapTimestamp(task.done_at)
-      const bucketId = bucketByRef.get(task.bucket_id) ?? null
+      // From the kanban read, not from task.bucket_id, which this endpoint
+      // leaves at 0.
+      const bucketId = bucketOfTask.get(task.id) ?? null
 
       const startDate = mapDate(task.start_date)
       const endDate = mapDate(task.end_date)
