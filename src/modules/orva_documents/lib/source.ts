@@ -71,6 +71,8 @@ export function templateFor(type: DocumentType, settings: DocumentSettings | nul
     statement: settings.templateInvoice,
     // the payslip has its own layout; the template choice only sets the accent
     payslip: settings.templateInvoice,
+    // a purchase order reads like a quotation with the parties swapped
+    purchase_order: settings.templateQuotation,
   }
   const chosen = byType[type]
   return chosen === 'modern' || chosen === 'compact' || chosen === 'brand' ? (chosen as TemplateId) : fallback

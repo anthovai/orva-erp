@@ -10,7 +10,8 @@ import type { OpenApiRouteDoc } from '@open-mercato/shared/lib/openapi'
 import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
 import { previewQuerySchema } from '../../data/validators'
-import type { TemplateId } from '../../lib/document'
+import { buildPrintableDocument, type TemplateId } from '../../lib/document'
+import { resolvePurchasingDocumentSource } from '../../lib/purchasingBridge'
 import {
   documentFromQuote,
   documentFromPayroll,
@@ -22,7 +23,9 @@ import {
   listQuoteSources,
   loadSettings,
   sampleDocumentForBrand,
+  sellerFrom,
   sourceOption,
+  templateFor,
 } from '../../lib/source'
 
 const logger = createLogger('orva_documents').child({ component: 'preview' })
@@ -76,6 +79,45 @@ export async function GET(req: Request) {
     // ciphertext is worse than app-level scoping. Every query still filters
     // by tenantId explicitly, exactly as sales' public route does.
     const forked = em.fork()
+
+    // ใบสั่งซื้อ: the record lives in orva_purchasing, which this module must
+    // not import, so it arrives through the optional DI reader. Handled before
+    // the sales lookups because a PO id is not a sales id and the checks below
+    // are about which sales record prints as which sales document. Without the
+    // purchasing module registered the type reports itself unavailable rather
+    // than failing the whole screen.
+    if (type === 'purchase_order' && documentId) {
+      const purchasing = resolvePurchasingDocumentSource(container)
+      if (!purchasing) {
+        return Response.json({ error: 'โมดูลจัดซื้อไม่พร้อมใช้งาน' }, { status: 400 })
+      }
+      const order = await purchasing.findOrder(forked, { tenantId, organizationId }, documentId)
+      if (!order) return Response.json({ error: 'ไม่พบใบสั่งซื้อ' }, { status: 404 })
+      const purchaseOrderDocument = await withTenantRls(em, tenantId, async (tem) => {
+        const settings = await loadSettings(tem, { tenantId, organizationId })
+        return buildPrintableDocument({
+          type,
+          template: template ?? templateFor(type, settings),
+          // We are the issuer of a purchase order; the vendor receives it.
+          seller: sellerFrom(settings),
+          buyer: order.counterparty,
+          source: order.source,
+          accentColor: settings?.brandColor ?? null,
+          logoHeader: settings?.logoHeader ?? null,
+          logoFooter: settings?.logoFooter ?? null,
+          // Our payment block and sales terms belong on documents we are paid
+          // on, not on one we are about to pay.
+          paymentDetails: null,
+          terms: null,
+        })
+      })
+      return Response.json({
+        document: purchaseOrderDocument,
+        usedSample: false,
+        sourceKind: 'purchase_order',
+        sources: [],
+      })
+    }
     // both record kinds appear in the picker, newest first — a lone quote
     // list left the picker BLANK whenever an invoice was open
     const [quoteSources, invoiceSources] = await Promise.all([

@@ -32,6 +32,7 @@ const TYPE_LABELS: Record<DocumentType, { key: string; fallback: string }> = {
   billing_note: { key: 'orva_documents.type.billing_note', fallback: 'ใบวางบิล' },
   statement: { key: 'orva_documents.type.statement', fallback: 'ใบแจ้งยอด' },
   payslip: { key: 'orva_documents.type.payslip', fallback: 'สลิปเงินเดือน' },
+  purchase_order: { key: 'orva_documents.type.purchase_order', fallback: 'ใบสั่งซื้อ' },
 }
 
 const SAMPLE_VALUE = '__sample__'

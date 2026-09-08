@@ -11,7 +11,7 @@
  */
 import { bahtText } from './bahtText'
 
-export const DOCUMENT_TYPES = ['quotation', 'invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'credit_note', 'debit_note', 'billing_note', 'statement', 'payslip'] as const
+export const DOCUMENT_TYPES = ['quotation', 'invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'credit_note', 'debit_note', 'billing_note', 'statement', 'payslip', 'purchase_order'] as const
 export type DocumentType = (typeof DOCUMENT_TYPES)[number]
 
 export const TEMPLATE_IDS = ['classic', 'modern', 'compact', 'brand'] as const
@@ -26,6 +26,7 @@ export function typesForSourceKind(sourceKind: string | undefined): readonly Doc
   if (sourceKind === 'invoice') return ['invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'billing_note', 'statement']
   if (sourceKind === 'credit_memo') return ['credit_note', 'debit_note']
   if (sourceKind === 'payroll_line') return ['payslip']
+  if (sourceKind === 'purchase_order') return ['purchase_order']
   return DOCUMENT_TYPES
 }
 export type TemplateId = (typeof TEMPLATE_IDS)[number]
@@ -60,6 +61,10 @@ const HEADINGS: Record<DocumentType, { th: string; en: string }> = {
   // Not a tax document: it proves what the employee was paid and what was
   // withheld, and is the paper trail behind ภ.ง.ด.1 and สปส.1-10.
   payslip: { th: 'สลิปเงินเดือน', en: 'Payslip' },
+  // The only outgoing document where this company is the buyer: we
+  // issue it, the vendor receives it. Not a tax document — no VAT is
+  // claimed by ordering something.
+  purchase_order: { th: 'ใบสั่งซื้อ', en: 'Purchase Order' },
 }
 
 /** Types that are statutory tax documents and must carry the SELLER's taxpayer id. */
@@ -162,6 +167,12 @@ export type PrintableDocument = {
   isAbbreviated: boolean
   /** Payslip: lines are earnings and deductions (deductions negative), grandTotal is net pay. */
   isPayslip: boolean
+  /**
+   * What to call the two party blocks. Every sales document is issued by the
+   * seller to a customer; a ใบสั่งซื้อ is issued by the buyer to a vendor, so
+   * the titles travel with the document instead of being fixed in templates.
+   */
+  partyTitles: PartyTitles
   /** Original-invoice block for credit/debit notes; null elsewhere. */
   reference: DocumentReference | null
   /**
@@ -185,6 +196,40 @@ function secondaryDateLabel(type: DocumentType): string | null {
       return 'orva_documents.field.payPeriod'
     default:
       return null
+  }
+}
+
+/**
+ * Which side of the sheet each party block is.
+ *
+ * Every sales document is issued by the seller to a customer, so the two
+ * blocks were labelled ผู้ขาย / ลูกค้า in the templates. A ใบสั่งซื้อ reverses
+ * that: we issue it and the vendor receives it. The structural fields keep
+ * their names — `seller` is always the issuer, `buyer` always the
+ * counterparty — and only the printed titles change, so no template has to
+ * know which document it is drawing.
+ */
+export type PartyTitles = {
+  issuerKey: string
+  issuerTh: string
+  counterpartyKey: string
+  counterpartyTh: string
+}
+
+export function partyTitlesFor(type: DocumentType): PartyTitles {
+  if (type === 'purchase_order') {
+    return {
+      issuerKey: 'orva_documents.field.purchaser',
+      issuerTh: 'ผู้ซื้อ',
+      counterpartyKey: 'orva_documents.field.supplier',
+      counterpartyTh: 'ผู้ขาย',
+    }
+  }
+  return {
+    issuerKey: 'orva_documents.field.seller',
+    issuerTh: 'ผู้ขาย',
+    counterpartyKey: 'orva_documents.field.buyer',
+    counterpartyTh: 'ลูกค้า',
   }
 }
 
@@ -258,6 +303,7 @@ export function buildPrintableDocument(input: {
     isTaxDocument,
     isAbbreviated,
     isPayslip,
+    partyTitles: partyTitlesFor(type),
     reference: source.reference ?? null,
     warnings,
   }

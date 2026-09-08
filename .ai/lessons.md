@@ -41,6 +41,10 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 
 - [t() fallbacks hide missing catalog keys — audit i18n/{th,en}.json whenever strings are added](lessons/i18n-fallbacks-hide-missing-catalog-keys.md) — area:backend-ui; module:orva_documents,orva,orva_party; topic:i18n,translations,catalogs
 
+### testing
+
+- [A test file without `import { describe, expect, it } from '@jest/globals'` passes jest and fails typecheck](lessons/jest-tests-need-explicit-globals-import.md) — area:testing,debugging; module:orva_purchasing,platform; topic:jest,typecheck,tsconfig,validation-gate
+
 ### debugging
 
 - [Flush a DB-generated uuid PK before creating child rows that reference it](lessons/db-generated-uuid-pk-needs-flush-before-child-rows.md) — area:debugging,module-data; module:orva_finance,orva_hr; topic:mikro-orm,primary-keys,posting-routes

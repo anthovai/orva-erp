@@ -39,6 +39,7 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, { key: string; fallback:
   billing_note: { key: 'orva_documents.type.billing_note', fallback: 'ใบวางบิล' },
   statement: { key: 'orva_documents.type.statement', fallback: 'ใบแจ้งยอด' },
   payslip: { key: 'orva_documents.type.payslip', fallback: 'สลิปเงินเดือน' },
+  purchase_order: { key: 'orva_documents.type.purchase_order', fallback: 'ใบสั่งซื้อ' },
 }
 
 type PreviewResponse = { document: PrintableDocument; usedSample: boolean; sourceKind?: string }

@@ -1,3 +1,4 @@
+import { describe, expect, it } from '@jest/globals'
 import en from '@/i18n/en.json'
 import th from '@/i18n/th.json'
 import { buildMarketingDict } from '../i18n'

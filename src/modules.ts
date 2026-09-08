@@ -421,6 +421,12 @@ enabledModules.push({ id: 'orva_documents', from: '@app' })
 // Marventine product line on top of WMS lots: lot costs, receive from OEM bill,
 // retail sale + stock issue, valuation, COGS posting (operating-model spec, phase E).
 enabledModules.push({ id: 'orva_stock', from: '@app' })
+// ใบสั่งซื้อ — the commitment to buy, which neither the ledger (a liability)
+// nor the warehouse (a quantity) owns. Registered after orva_stock because
+// receiving goods against an order calls that module's receive route, and
+// after orva_finance for the same reason on the billing side.
+// Spec: .ai/specs/2026-09-08-orva-purchasing-and-delivery-note.md
+enabledModules.push({ id: 'orva_purchasing', from: '@app' })
 // Customer support for shipped software (benchmark spec F0 gap #7).
 enabledModules.push({ id: 'orva_support', from: '@app' })
 enabledModules.push({ id: 'orva_tasking', from: '@app' })

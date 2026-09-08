@@ -1,7 +1,7 @@
 # จัดซื้อ (purchase orders) and ใบส่งของ (delivery note) — closing the two ends of the goods cycle
 
 **Date**: 2026-09-08
-**Status**: Ready for implementation (owner confirmed every default 2026-09-08; Track A starts at Phase A1)
+**Status**: In implementation — **Phase A1 shipped 2026-09-08** (code complete, gates green; the migration awaits the owner's go). A2 next.
 
 > Written with `om-spec-writing`. Companion to `2026-09-04-orva-department-benchmark.md`
 > (Stock: "Purchase order to OEM → bill → receive ❌", Sales: "ใบส่งของ ⏸") and
@@ -28,7 +28,7 @@ preview/PDF/email pipeline, the home waiting card — and add no dependency.
 |---|---|---|---|---|
 | A0 | Two capabilities in one spec? Purchasing and the delivery note ship independently (the scope-cohesion test in `om-spec-writing` says split) | **One document, two tracks (A, B), separate phases, separate exit gates, separate tests.** The request named them together as "the goods cycle". The tracks share exactly one file — the type registry in `orva_documents/lib/document.ts` (`DOCUMENT_TYPES`, `HEADINGS`, `templateFor`) — where both additions are independent list entries that commute | you want separate review cadences → split at the Track B heading and duplicate the Users/Security boilerplate; the registry edits merge trivially |
 | A1 | Where does the PO live: `orva_stock` (benchmark said "light PO in orva_stock") or a new module? | **New module `orva_purchasing`.** A PO is a *commitment* (ordered qty × price to a vendor) — an invariant neither the ledger (liability) nor the warehouse (quantity) owns. Kaiser also buys services (hosting, subcontract) that never touch stock | the owner only ever orders stocked goods → still a module; the stock-only shortcut saves ~2 files and loses service POs |
-| A2 | Approval workflow on a PO? | **No.** One-person company; `draft → sent` is the approval. Feature `orva_purchasing.approve` is reserved but not granted or used | a second person joins and the owner wants to sign off → add an `approved` state + `workflows` user task (child spec) |
+| A2 | Approval workflow on a PO? | **No.** One-person company; `draft → sent` is the approval. No `approve` feature is declared either — an ungranted feature only clutters the role editor until something checks it (A1 declares `view`, `manage`, `receive`, `bill`) | a second person joins and the owner wants to sign off → add an `approved` state + `workflows` user task (child spec) |
 | A3 | Over-billing (bill total > PO total) | **Warn, allow** — confirmed by the owner 2026-09-08. Vendors add freight/rounding; the variance is shown on the PO and on the bill link, never blocks posting | a hard cap would be a settings flag (`409 over_billed`); not built |
 | A4 | Over-receipt (received qty > ordered qty) | **Block with 409.** Same rule G3.2 planned. A physical over-delivery is recorded by first **increasing** the line quantity (the one edit a sent PO allows, with a reason, emitting `order.line_adjusted`), then receiving | — |
 | A5 | PO number series | **Module-owned, `PO-{yyyy}{mm}-{seq:4}`, one counter per organization**, not a brand series — a PO is issued by the legal entity, not by Kaiser/Marventine branding | the owner wants MRV-PO-… → brands gain a `po_number_format`; deferred |
@@ -128,7 +128,7 @@ Why this is the smallest platform-native shape: it adds one module where an inva
 | PO record, lines, receipts, bill links, settings | **app-own** | **`orva_purchasing`** (new) | — | the new invariant |
 | Bill from PO | reuse | `orva_finance` `POST /api/orva_finance/ap/bills` | internal API call (`callInternal`, as in `orva_stock/lib/internal.ts`) | one write path for bills |
 | Stock receipt | reuse + additive | `orva_stock` `POST /api/orva_stock/receive` (+ optional `referenceType`, `referenceId`) → `wms.inventory.receive` | internal API call | one writer of lot costs |
-| ใบสั่งซื้อ sheet, PDF, email, public link, sends log | extend | `orva_documents` (`purchase_order` type) | optional DI `purchasingDocumentSource` registered by purchasing `di.ts` | documents stays independent |
+| ใบสั่งซื้อ sheet, PDF, email, public link, sends log | extend | `orva_documents` (`purchase_order` type) | optional DI `orvaPurchasingDocumentSource` registered by purchasing `di.ts`, resolved softly in `orva_documents/lib/purchasingBridge.ts` (named for its sibling `orvaFinanceBridge`) | documents stays independent |
 | ใบส่งของ sheet | extend | `orva_documents` (`delivery_note` type from `invoice`) | existing invoice reader | rails exist |
 | Delivery facts | reuse | `sales` invoices `metadata` via installed `sales.invoices.update` command | command + optimistic lock | additive, audited |
 | Home waiting card / money panel | extend | `orva_finance/api/home/overview` | optional DI `purchasingSummary` (degrades to absent rows) | finance must not import purchasing |
@@ -195,14 +195,20 @@ worker orva_purchasing.late_scan (daily 06:30) ─▶ notification 'orva_purchas
 
 | Surface / route | Purpose and primary actions | Data source / mutations | Closest installed reference | Canonical shell / components | Required states | Requirement IDs |
 |---|---|---|---|---|---|---|
-| `/backend/purchasing/orders` | list POs: filters status/vendor/late; add | `GET /api/orva_purchasing/orders` (makeCrudRoute list) | `orva_finance/backend/ap/bills/page.tsx` | `Page`, `PageBody`, `DataTable`, `RowActions`, `StatusBadge` | loading, empty ("ยังไม่มีใบสั่งซื้อ" + create), error, filter-no-results, permission denied | REQ-001, 002 |
-| `/backend/purchasing/orders/create` | create draft PO with lines | `POST /api/orva_purchasing/orders` | `orva_finance/components/BillCreateForm.tsx` (vendor picker, line editor) | `CrudForm` groups + line table (same pattern BillCreateForm uses) | validation, server error keeps input, success → detail | REQ-001 |
+| `/backend/purchasing/orders` | list POs: filters status/vendor/late; add | `GET /api/orva_purchasing/orders` — **hand-written guarded route, not `makeCrudRoute`** (exception, rationale below) | `orva_finance/components/BillsTable.tsx` (DataTable) + `orva_support/components/TicketsPage.tsx` (custom list route) | `Page`, `PageBody`, `DataTable`, `RowActions`, `StatusBadge` | loading, empty ("ยังไม่มีใบสั่งซื้อ" + create), error, filter-no-results, permission denied | REQ-001, 002 |
+| `/backend/purchasing/orders/create` | create draft PO with lines | `POST /api/orva_purchasing/orders` | `orva_finance/components/BillCreateForm.tsx` (vendor picker, line editor) | header fields + line editor built on `Page`/`Input`/`Button` primitives, **not `CrudForm`** (exception, rationale below); a draft is edited by the same component mounted on the detail page, so there is no separate edit route | validation, server error keeps input, success → detail | REQ-001 |
 | `/backend/purchasing/orders/[id]` | detail: header, lines with ordered/received/billed/variance, actions send/cancel/close/receive/bill/print/email | `GET …/orders/[id]`, `POST …/send`, `…/cancel`, `…/close`, `…/receive`, `…/bill-draft` | `orva_support` ticket detail (`backend/support/tickets/[id]`) for header+actions layout | `Page`, `SectionHeader`, `DataTable` (lines), `Dialog` (receive), `StatusBadge`, `useConfirmDialog` (cancel) | loading, error, conflict (409 → shared record-conflict UI), frozen-with-reason, over-receipt error inline | REQ-002, 003, 004 |
 | `/backend/documents/preview?type=purchase_order&documentId=<po>` | print/PDF/email ใบสั่งซื้อ | existing preview route; new type | existing preview page | existing | existing + "โมดูลจัดซื้อไม่พร้อม" when DI absent | REQ-001 |
 | `/backend/settings/purchasing` (settings context, navHidden) | number format, default accounts | `GET/PUT /api/orva_purchasing/settings` | `orva_stock/backend/…/settings` pattern (`pageContext: 'settings'`) | `CrudForm` | loading, error, success | REQ-001 |
 | `/backend` home (waiting card, money panel) | late lines row; committed-not-billed figure | `GET /api/orva_finance/home/overview` (+ optional fields) | existing `FourQuestions` | existing | rows absent when purchasing DI missing | REQ-005 |
 | `/backend/sales/invoices` (app-owned page) | row actions "ใบส่งของ", "บันทึกการส่งของ" | preview link; `sales.invoices.update` via installed `PUT /api/sales/invoices` | the page itself (`orva_documents/backend/sales/invoices/page.tsx`) | `RowActions`, `Dialog`, `FormField` | dialog validation, 409 conflict, success flash | REQ-006, 007 |
 | `/backend/documents/preview?type=delivery_note&documentId=<invoice>` | print/PDF/email ใบส่งของ | existing route; new type | existing | existing | existing | REQ-006 |
+
+**Two recorded exceptions to the canonical-primitive rule** (both required by this section):
+
+1. **The order list is a hand-written guarded route rather than `makeCrudRoute`.** The columns that make the list worth opening — late-line count now, received quantity and billed amount from A2/A3 — are aggregates over a child table, which the factory's `fields` list (query-index columns of one entity) cannot express. `orva_support` tickets and `orva_tasking` tasks are the same shape and made the same call. Everything else the factory would have given is still there: per-method `metadata` with features, a Zod query schema, tenant/organization scope from the trusted context, RLS, and an `openApi` document. The response feeds a `DataTable` with the generated `entityId` (`orva_purchasing:purchase_order`), so column extensions and perspectives still host.
+2. **The create/edit surface is a hand-built header-plus-lines editor rather than `CrudForm`.** `CrudForm` owns whole-record field layout; this screen is one header and a repeating line row carrying three cross-record references, a per-line VAT mode and running totals that move as the operator types. `BillCreateForm` in `orva_finance` is the in-repo precedent for exactly this shape. The shell, inputs, buttons, dialogs, flash messages and states remain platform primitives.
+
 
 ### UI architecture
 
@@ -421,7 +427,32 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 
 ## 📋 Implementation Plan
 
-### Phase A1 — The order exists (REQ-001, REQ-002)
+### Phase A1 — The order exists (REQ-001, REQ-002) — ✅ SHIPPED 2026-09-08 (migration pending the owner's go)
+
+**What shipped**, beyond the deliverables below:
+
+- The lifecycle is enforced twice: in the routes, and by two database triggers
+  (`orva_purchasing_line_guard`, `orva_purchasing_order_guard`) that refuse a
+  frozen line edit, a falling quantity, a rewritten PO number and a settled
+  order coming back to life. A guard that lives only in a route stops being a
+  guarantee the moment a CLI or a fix-up script writes the table.
+- `partyTitles` was added to `PrintableDocument` (and filled in by
+  `partyTitlesFor`): a ใบสั่งซื้อ is the one outgoing sheet where this company is
+  the buyer, and the templates had ผู้ขาย / ลูกค้า hard-coded over the two party
+  blocks. The structural fields keep their names — `seller` is always the
+  issuer — and only the printed titles vary, so no template knows which
+  document it is drawing.
+- Numbering resets by period: the counter row is locked `for update` at send
+  time and the stored period key is compared against the one the format
+  implies for the order's own date, so `PO-{yyyy}{mm}-{seq:4}` restarts every
+  month while `PO-{seq:5}` never does. 15 unit tests cover the arithmetic,
+  the formats and every lifecycle transition.
+- Gates: `yarn generate`, `yarn typecheck`, `yarn lint`, `yarn ds:check` and
+  `yarn test` (374 tests, 40 suites) all pass. The generated entity id came
+  back as `orva_purchasing:purchase_order`, matching what the encryption map
+  and the `DataTable` host had assumed.
+- **Not yet done:** the migration is written but not applied (`AGENTS.md` asks
+  first), so the browser exit gate below is unmet and phase A2 cannot start.
 
 - **Depends on:** none
 - **Outcome:** a PO can be drafted, sent (numbered), printed and emailed; frozen after send; cancelled while clean.
