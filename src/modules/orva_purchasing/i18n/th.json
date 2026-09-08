@@ -109,6 +109,8 @@
   "orva_purchasing.linkBill.title": "ผูกบิลที่มีอยู่",
   "orva_purchasing.linkBill.unlinkedLines": "ยังไม่ผูก {n} บรรทัด",
   "orva_purchasing.loading": "กำลังโหลด…",
+  "orva_purchasing.notifications.lineLate.body": "{description} จาก {vendor} เกินกำหนดรับ {days} วัน — ยังขาด {remaining} {unit} ({poNumber})",
+  "orva_purchasing.notifications.lineLate.title": "ของที่สั่งยังไม่มาตามกำหนด",
   "orva_purchasing.page.description": "สิ่งที่สั่งไปแล้วแต่ยังไม่มาและยังไม่มีบิล — ฉบับร่างยังแก้ได้ ใบที่ส่งแล้วล็อกราคาไว้",
   "orva_purchasing.page.title": "ใบสั่งซื้อ",
   "orva_purchasing.receipts.title": "ประวัติการรับของ",

@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
 import { isoDate } from '../../../lib/homeOverview'
 import { buildHomeOverview } from '../../../lib/homeOverviewData'
+import { resolvePurchasingSummary } from '../../../lib/purchasingSummary'
 import { orvaFinanceTag } from '../../openapi'
 
 export const metadata = {
@@ -52,6 +53,23 @@ const responseSchema = z.object({
     renewingSubscriptions: z.number(),
     lapsedSubscriptions: z.number(),
     untouchedLeads: z.number(),
+    committedNotBilled: z.string(),
+    latePurchaseLines: z.array(
+      z.object({
+        orderId: z.string(),
+        poNumber: z.string().nullable(),
+        lineId: z.string(),
+        lineNo: z.number(),
+        description: z.string(),
+        vendorName: z.string(),
+        unit: z.string().nullable(),
+        orderedQty: z.number(),
+        receivedQty: z.number(),
+        remainingQty: z.number(),
+        expectedOn: z.string(),
+        daysLate: z.number(),
+      }),
+    ),
     acceptedAwaitingInstallment: z.array(z.object({
       id: z.string(), ref: z.string(), customer: z.string().nullable(), total: z.string(),
     })),
@@ -68,7 +86,11 @@ export async function GET(req: Request) {
   const scope = { tenantId: auth.tenantId, organizationId: resolveActiveOrganizationId(auth) }
   const container = await createRequestContainer()
   const em = container.resolve<EntityManager>('em')
-  const result = await withTenantRls(em, scope.tenantId, (tem) => buildHomeOverview(tem, scope, today))
+  // Soft resolve: absent purchasing means the rows are simply omitted.
+  const purchasing = resolvePurchasingSummary(container)
+  const result = await withTenantRls(em, scope.tenantId, (tem) =>
+    buildHomeOverview(tem, scope, today, { purchasing }),
+  )
   return Response.json(result)
 }
 

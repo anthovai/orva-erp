@@ -1,7 +1,7 @@
 # จัดซื้อ (purchase orders) and ใบส่งของ (delivery note) — closing the two ends of the goods cycle
 
 **Date**: 2026-09-08
-**Status**: In implementation — **Phases A1, A2 and A3 shipped and verified 2026-09-08**. The three-way match is complete: ordered, received and billed all read from facts. Migrations applied; 17 integration specs pass against a production build on an ephemeral database. A4 next.
+**Status**: **Track A complete — phases A1–A4 shipped and verified 2026-09-08.** The three-way match reads from facts (ordered, received, billed) and the owner sees what is late and what is committed without opening the module. Migrations applied; 19 integration specs pass against a production build on an ephemeral database. Track B (ใบส่งของ) is untouched and independent; TEST-010 (a human or a browser walking the screens) is the standing gap across all of Track A.
 
 > Written with `om-spec-writing`. Companion to `2026-09-04-orva-department-benchmark.md`
 > (Stock: "Purchase order to OEM → bill → receive ❌", Sales: "ใบส่งของ ⏸") and
@@ -421,7 +421,7 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 | **A1 — The order exists** | module, settings, orders+lines CRUD, lifecycle, ใบสั่งซื้อ sheet + email | none |
 | **A2 — Goods against the order** | receive route (goods via stock, service direct), over-receipt, status derivation, `referenceId` on stock receive | A1 |
 | **A3 — Bill against the order** | bill-draft + bill, links, variance, reconcile CLI | A1 (A2 optional for received-qty variance) |
-| **A4 — The owner sees it without opening the module** | summary DI, home rows, late scan notification | A2 and A3 |
+| **A4 — The owner sees it without opening the module** ✅ | summary DI, home rows, late scan notification | A2 and A3 |
 | **B1 — ใบส่งของ prints** | `delivery_note` type from invoice, headings, sample, row action | none |
 | **B2 — Delivery facts recorded** | dialog + metadata write + sheet reads them; public link/email verified | B1 |
 | B3 (design only, A7) | stock issue on delivery for B2B goods invoices | Marventine launch spec |
@@ -579,7 +579,7 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 - **Validation:** as A1 plus `yarn test -- orva_finance` and `yarn test:integration:ephemeral`.
 - **Exit gate:** met at the API level — a bill created through the finance route links to the order, the order reports billed 44,300 against 44,000 ordered with +300 on the freight line, a second prefill offers nothing, and re-sending the same allocation writes nothing while a second order is refused the same charge. The screens themselves have still not been walked by a human.
 
-### Phase A4 — The owner sees it without opening the module (REQ-005)
+### Phase A4 — The owner sees it without opening the module (REQ-005) — ✅ SHIPPED 2026-09-08
 
 - **Depends on:** A2 and A3 exit gates (the committed figure subtracts bill links)
 - **Outcome:** late lines on the waiting card; committed-not-billed on the money panel; daily notification.
@@ -587,9 +587,17 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 - **Deliverables:** `api/summary/route.ts`, `di.ts` `purchasingSummary`, `orva_finance/api/home/overview` soft resolve + two fields, `FourQuestions.tsx` rows, `workers/late-scan.ts`, `notifications.ts`, scheduler registration.
 - **Independent slices / estimated commits:** (1) summary + DI + home; (2) worker + notification. ~2 commits.
 - **Requirements closed:** REQ-005
-- **Tests:** TEST-006, TEST-010 (home rows)
-- **Validation:** as A1; worker run twice locally.
-- **Exit gate:** with a backdated `expected_on`, the home shows the row and clicking lands on the PO; one notification exists after two scans; the money panel's committed figure equals ordered − linked-bill amounts for the open POs and drops to zero after `close`.
+- **Tests:** TEST-006 (shipped as two integration specs), plus 6 unit tests of the notification cadence. TEST-010 remains **unwritten** — no purchasing screen has been walked by a human or a browser yet, in A4 or in any earlier phase.
+- **Validation:** `yarn typecheck`, `yarn lint`, `yarn ds:check`, `yarn test` (401 tests / 44 suites), `yarn test:integration:ephemeral` (19 specs against a production build on a throwaway database).
+- **Exit gate:** met at the API level. A backdated `expected_on` on a **sent** order appears in `GET /api/orva_purchasing/summary` with `daysLate` and a remaining quantity, and the same line reaches `GET /api/orva_finance/home/overview` as `waiting.latePurchaseLines` through the optional DI seam — the owner sees it without opening purchasing. Linking a bill drops `committedNotBilled` by the billed amount while the line **stays** late; receiving it in full clears the lateness however overdue the date; `close` removes it from both.
+
+**Decisions taken during A4:**
+
+- **A draft is never late.** Lateness needs `status in ('sent','partially_received')`: an unsent order promises nothing, so an old `expected_on` on a draft is the owner's own backlog, not a vendor's failure. Asserted in TEST-006 before the send.
+- **Late and unbilled are separate facts and the card must not conflate them.** A line can be billed and still not delivered (the vendor invoiced on despatch); it then leaves the committed figure and stays on the late list. Both halves are asserted in the same spec.
+- **The committed figure is floored per line, not per order:** `Σ greatest(0, net − billed)`. Over-billing one line (A3 warns and allows it) must not create a negative that silently pays for another line's shortfall, which a per-order floor would do.
+- **The cadence is unit-tested, not integration-tested.** `shouldNotifyToday` speaks on day 1, day 3, then weekly — six notifications for a line a month late, not thirty — and the group key `orva_purchasing.line_late:{lineId}:{date}` makes a re-run, a retry or a manual `mercato scheduler run` idempotent. A queue handler cannot be invoked over HTTP, so the ephemeral harness cannot reach the worker; the arithmetic that decides whether it speaks is covered by 6 pure tests instead, and the worker itself is a thin loop over `purchasingSummary` + `lateLinesToNotify`.
+- **The scan raises and contacts nobody.** 06:30 Asia/Bangkok, ahead of the invoice scan at 07:00 and the morning brief at 07:30 so the brief can already see what it raised. Chasing a vendor is a judgement call about a relationship; the same reasoning the overdue-invoice scan uses.
 
 ### Phase B1 — ใบส่งของ prints (REQ-006)
 
@@ -691,6 +699,7 @@ Verdict: **Ready for implementation.** The owner confirmed A3 and A8 on 2026-09-
 | Date | Change |
 |---|---|
 | 2026-09-08 | Initial draft with autonomous defaults A0–A8 |
+| 2026-09-08 | Phase A4 shipped: `GET /api/orva_purchasing/summary`, the `purchasingSummary` DI seam that `orva_finance` soft-resolves, late lines and the committed figure on the home waiting card, the `orva_purchasing.line_late` notification and the 06:30 late scan. Track A closed. Recorded: a draft is never late, late and unbilled are separate facts, the committed figure is floored per line, and the worker's cadence is unit-tested because a queue handler is unreachable over HTTP |
 | 2026-09-08 | Phase A3 shipped: bill links, the two-step link with position-named bill lines, the unbilled-remainder prefill, the recovery dialog, and billed/variance on the detail. The allocation contract changed from `billLineId` to `billLineNo`, recorded above |
 | 2026-09-08 | First integration suite in the repository: six specs against a production build on an ephemeral database, closing TEST-002/003/005/015. The five environment failures on the way are recorded as a lesson |
 | 2026-09-08 | Phase A2 shipped: receipts, the receive route on a pure planner, the reconcile route/CLI/button, append-only receipts, and real received sums in the list, detail and close paths. Integration coverage recorded as an open gap |

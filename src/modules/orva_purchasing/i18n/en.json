@@ -109,6 +109,8 @@
   "orva_purchasing.linkBill.title": "Link an existing bill",
   "orva_purchasing.linkBill.unlinkedLines": "{n} line(s) unlinked",
   "orva_purchasing.loading": "Loading…",
+  "orva_purchasing.notifications.lineLate.body": "{description} from {vendor} is {days} day(s) past its expected date — {remaining} {unit} still outstanding ({poNumber})",
+  "orva_purchasing.notifications.lineLate.title": "An ordered delivery is late",
   "orva_purchasing.page.description": "What has been promised to a vendor but has not arrived or been billed. A draft is editable; a sent order is locked.",
   "orva_purchasing.page.title": "Purchase Orders",
   "orva_purchasing.receipts.title": "Receipt history",

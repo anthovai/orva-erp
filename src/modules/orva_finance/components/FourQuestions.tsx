@@ -43,6 +43,17 @@ export type HomeOverview = {
     renewingSubscriptions: number
     lapsedSubscriptions: number
     untouchedLeads: number
+    committedNotBilled: string
+    latePurchaseLines: Array<{
+      orderId: string
+      poNumber: string | null
+      description: string
+      vendorName: string
+      unit: string | null
+      remainingQty: number
+      expectedOn: string
+      daysLate: number
+    }>
     acceptedAwaitingInstallment: Array<{ id: string; ref: string; customer: string | null; total: string }>
   }
 }
@@ -137,7 +148,7 @@ export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOver
   const t = useT()
   const overdue = data.cashIn.overdueCount > 0
   const accepted = data.waiting.acceptedAwaitingInstallment ?? []
-  const waitingCount = data.waiting.quotes.length + data.waiting.unpostedInvoices + data.waiting.draftJournals + data.waiting.unmatchedBankLines + (data.waiting.lastMonthPackSent ? 0 : 1) + (data.waiting.expiringLots ?? 0) + (data.waiting.expiredLots ?? 0) + (data.waiting.renewingSubscriptions ?? 0) + (data.waiting.lapsedSubscriptions ?? 0) + (data.waiting.untouchedLeads ?? 0) + accepted.length
+  const waitingCount = data.waiting.quotes.length + data.waiting.unpostedInvoices + data.waiting.draftJournals + data.waiting.unmatchedBankLines + (data.waiting.lastMonthPackSent ? 0 : 1) + (data.waiting.expiringLots ?? 0) + (data.waiting.expiredLots ?? 0) + (data.waiting.renewingSubscriptions ?? 0) + (data.waiting.lapsedSubscriptions ?? 0) + (data.waiting.untouchedLeads ?? 0) + (data.waiting.latePurchaseLines?.length ?? 0) + accepted.length
   const taxTone: Tone = data.tax.some((d) => d.state === 'overdue' && !d.packSentAt) ? 'bad' : data.tax.some((d) => d.state === 'due_soon' && !d.packSentAt) ? 'warn' : undefined
 
   return (
@@ -259,6 +270,41 @@ export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOver
               )}
               right={String(data.waiting.untouchedLeads)}
               tone="warn"
+            />
+          ) : null}
+          {(data.waiting.latePurchaseLines ?? []).slice(0, 4).map((line) => (
+            <Row
+              key={line.orderId + line.description}
+              left={(
+                <Link href={`/backend/purchasing/orders/${line.orderId}`} className="hover:underline">
+                  {t('orva_finance.home.waiting.latePurchase', 'ของที่สั่งแล้วยังไม่ได้รับ: {item} ({vendor})')
+                    .replace('{item}', line.description)
+                    .replace('{vendor}', line.vendorName)}
+                </Link>
+              )}
+              right={t('orva_finance.home.waiting.lateDays', 'เกิน {days} วัน').replace('{days}', String(line.daysLate))}
+              tone={line.daysLate >= 7 ? 'bad' : 'warn'}
+            />
+          ))}
+          {(data.waiting.latePurchaseLines ?? []).length > 4 ? (
+            <Row
+              left={(
+                <Link href="/backend/purchasing/orders?late=1" className="hover:underline">
+                  {t('orva_finance.home.waiting.latePurchaseMore', 'ของที่สั่งแล้วยังไม่ได้รับ (ทั้งหมด)')}
+                </Link>
+              )}
+              right={String(data.waiting.latePurchaseLines.length)}
+              tone="warn"
+            />
+          ) : null}
+          {Number(data.waiting.committedNotBilled ?? 0) > 0 ? (
+            <Row
+              left={(
+                <Link href="/backend/purchasing/orders" className="hover:underline">
+                  {t('orva_finance.home.waiting.committedNotBilled', 'ผูกพันกับผู้ขายแล้ว ยังไม่มีบิล')}
+                </Link>
+              )}
+              right={money(data.waiting.committedNotBilled)}
             />
           ) : null}
           {(data.waiting.expiredLots ?? 0) > 0 ? (

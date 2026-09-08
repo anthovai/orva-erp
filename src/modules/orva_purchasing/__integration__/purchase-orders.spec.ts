@@ -597,4 +597,126 @@ test.describe('purchase orders', () => {
     expect(draft.status()).toBe(409)
     expect((await readJson(draft)).code).toBe('invalid_transition')
   })
+  test('TEST-006: a late line and the committed figure reach the home screen', async () => {
+    const vendorPartyId = await createVendor(request, `OEM Late ${Date.now()}`)
+    const accountId = await ensureAccountId(request)
+    const periodId = await ensurePeriodId(request)
+    // Ordered to arrive a fortnight ago and never did.
+    const expectedOn = new Date(Date.now() - 14 * 86_400_000).toISOString().slice(0, 10)
+
+    const created = await request.post('/api/orva_purchasing/orders', {
+      data: {
+        vendorPartyId,
+        orderDate: '2026-09-01',
+        expectedOn,
+        lines: [
+          { kind: 'service', description: 'ของที่รอมานาน', quantity: 10, unitPrice: 700, vatMode: 'none', accountId, expectedOn },
+        ],
+      },
+    })
+    const orderId = String((await readJson(created)).id)
+    let detail = await readJson(await request.get(`/api/orva_purchasing/orders/${orderId}`))
+    const lineId = String((detail.lines as Array<Json>)[0].id)
+
+    // A draft is nobody's problem yet: it promises nothing.
+    let summary = await readJson(await request.get('/api/orva_purchasing/summary'))
+    const draftLate = (summary.lateLines as Array<Json>).filter((row) => row.orderId === orderId)
+    expect(draftLate.length, 'a draft order is not late, it is unsent').toBe(0)
+
+    await request.post(`/api/orva_purchasing/orders/${orderId}/send`, {
+      data: { updatedAt: (detail.order as Json).updatedAt },
+    })
+
+    // Sent and overdue: it is late, and it counts as committed money.
+    summary = await readJson(await request.get('/api/orva_purchasing/summary'))
+    const late = (summary.lateLines as Array<Json>).find((row) => row.lineId === lineId)
+    expect(late, 'the overdue line must appear in the summary').toBeTruthy()
+    expect(Number(late!.daysLate)).toBeGreaterThanOrEqual(13)
+    expect(Number(late!.remainingQty)).toBe(10)
+    const committedWithOrder = Number(summary.committedNotBilled)
+    expect(committedWithOrder).toBeGreaterThanOrEqual(7000)
+
+    // And the owner sees both without opening purchasing at all.
+    const overview = await readJson(await request.get('/api/orva_finance/home/overview'))
+    const waiting = overview.waiting as Json
+    expect(
+      (waiting.latePurchaseLines as Array<Json>).some((row) => row.orderId === orderId),
+      'the home waiting card reads purchasing through optional DI',
+    ).toBe(true)
+    expect(Number(waiting.committedNotBilled)).toBeGreaterThanOrEqual(7000)
+
+    // Billing it removes it from the committed figure: the bill has arrived,
+    // so the money is no longer merely promised.
+    const bill = await request.post('/api/orva_finance/ap/bills', {
+      data: {
+        vendorPartyId,
+        periodId,
+        billDate: '2026-09-25',
+        currencyCode: 'THB',
+        lines: [{ expenseAccountId: accountId, amount: 7000, description: 'ของที่รอมานาน' }],
+      },
+    })
+    const billId = String((await readJson(bill)).id ?? '')
+    detail = await readJson(await request.get(`/api/orva_purchasing/orders/${orderId}`))
+    const linked = await request.post(`/api/orva_purchasing/orders/${orderId}/bill`, {
+      data: {
+        updatedAt: (detail.order as Json).updatedAt,
+        billId,
+        allocations: [{ lineId, billLineNo: 1, amount: 7000 }],
+      },
+    })
+    expect(linked.status(), await linked.text()).toBe(200)
+
+    summary = await readJson(await request.get('/api/orva_purchasing/summary'))
+    expect(Number(summary.committedNotBilled)).toBeLessThanOrEqual(committedWithOrder - 7000)
+    // Billed but still not delivered, so it stays late — the two are separate
+    // facts and the card must not conflate them.
+    expect((summary.lateLines as Array<Json>).some((row) => row.lineId === lineId)).toBe(true)
+
+    // Closing it stops the chase entirely.
+    detail = await readJson(await request.get(`/api/orva_purchasing/orders/${orderId}`))
+    const closed = await request.post(`/api/orva_purchasing/orders/${orderId}/close`, {
+      data: { updatedAt: (detail.order as Json).updatedAt, reason: 'integration: never arriving' },
+    })
+    expect(closed.status(), await closed.text()).toBe(200)
+
+    summary = await readJson(await request.get('/api/orva_purchasing/summary'))
+    expect((summary.lateLines as Array<Json>).some((row) => row.lineId === lineId)).toBe(false)
+  })
+
+  test('a line received in full is not late, however overdue its date', async () => {
+    const vendorPartyId = await createVendor(request, `OEM OnTime ${Date.now()}`)
+    const accountId = await ensureAccountId(request)
+    const expectedOn = new Date(Date.now() - 20 * 86_400_000).toISOString().slice(0, 10)
+
+    const created = await request.post('/api/orva_purchasing/orders', {
+      data: {
+        vendorPartyId,
+        orderDate: '2026-09-01',
+        lines: [{ kind: 'service', description: 'มาแล้วครบ', quantity: 4, unitPrice: 100, vatMode: 'none', accountId, expectedOn }],
+      },
+    })
+    const orderId = String((await readJson(created)).id)
+    let detail = await readJson(await request.get(`/api/orva_purchasing/orders/${orderId}`))
+    const lineId = String((detail.lines as Array<Json>)[0].id)
+    const sent = await readJson(
+      await request.post(`/api/orva_purchasing/orders/${orderId}/send`, {
+        data: { updatedAt: (detail.order as Json).updatedAt },
+      }),
+    )
+
+    // Late until it arrives…
+    let summary = await readJson(await request.get('/api/orva_purchasing/summary'))
+    expect((summary.lateLines as Array<Json>).some((row) => row.lineId === lineId)).toBe(true)
+
+    await request.post(`/api/orva_purchasing/orders/${orderId}/receive`, {
+      data: { updatedAt: sent.updatedAt, receivedOn: '2026-09-28', lines: [{ lineId, quantity: 4 }] },
+    })
+
+    // …and not late once it has, because the receipts decide, not the date.
+    summary = await readJson(await request.get('/api/orva_purchasing/summary'))
+    expect((summary.lateLines as Array<Json>).some((row) => row.lineId === lineId)).toBe(false)
+    detail = await readJson(await request.get(`/api/orva_purchasing/orders/${orderId}`))
+    expect((detail.order as Json).status).toBe('received')
+  })
 })

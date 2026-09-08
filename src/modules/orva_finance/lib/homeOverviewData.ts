@@ -1,5 +1,6 @@
 import type { EntityManager } from '@mikro-orm/postgresql'
 import { findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
+import type { PurchasingLateLine, PurchasingSummaryReader } from './purchasingSummary'
 import { CustomerEntity } from '@open-mercato/core/modules/customers/data/entities'
 import { daysBetween, monthBounds, monthOf, upcomingDeadlines, type TaxDeadline } from './homeOverview'
 import { reminderState } from './reminders'
@@ -61,6 +62,14 @@ export type HomeOverviewData = {
     lapsedSubscriptions: number
     /** การตลาด: enquiries that became deals and have not moved off the first stage. */
     untouchedLeads: number
+    /**
+     * จัดซื้อ: ordered lines past their expected date with less received than
+     * ordered. Empty when the purchasing module is not registered, which is
+     * the honest answer: no purchase orders, nothing late.
+     */
+    latePurchaseLines: PurchasingLateLine[]
+    /** จัดซื้อ: ex-VAT value of open orders no bill has covered yet. */
+    committedNotBilled: string
     /** Quotes accepted by the customer with no งวด issued yet. */
     acceptedAwaitingInstallment: Array<{ id: string; ref: string; customer: string | null; total: string }>
   }
@@ -238,10 +247,21 @@ export async function resolveCustomerNames(tem: EntityManager, scope: Scope, ids
   return names
 }
 
-export async function buildHomeOverview(tem: EntityManager, scope: Scope, today: string): Promise<HomeOverviewData> {
+/**
+ * `purchasing` arrives as an optional reader rather than an import: the four
+ * questions must render on an install that never registered that module. The
+ * caller resolves it (see the overview route) and passes it in, so this file
+ * stays free of DI plumbing.
+ */
+export async function buildHomeOverview(
+  tem: EntityManager,
+  scope: Scope,
+  today: string,
+  deps: { purchasing?: PurchasingSummaryReader | null } = {},
+): Promise<HomeOverviewData> {
   const month = monthOf(today)
   const bounds = monthBounds(month)
-  const [invoices, receipts, bank, quotes, books, stock, subs, leads, accepted] = await Promise.all([
+  const [invoices, receipts, bank, quotes, books, stock, subs, leads, purchasing, accepted] = await Promise.all([
     openInvoices(tem, scope),
     receiptsInMonth(tem, scope, bounds.from, bounds.to),
     cashBalances(tem, scope),
@@ -250,6 +270,9 @@ export async function buildHomeOverview(tem: EntityManager, scope: Scope, today:
     stockExpiryAlerts(tem, scope, today),
     subscriptionRenewals(tem, scope, today),
     untouchedLeads(tem, scope, today),
+    deps.purchasing
+      ? deps.purchasing.summarise(tem, { tenantId: scope.tenantId, organizationId: scope.organizationId ?? '' }, today)
+      : Promise.resolve(null),
     quotesAwaitingFirstInstallment(tem, scope),
   ])
   const deadlines = upcomingDeadlines(today)
@@ -328,6 +351,8 @@ export async function buildHomeOverview(tem: EntityManager, scope: Scope, today:
       expiredLots: stock.expiredLots,
       renewingSubscriptions: subs.renewingSubscriptions,
       untouchedLeads: leads,
+      latePurchaseLines: purchasing?.lateLines ?? [],
+      committedNotBilled: (purchasing?.committedNotBilled ?? 0).toFixed(2),
       lapsedSubscriptions: subs.lapsedSubscriptions,
       acceptedAwaitingInstallment: accepted.map((row) => ({
         id: row.id,
