@@ -602,8 +602,11 @@ first, project joined, lapsed renewals first), and the derived arithmetic by uni
    from the OEM with input VAT; receive → lot with cost + expiry; valuation shows it;
    retail sale → ใบกำกับภาษีอย่างย่อ → COGS posted; home expiry alert fires with a
    backdated lot. Fix whatever breaks — that is the phase's real work.
-2. **Expected receipt** on bill lines (`expected_qty`, `expected_on`; receive against;
-   over-receipt 409); waiting card row "ของจาก OEM ที่ยังไม่รับ".
+2. ~~**Expected receipt** on bill lines~~ — **superseded 2026-09-08** by
+   `2026-09-08-orva-purchasing-and-delivery-note.md` Phase A2/A4: the expectation lives on
+   the purchase-order line (a bill arrives with or after the goods), receiving is done
+   against the PO with the same over-receipt 409, and the waiting card row comes from the
+   purchasing summary.
 3. **Lot label** — `orva_documents` type `lot_label`: brand mark, product, FDA no., lot,
    MFG/EXP, net content; sheet layout for A4 label paper; printed from the lot row.
 4. Gates + physical print test.
