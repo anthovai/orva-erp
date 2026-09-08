@@ -13,9 +13,10 @@ import { apiCall, readApiResultOrThrow } from '@open-mercato/ui/backend/utils/ap
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
-import { PackageCheck, Printer, Send, Wrench } from 'lucide-react'
+import { FileText, Link2, PackageCheck, Printer, Send, Wrench } from 'lucide-react'
 import { PurchaseOrderForm } from './PurchaseOrderForm'
 import { ReceiveDialog, type ReceiveLinePayload } from './ReceiveDialog'
+import { LinkBillDialog, type BillAllocation } from './LinkBillDialog'
 
 type DetailLine = {
   id: string
@@ -264,6 +265,7 @@ export default function PurchaseOrderDetail({ orderId }: { orderId: string }) {
   const [cancelling, setCancelling] = React.useState(false)
   const [adjusting, setAdjusting] = React.useState<DetailLine | null>(null)
   const [receiving, setReceiving] = React.useState(false)
+  const [linkingBill, setLinkingBill] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
 
   const detail = useQuery({
@@ -350,6 +352,14 @@ export default function PurchaseOrderDetail({ orderId }: { orderId: string }) {
     await post('/reconcile', {}, t('orva_purchasing.repaired', 'ผูกการรับของที่ค้างแล้ว'))
   }
 
+  const linkBill = async (billId: string, allocations: BillAllocation[]) => {
+    await post(
+      '/bill',
+      { updatedAt: order.updatedAt, billId, allocations },
+      t('orva_purchasing.billLinked', 'ผูกบิลกับใบสั่งซื้อแล้ว'),
+    )
+  }
+
   const remove = async () => {
     const confirmed = await confirm({ title: t('orva_purchasing.confirmDelete', 'ลบฉบับร่างนี้?') })
     if (!confirmed) return
@@ -400,6 +410,16 @@ export default function PurchaseOrderDetail({ orderId }: { orderId: string }) {
                 <Button size="sm" onClick={() => setReceiving(true)} disabled={busy || outstanding.length === 0}>
                   <PackageCheck className="size-4" />
                   {t('orva_purchasing.actions.receive', 'รับของ')}
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/backend/ap/bills/create?poId=${order.id}`}>
+                    <FileText className="size-4" />
+                    {t('orva_purchasing.actions.bill', 'ออกบิลจากใบสั่งซื้อ')}
+                  </Link>
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setLinkingBill(true)} disabled={busy}>
+                  <Link2 className="size-4" />
+                  {t('orva_purchasing.actions.linkBill', 'ผูกบิลที่มีอยู่')}
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setClosing(true)} disabled={busy}>
                   {t('orva_purchasing.actions.close', 'ปิดใบสั่งซื้อ')}
@@ -678,6 +698,20 @@ export default function PurchaseOrderDetail({ orderId }: { orderId: string }) {
           remainingQty: line.remainingQty,
         }))}
         onSubmit={receive}
+      />
+      <LinkBillDialog
+        orderId={order.id}
+        open={linkingBill}
+        onOpenChange={setLinkingBill}
+        lines={lines.map((line) => ({
+          id: line.id,
+          lineNo: line.lineNo,
+          description: line.description,
+          accountId: line.accountId,
+          net: line.net,
+          billedAmount: line.billedAmount,
+        }))}
+        onSubmit={linkBill}
       />
       <AdjustDialog
         line={adjusting}

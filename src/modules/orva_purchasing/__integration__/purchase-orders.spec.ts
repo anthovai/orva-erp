@@ -94,6 +94,28 @@ async function ensureAccountId(request: APIRequestContext): Promise<string> {
   return accountId
 }
 
+
+/**
+ * An open fiscal period for the bill to land in. The ephemeral tenant has no
+ * chart of accounts and no periods, so the fixture creates what it needs
+ * rather than assuming a seed (.ai/lessons.md).
+ */
+async function ensurePeriodId(request: APIRequestContext): Promise<string> {
+  const existing = await request.get('/api/orva_finance/gl/periods?page=1&pageSize=1&status=open')
+  expect(existing.status(), await existing.text()).toBe(200)
+  const items = ((await readJson(existing)).items ?? []) as Array<{ id?: string }>
+  if (items.length > 0) return String(items[0].id)
+
+  const created = await request.post('/api/orva_finance/gl/periods', {
+    // The create contract takes the dates only; a period opens open.
+    data: { code: '2026-09', startsOn: '2026-09-01', endsOn: '2026-09-30' },
+  })
+  expect(created.status(), await created.text()).toBeLessThan(300)
+  const periodId = String((await readJson(created)).id ?? '')
+  expect(periodId, 'period create must return an id').not.toBe('')
+  return periodId
+}
+
 test.describe('purchase orders', () => {
   let request: APIRequestContext
 
@@ -351,5 +373,228 @@ test.describe('purchase orders', () => {
       },
     })
     expect(refused.status()).toBe(400)
+  })
+  test('TEST-004: a bill finance created is linked to the order, and the variance shows', async () => {
+    const vendorPartyId = await createVendor(request, `OEM Billing ${Date.now()}`)
+    const accountId = await ensureAccountId(request)
+    const periodId = await ensurePeriodId(request)
+
+    const created = await request.post('/api/orva_purchasing/orders', {
+      data: {
+        vendorPartyId,
+        orderDate: '2026-09-08',
+        lines: [
+          { kind: 'service', description: 'งานพัฒนา', quantity: 1, unitPrice: 42500, vatMode: '7', accountId },
+          { kind: 'service', description: 'ค่าขนส่ง', quantity: 1, unitPrice: 1500, vatMode: 'none', accountId },
+        ],
+      },
+    })
+    const orderId = String((await readJson(created)).id)
+    let detail = await readJson(await request.get(`/api/orva_purchasing/orders/${orderId}`))
+    let order = detail.order as Json
+    const lines = detail.lines as Array<Json>
+    await request.post(`/api/orva_purchasing/orders/${orderId}/send`, { data: { updatedAt: order.updatedAt } })
+
+    // The prefill offers the whole order, because nothing is billed yet.
+    const draft = await readJson(await request.get(`/api/orva_purchasing/orders/${orderId}/bill-draft`))
+    expect((draft.lines as Array<Json>).length).toBe(2)
+    expect((draft.lines as Array<Json>)[0].amount).toBe(42500)
+    // Only the 7% line carries VAT: 42,500 x 7%.
+    expect(draft.taxAmount).toBe(2975)
+
+    // Finance creates the bill — purchasing never does.
+    const bill = await request.post('/api/orva_finance/ap/bills', {
+      data: {
+        vendorPartyId,
+        periodId,
+        billDate: '2026-09-20',
+        currencyCode: 'THB',
+        taxAmount: 2975,
+        lines: [
+          { expenseAccountId: accountId, amount: 42500, description: 'งานพัฒนา' },
+          // The vendor charged more freight than was ordered: 1,800 vs 1,500.
+          { expenseAccountId: accountId, amount: 1800, description: 'ค่าขนส่ง' },
+        ],
+      },
+    })
+    expect(bill.status(), await bill.text()).toBeLessThan(300)
+    const billId = String((await readJson(bill)).id ?? '')
+    expect(billId).not.toBe('')
+
+    detail = await readJson(await request.get(`/api/orva_purchasing/orders/${orderId}`))
+    order = detail.order as Json
+    const linked = await request.post(`/api/orva_purchasing/orders/${orderId}/bill`, {
+      data: {
+        updatedAt: order.updatedAt,
+        billId,
+        allocations: [
+          { lineId: lines[0].id, billLineNo: 1, amount: 42500 },
+          { lineId: lines[1].id, billLineNo: 2, amount: 1800 },
+        ],
+      },
+    })
+    expect(linked.status(), await linked.text()).toBe(200)
+    expect(await readJson(linked)).toMatchObject({ ok: true, linked: 2, alreadyLinked: 0 })
+
+    // The third number of the match is now real, and so is the variance.
+    detail = await readJson(await request.get(`/api/orva_purchasing/orders/${orderId}`))
+    const billedLines = detail.lines as Array<Json>
+    expect(billedLines[0].billedAmount).toBe(42500)
+    expect(billedLines[0].variance).toBe(0)
+    expect(billedLines[1].billedAmount).toBe(1800)
+    // Over-billed by 300: shown, never blocked (spec A3, owner-confirmed).
+    expect(billedLines[1].variance).toBe(300)
+    expect((detail.order as Json).billedAmount).toBe(44300)
+
+    // A second bill is offered nothing, because the order is fully billed.
+    const secondDraft = await readJson(await request.get(`/api/orva_purchasing/orders/${orderId}/bill-draft`))
+    expect((secondDraft.lines as Array<Json>).length).toBe(0)
+  })
+
+  test('TEST-013: linking is idempotent, and a bill line cannot answer two orders', async () => {
+    const vendorPartyId = await createVendor(request, `OEM Relink ${Date.now()}`)
+    const accountId = await ensureAccountId(request)
+    const periodId = await ensurePeriodId(request)
+
+    const makeOrder = async () => {
+      const created = await request.post('/api/orva_purchasing/orders', {
+        data: {
+          vendorPartyId,
+          orderDate: '2026-09-08',
+          lines: [{ kind: 'service', description: 'งานที่ปรึกษา', quantity: 1, unitPrice: 5000, vatMode: 'none', accountId }],
+        },
+      })
+      const id = String((await readJson(created)).id)
+      const detail = await readJson(await request.get(`/api/orva_purchasing/orders/${id}`))
+      await request.post(`/api/orva_purchasing/orders/${id}/send`, {
+        data: { updatedAt: (detail.order as Json).updatedAt },
+      })
+      const after = await readJson(await request.get(`/api/orva_purchasing/orders/${id}`))
+      return { id, lineId: String((after.lines as Array<Json>)[0].id), updatedAt: (after.order as Json).updatedAt }
+    }
+
+    const first = await makeOrder()
+    const second = await makeOrder()
+
+    const bill = await request.post('/api/orva_finance/ap/bills', {
+      data: {
+        vendorPartyId,
+        periodId,
+        billDate: '2026-09-21',
+        currencyCode: 'THB',
+        lines: [{ expenseAccountId: accountId, amount: 5000, description: 'งานที่ปรึกษา' }],
+      },
+    })
+    const billId = String((await readJson(bill)).id ?? '')
+
+    // The bill is unlinked, so the recovery list offers it.
+    const unlinked = await readJson(await request.get(`/api/orva_purchasing/orders/${first.id}/unlinked-bills`))
+    expect((unlinked.bills as Array<Json>).some((row) => row.id === billId)).toBe(true)
+
+    const allocation = { lineId: first.lineId, billLineNo: 1, amount: 5000 }
+    const once = await request.post(`/api/orva_purchasing/orders/${first.id}/bill`, {
+      data: { updatedAt: first.updatedAt, billId, allocations: [allocation] },
+    })
+    expect(once.status(), await once.text()).toBe(200)
+    expect((await readJson(once)).linked).toBe(1)
+
+    // The retry a client makes after losing the response writes nothing.
+    const refreshed = await readJson(await request.get(`/api/orva_purchasing/orders/${first.id}`))
+    const again = await request.post(`/api/orva_purchasing/orders/${first.id}/bill`, {
+      data: { updatedAt: (refreshed.order as Json).updatedAt, billId, allocations: [allocation] },
+    })
+    expect(again.status(), await again.text()).toBe(200)
+    expect(await readJson(again)).toMatchObject({ linked: 0, alreadyLinked: 1 })
+
+    // And the same charge cannot be claimed by a second order.
+    const stolen = await request.post(`/api/orva_purchasing/orders/${second.id}/bill`, {
+      data: { updatedAt: second.updatedAt, billId, allocations: [{ lineId: second.lineId, billLineNo: 1, amount: 5000 }] },
+    })
+    expect(stolen.status()).toBe(409)
+    expect((await readJson(stolen)).code).toBe('already_linked')
+
+    // It is also gone from the recovery list now.
+    const after = await readJson(await request.get(`/api/orva_purchasing/orders/${first.id}/unlinked-bills`))
+    expect((after.bills as Array<Json>).some((row) => row.id === billId)).toBe(false)
+  })
+
+  test('a bill from another vendor, and one above the bill line, are both refused', async () => {
+    const vendorPartyId = await createVendor(request, `OEM Guard ${Date.now()}`)
+    const otherVendorId = await createVendor(request, `Other Vendor ${Date.now()}`)
+    const accountId = await ensureAccountId(request)
+    const periodId = await ensurePeriodId(request)
+
+    const created = await request.post('/api/orva_purchasing/orders', {
+      data: {
+        vendorPartyId,
+        orderDate: '2026-09-08',
+        lines: [{ kind: 'service', description: 'งาน', quantity: 1, unitPrice: 1000, vatMode: 'none', accountId }],
+      },
+    })
+    const orderId = String((await readJson(created)).id)
+    let detail = await readJson(await request.get(`/api/orva_purchasing/orders/${orderId}`))
+    const lineId = String((detail.lines as Array<Json>)[0].id)
+    await request.post(`/api/orva_purchasing/orders/${orderId}/send`, {
+      data: { updatedAt: (detail.order as Json).updatedAt },
+    })
+
+    const foreignBill = await request.post('/api/orva_finance/ap/bills', {
+      data: {
+        vendorPartyId: otherVendorId,
+        periodId,
+        billDate: '2026-09-22',
+        currencyCode: 'THB',
+        lines: [{ expenseAccountId: accountId, amount: 1000, description: 'งาน' }],
+      },
+    })
+    const foreignBillId = String((await readJson(foreignBill)).id ?? '')
+
+    detail = await readJson(await request.get(`/api/orva_purchasing/orders/${orderId}`))
+    const wrongVendor = await request.post(`/api/orva_purchasing/orders/${orderId}/bill`, {
+      data: {
+        updatedAt: (detail.order as Json).updatedAt,
+        billId: foreignBillId,
+        allocations: [{ lineId, billLineNo: 1, amount: 1000 }],
+      },
+    })
+    expect(wrongVendor.status()).toBe(400)
+    expect((await readJson(wrongVendor)).code).toBe('vendor_mismatch')
+
+    const ownBill = await request.post('/api/orva_finance/ap/bills', {
+      data: {
+        vendorPartyId,
+        periodId,
+        billDate: '2026-09-22',
+        currencyCode: 'THB',
+        lines: [{ expenseAccountId: accountId, amount: 1000, description: 'งาน' }],
+      },
+    })
+    const ownBillId = String((await readJson(ownBill)).id ?? '')
+    detail = await readJson(await request.get(`/api/orva_purchasing/orders/${orderId}`))
+    const tooMuch = await request.post(`/api/orva_purchasing/orders/${orderId}/bill`, {
+      data: {
+        updatedAt: (detail.order as Json).updatedAt,
+        billId: ownBillId,
+        allocations: [{ lineId, billLineNo: 1, amount: 1500 }],
+      },
+    })
+    expect(tooMuch.status()).toBe(400)
+    expect((await readJson(tooMuch)).code).toBe('amount_exceeds_bill_line')
+  })
+
+  test('a draft order offers no bill prefill', async () => {
+    const vendorPartyId = await createVendor(request, `OEM Draft Bill ${Date.now()}`)
+    const accountId = await ensureAccountId(request)
+    const created = await request.post('/api/orva_purchasing/orders', {
+      data: {
+        vendorPartyId,
+        orderDate: '2026-09-08',
+        lines: [{ kind: 'service', description: 'งาน', quantity: 1, unitPrice: 100, vatMode: 'none', accountId }],
+      },
+    })
+    const orderId = String((await readJson(created)).id)
+    const draft = await request.get(`/api/orva_purchasing/orders/${orderId}/bill-draft`)
+    expect(draft.status()).toBe(409)
+    expect((await readJson(draft)).code).toBe('invalid_transition')
   })
 })

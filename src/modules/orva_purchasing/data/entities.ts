@@ -289,3 +289,61 @@ export class PurchaseReceipt {
   @Property({ name: 'deleted_at', type: Date, nullable: true })
   deletedAt?: Date | null
 }
+
+/**
+ * One bill line answered against one ordered line.
+ *
+ * Purchasing holds this, not finance: the ledger owns what is owed and must
+ * not learn about commitments, so a bill with no purchase order stays legal
+ * and removing this module removes nothing from the books. `billId` and
+ * `billLineId` are bare uuids into `orva_finance` per the FK-less rule.
+ *
+ * Append-only, enforced by a trigger: correcting an allocation means removing
+ * it and writing another, never editing an amount under a variance somebody
+ * has already read. `billLineId` is unique among live rows, which is what
+ * makes the link call idempotent and stops one charge counting twice.
+ */
+@Entity({ tableName: 'orva_purchasing_bill_links' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class PurchaseBillLink {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ name: 'order_id', type: 'uuid' })
+  @Index()
+  orderId!: string
+
+  @Property({ name: 'order_line_id', type: 'uuid' })
+  @Index()
+  orderLineId!: string
+
+  @Property({ name: 'bill_id', type: 'uuid' })
+  @Index()
+  billId!: string
+
+  @Property({ name: 'bill_line_id', type: 'uuid' })
+  billLineId!: string
+
+  /** Position of the line within the bill — how a caller names it before ids exist. */
+  @Property({ name: 'bill_line_no', type: 'int' })
+  billLineNo!: number
+
+  /** Ex-VAT amount this bill line charged against the ordered line. */
+  @Property({ type: 'numeric', precision: 18, scale: 4 })
+  amount!: string
+
+  @Property({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'deleted_at', type: Date, nullable: true })
+  deletedAt?: Date | null
+}

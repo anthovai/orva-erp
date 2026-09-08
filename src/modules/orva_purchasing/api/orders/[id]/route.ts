@@ -9,6 +9,7 @@ import { orderIdParamsSchema } from '../../../data/validators'
 import { lineNet, lineVat, priceVariance, round2, type VatMode } from '../../../lib/totals'
 import { remainingQty } from '../../../lib/status'
 import { findOrphanReceipts, receivedByLine } from '../../../lib/receipts'
+import { billedByLine } from '../../../lib/bills'
 
 export const metadata = {
   GET: { requireAuth: true, requireFeatures: ['orva_purchasing.view'] },
@@ -137,8 +138,9 @@ type LineRow = {
  * One order with its lines, and the three numbers that make the page worth
  * opening: ordered, received and billed.
  *
- * Received comes from the receipt rows; billed is still zero until phase A3
- * adds the bill-link table. The response also reports how many WMS receipts
+ * Received comes from the receipt rows and billed from the bill links, so the
+ * three numbers of the match — ordered, received, billed — are all read from
+ * facts rather than flags. The response also reports how many WMS receipts
  * exist for this order with no receipt row here, so the page can offer the
  * repair instead of quietly under-reporting what arrived.
  *
@@ -198,8 +200,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       [parsed.data.id, tenantId],
     )) as ReceiptRow[]
     const received = await receivedByLine(tem, { tenantId, organizationId }, parsed.data.id)
+    const billed = await billedByLine(tem, { tenantId, organizationId }, parsed.data.id)
     const orphans = await findOrphanReceipts(tem, { tenantId, organizationId }, { orderId: parsed.data.id })
-    return { order, lines, receipts, received, orphanCount: orphans.length }
+    return { order, lines, receipts, received, billed, orphanCount: orphans.length }
   })
 
   if (!payload) return Response.json({ error: 'ไม่พบใบสั่งซื้อ' }, { status: 404 })
@@ -212,8 +215,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     const vatMode = (row.vat_mode === 'none' ? 'none' : '7') as VatMode
     const net = lineNet({ quantity, unitPrice, vatMode })
     const receivedQty = payload.received.get(row.id) ?? 0
-    // A3 replaces this with the bill-link sum.
-    const billedAmount = 0
+    const billedAmount = payload.billed.get(row.id) ?? 0
     return {
       id: row.id,
       lineNo: row.line_no,

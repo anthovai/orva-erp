@@ -1,7 +1,7 @@
 # จัดซื้อ (purchase orders) and ใบส่งของ (delivery note) — closing the two ends of the goods cycle
 
 **Date**: 2026-09-08
-**Status**: In implementation — **Phases A1 and A2 shipped and verified 2026-09-08**. Migrations applied; six integration specs pass against a production build of the app on an ephemeral database. A3 next.
+**Status**: In implementation — **Phases A1, A2 and A3 shipped and verified 2026-09-08**. The three-way match is complete: ordered, received and billed all read from facts. Migrations applied; 17 integration specs pass against a production build on an ephemeral database. A4 next.
 
 > Written with `om-spec-writing`. Companion to `2026-09-04-orva-department-benchmark.md`
 > (Stock: "Purchase order to OEM → bill → receive ❌", Sales: "ใบส่งของ ⏸") and
@@ -362,7 +362,7 @@ Validated by `deliveryFactsSchema` in `orva_documents/data/validators.ts`; writt
 | `POST` | `…/[id]/receive` | `orva_purchasing.receive` (+ goods: `orva_stock.manage`, `wms.receive_inventory`, enforced by the internal call with the caller's own cookies) | `{ updatedAt, receivedOn, lines: [{ lineId, quantity, lotNumber?, manufacturedOn?, expiresOn?, unitCost?, memo? }] }` | `{ ok, receipts[], status, updatedAt }` + `order.received` | 409 `over_receipt` / `closed` / `invalid_transition` / `conflict` (nothing written in any case), 400 `lot_required` / `nothing_to_receive`, stock's own 400 surfaced verbatim | REQ-004 |
 | `POST` | `…/[id]/reconcile` | `orva_purchasing.receive` | — (no version: it writes down what the warehouse already did) | `{ ok, repaired, status, updatedAt }` + `order.repaired` when > 0 | 409 `closed` | REQ-004 |
 | `GET` | `…/[id]/bill-draft` | `orva_purchasing.view` + `orva_finance.ap.view` | — | prefill for `BillCreateForm`: vendor, `poId`, lines (unbilled ex-VAT amounts, accounts, vat, `lineId` per row) | 404, 409 `closed` | REQ-003 |
-| `POST` | `…/[id]/bill` | `orva_purchasing.bill` + `orva_finance.ap.manage` | `{ updatedAt, billId, allocations: [{ lineId, billLineId, amount }] }` — the bill already exists | `{ ok, links[] }` + `order.billed` | 404 bill not found / wrong vendor; 409 `already_linked` (bill line linked to another PO), `closed`, `conflict`; idempotent for identical allocations | REQ-003 |
+| `POST` | `…/[id]/bill` | `orva_purchasing.bill` + `orva_finance.ap.view` | `{ updatedAt, billId, allocations: [{ lineId, **billLineNo**, amount }] }` — the bill already exists | `{ ok, linked, alreadyLinked, updatedAt }` + `order.billed` when anything was written | 400 `vendor_mismatch` / `amount_exceeds_bill_line` / `duplicate_allocation`; 404 `bill_not_found` / `line_not_found` / `bill_line_not_found`; 409 `already_linked` / `closed` / `invalid_transition` / `conflict`; an identical re-send answers 200 having written nothing | REQ-003 |
 | `GET` | `…/[id]/unlinked-bills` | `orva_purchasing.view` + `orva_finance.ap.view` | — | vendor's bills with unlinked lines | — | REQ-003 |
 | `POST` | `…/[id]/lines/[lineId]/adjust-quantity` | `orva_purchasing.manage` | `{ updatedAt, quantity (> current), reason }` | `{ ok, updatedAt }` + `order.line_adjusted` | 400 (not an increase), 409 `closed`/`conflict` | REQ-002, 004 |
 | `GET` | `/api/orva_purchasing/summary` | `orva_purchasing.view` | — | `{ committedNotBilled, lateLines: [{orderId, poNumber, description, remainingQty, expectedOn, daysLate}] }` | — | REQ-005 |
@@ -530,7 +530,44 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 - **Validation:** as A1 plus `yarn test -- orva_stock`.
 - **Exit gate:** met at the API level — 8 of 10 received, 3 more refused with `over_receipt` and nothing written, a short close recording 2 outstanding, further receipts refused with `closed`. The goods half (a WMS movement carrying the PO id, valuation showing the lot) is still unproven: the ephemeral fixture has no catalog variant or warehouse yet.
 
-### Phase A3 — Bill against the order (REQ-003)
+### Phase A3 — Bill against the order (REQ-003) — ✅ SHIPPED 2026-09-08
+
+**What shipped**, and the one contract change:
+
+- **A bill line is named by POSITION, not by id.** The spec said
+  `allocations: [{ lineId, billLineId, amount }]`; the AP create route writes
+  its lines in payload order as `lineNo` 1..n and returns only the bill id, so
+  a caller cannot know a `billLineId` without a second round trip it has no
+  reason to make. The contract is now `billLineNo` and this route resolves it.
+  Everything else about the two-step design stands: finance creates the bill,
+  purchasing links it, and no half-written liability is possible.
+- **Idempotent by data, not by care.** `bill_line_id` is unique among live
+  rows, so a repeat of the same allocation writes nothing and answers 200 —
+  which is what lets a client that lost the response retry. An allocation that
+  contradicts an existing one (same bill line, different ordered line or
+  amount) is refused with `already_linked`, so one charge can never answer two
+  commitments. Ten unit tests hold that rule; two integration specs prove it
+  through the routes.
+- **Over-billing warns and never blocks** (A3, owner-confirmed): the freight
+  line billed at 1,800 against 1,500 ordered shows `variance: 300` and links
+  anyway.
+- **`bill-draft` offers only the unbilled remainder**, so a second bill for the
+  same order cannot bill it twice. A fully billed order offers no lines at all,
+  and a draft or settled order refuses the prefill outright.
+- **The recovery surface is real**: `GET …/unlinked-bills` lists this vendor's
+  bills with an unallocated line, and the detail page's "ผูกบิลที่มีอยู่"
+  dialog pairs each bill line with an ordered line, defaulting the pairing by
+  GL account. The bill form, when opened as `?poId=…`, links automatically
+  after finance saves the bill; if that second call fails it says the bill is
+  saved and correct and points at the dialog, rather than implying the bill
+  failed and inviting a duplicate.
+- **Verified** by TEST-004 (link, variance, second draft empty), TEST-013
+  (idempotent retry, and a bill line refused to a second order), plus specs for
+  the vendor mismatch, an amount above the bill line, and the draft-order
+  refusal. 17 integration specs and 395 unit tests pass; `verify-rls` covers
+  282 tables.
+- **Not done here:** A4's committed-not-billed figure, which needs these links
+  and now has them.
 
 - **Depends on:** A1 exit gate (A2 for received-qty variance)
 - **Outcome:** the OEM bill is created pre-filled from the PO and linked per line; variance visible.
@@ -538,9 +575,9 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 - **Deliverables:** `api/orders/[id]/bill-draft/route.ts`, `api/orders/[id]/bill/route.ts` (link existing bill), `api/orders/[id]/unlinked-bills/route.ts`, `orva_purchasing_bill_links`, `BillCreateForm` accepts `?poId=` prefill (read-only vendor when prefilled; calls the link route after the bill is created and shows a retry banner if that call fails), "ผูกบิลที่มีอยู่" action on the PO detail, variance columns, ACL feature `orva_purchasing.bill`.
 - **Independent slices / estimated commits:** (1) routes + links + tests; (2) form prefill; (3) reconcile CLI. ~3 commits.
 - **Requirements closed:** REQ-003
-- **Tests:** TEST-004, TEST-013
-- **Validation:** as A1 plus `yarn test -- orva_finance`.
-- **Exit gate:** bill created from the prefilled form posts normally in AP; PO shows billed and +300 variance badge; a bill for the remaining lines bills only what is unbilled; killing the link call after bill creation and using "ผูกบิลที่มีอยู่" yields the same links.
+- **Tests:** TEST-004, TEST-013 (both shipped as integration specs), plus 10 unit tests of `planBillLinks` and three further route specs.
+- **Validation:** as A1 plus `yarn test -- orva_finance` and `yarn test:integration:ephemeral`.
+- **Exit gate:** met at the API level — a bill created through the finance route links to the order, the order reports billed 44,300 against 44,000 ordered with +300 on the freight line, a second prefill offers nothing, and re-sending the same allocation writes nothing while a second order is refused the same charge. The screens themselves have still not been walked by a human.
 
 ### Phase A4 — The owner sees it without opening the module (REQ-005)
 
@@ -654,6 +691,7 @@ Verdict: **Ready for implementation.** The owner confirmed A3 and A8 on 2026-09-
 | Date | Change |
 |---|---|
 | 2026-09-08 | Initial draft with autonomous defaults A0–A8 |
+| 2026-09-08 | Phase A3 shipped: bill links, the two-step link with position-named bill lines, the unbilled-remainder prefill, the recovery dialog, and billed/variance on the detail. The allocation contract changed from `billLineId` to `billLineNo`, recorded above |
 | 2026-09-08 | First integration suite in the repository: six specs against a production build on an ephemeral database, closing TEST-002/003/005/015. The five environment failures on the way are recorded as a lesson |
 | 2026-09-08 | Phase A2 shipped: receipts, the receive route on a pure planner, the reconcile route/CLI/button, append-only receipts, and real received sums in the list, detail and close paths. Integration coverage recorded as an open gap |
 | 2026-09-08 | Owner confirmed A3 (warn, never block) and A8 (facts in `metadata`); Q-001 and Q-002 closed; status → Ready for implementation |

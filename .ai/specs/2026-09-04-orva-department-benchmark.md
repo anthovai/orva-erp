@@ -56,7 +56,7 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 |---|---|---|---|
 | Lots, expiry, balances, movements | Odoo Inventory | ✅ upstream wms | — |
 | Cost per lot, valuation, COGS posting | Odoo | ✅ (orva_stock) | — |
-| **Purchase order to OEM → bill → receive** | Odoo Purchase | ❌ (bill → receive only) | spec `2026-09-08-orva-purchasing-and-delivery-note.md` Track A: new module `orva_purchasing` (not inside orva_stock — a PO is a commitment, services included) |
+| **Purchase order to OEM → bill → receive** | Odoo Purchase | ✅ 2026-09-08 (A1–A3) | `orva_purchasing`: order → receive through orva_stock → link the bill finance raised. Three-way match complete (ordered / received / billed), over-receipt refused, over-billing warned. Committed-not-billed on the home screen is A4 |
 | Reorder point / low-stock alert | Odoo | 🟡 | expiry alerts (≤90 วัน + expired) on the home waiting card 2026-09-04; reorder point later |
 | Barcode / lot label printing (with FDA no.) | Odoo | ❌ | phase F: label sheet from lot + product fields |
 | Marketplace order import (Shopee/Lazada/TikTok) | Odoo connectors | ❌ | phase G |

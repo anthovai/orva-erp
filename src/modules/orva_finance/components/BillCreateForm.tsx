@@ -1,12 +1,13 @@
 "use client"
 import * as React from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { Page, PageBody, PageHeader } from '@open-mercato/ui/backend/Page'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { Input } from '@open-mercato/ui/primitives/input'
 import { createCrud, fetchCrudList } from '@open-mercato/ui/backend/utils/crud'
+import { apiCall, readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 
@@ -17,7 +18,18 @@ type PeriodOption = { id: string; code: string; starts_on: string; ends_on: stri
 type PartyRoleRow = { id: string; party_id: string }
 type PartyRow = { id: string; display_name: string }
 
-type LineDraft = { key: number; expenseAccountId: string; amount: string; description: string }
+/** `orderLineId` is set only when the bill was prefilled from a purchase order. */
+type LineDraft = { key: number; expenseAccountId: string; amount: string; description: string; orderLineId?: string }
+
+type BillDraft = {
+  orderId: string
+  poNumber: string | null
+  vendorPartyId: string
+  vendorName: string
+  memo: string | null
+  taxAmount: number
+  lines: Array<{ lineId: string; lineNo: number; description: string; accountId: string; amount: number; vatMode: string }>
+}
 
 const selectClass =
   'h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
@@ -25,6 +37,12 @@ const selectClass =
 export default function BillCreateForm() {
   const t = useT()
   const router = useRouter()
+  // `?poId=` means this bill answers a purchase order: purchasing prefills it,
+  // and once finance has created the bill this form links the two. Purchasing
+  // never writes a bill itself, so this is the seam between the two modules.
+  const purchaseOrderId = useSearchParams().get('poId')
+  const [draft, setDraft] = React.useState<BillDraft | null>(null)
+  const [linkFailed, setLinkFailed] = React.useState<string | null>(null)
   const [vendorPartyId, setVendorPartyId] = React.useState('')
   const [vendorBillRef, setVendorBillRef] = React.useState('')
   const [periodId, setPeriodId] = React.useState('')
@@ -35,6 +53,37 @@ export default function BillCreateForm() {
   const [lines, setLines] = React.useState<LineDraft[]>([{ key: 1, expenseAccountId: '', amount: '', description: '' }])
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    if (!purchaseOrderId) return
+    let alive = true
+    readApiResultOrThrow<BillDraft>(`/api/orva_purchasing/orders/${purchaseOrderId}/bill-draft`)
+      .then((value) => {
+        if (!alive) return
+        setDraft(value)
+        setVendorPartyId(value.vendorPartyId)
+        setMemo(value.memo ?? '')
+        setTaxAmount(value.taxAmount ? String(value.taxAmount) : '')
+        setLines(
+          value.lines.map((line, index) => ({
+            key: index + 1,
+            expenseAccountId: line.accountId,
+            amount: String(line.amount),
+            description: line.description,
+            orderLineId: line.lineId,
+          })),
+        )
+      })
+      .catch((err: unknown) => {
+        if (!alive) return
+        // A closed or draft order refuses here; say so rather than presenting
+        // an empty form that would create an unlinked bill.
+        setError(err instanceof Error ? err.message : 'Could not read the purchase order')
+      })
+    return () => {
+      alive = false
+    }
+  }, [purchaseOrderId])
   const nextKey = React.useRef(2)
 
   const { data: vendorRolesData } = useQuery({
@@ -85,7 +134,7 @@ export default function BillCreateForm() {
     setError(null)
     setSubmitting(true)
     try {
-      await createCrud('orva_finance/ap/bills', {
+      const created = await createCrud('orva_finance/ap/bills', {
         vendorPartyId,
         vendorBillRef: vendorBillRef || null,
         periodId,
@@ -100,7 +149,47 @@ export default function BillCreateForm() {
           description: line.description || null,
         })),
       })
+      const billId = String(
+        (created.result as { id?: string } | null)?.id ?? (created.result as { billId?: string } | null)?.billId ?? '',
+      )
       flash(t('orva_finance.ap.flash.created', 'Draft bill created'), 'success')
+
+      if (purchaseOrderId && draft && billId) {
+        // Second step: the bill exists, now tell the order about it. Bill lines
+        // are named by position because the create route returns only the bill
+        // id, and it writes lines in the order they were sent.
+        const allocations = lines
+          .map((line, index) => ({ line, billLineNo: index + 1 }))
+          .filter(({ line }) => Boolean(line.orderLineId) && Number(line.amount) > 0)
+          .map(({ line, billLineNo }) => ({
+            lineId: String(line.orderLineId),
+            billLineNo,
+            amount: Number(line.amount),
+          }))
+        if (allocations.length > 0) {
+          const detail = await readApiResultOrThrow<{ order: { updatedAt: string } }>(
+            `/api/orva_purchasing/orders/${purchaseOrderId}`,
+          )
+          const linked = await apiCall(`/api/orva_purchasing/orders/${purchaseOrderId}/bill`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ updatedAt: detail.order.updatedAt, billId, allocations }),
+          })
+          if (!linked.ok) {
+            // The bill is saved and correct; only the link is missing. Say
+            // exactly that, and where to finish it, instead of implying the
+            // bill failed and inviting a duplicate.
+            setLinkFailed(
+              (linked.result as { error?: string } | undefined)?.error ??
+                t('orva_finance.ap.form.linkFailed', 'บิลถูกบันทึกแล้ว แต่ยังผูกกับใบสั่งซื้อไม่สำเร็จ'),
+            )
+            setSubmitting(false)
+            return
+          }
+        }
+        router.push(`/backend/purchasing/orders/${purchaseOrderId}`)
+        return
+      }
       router.push(LIST_HREF)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t('orva_finance.ap.form.error.create', 'Failed to create bill'))
@@ -127,6 +216,32 @@ export default function BillCreateForm() {
       />
       <PageBody>
         <div className="flex flex-col gap-6">
+          {linkFailed ? (
+            <div className="flex flex-col gap-2 rounded-md border border-status-warning-border bg-status-warning-bg px-4 py-3 text-sm">
+              <span className="font-medium">{linkFailed}</span>
+              <span>
+                {t(
+                  'orva_finance.ap.form.linkFailedHint',
+                  'บิลบันทึกเรียบร้อยและถูกต้องแล้ว อย่าสร้างใหม่ — ไปที่ใบสั่งซื้อแล้วกด "ผูกบิลที่มีอยู่" เพื่อผูกให้ครบ',
+                )}
+              </span>
+              {purchaseOrderId ? (
+                <div>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/backend/purchasing/orders/${purchaseOrderId}`}>
+                      {t('orva_finance.ap.form.linkFailedGoto', 'ไปที่ใบสั่งซื้อ')}
+                    </Link>
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {draft ? (
+            <div className="rounded-md border bg-muted/30 px-4 py-3 text-sm">
+              {t('orva_finance.ap.form.fromPurchaseOrder', 'ออกบิลตามใบสั่งซื้อ {number} — ยอดที่กรอกไว้คือส่วนที่ยังไม่ได้ตั้งบิล')
+                .replace('{number}', draft.poNumber ?? '')}
+            </div>
+          ) : null}
           {error ? <div className="text-sm text-destructive">{error}</div> : null}
           {vendorIds.length === 0 && vendorRolesData ? (
             <div className="rounded-md border border-status-warning-border bg-status-warning-bg px-4 py-3 text-sm">
@@ -137,10 +252,14 @@ export default function BillCreateForm() {
           <div className="grid gap-4 md:grid-cols-3">
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">{t('orva_finance.ap.column.vendor', 'Vendor')} *</span>
-              <select className={selectClass} value={vendorPartyId} onChange={(e) => setVendorPartyId(e.target.value)}>
-                <option value="">{t('orva_finance.ap.form.selectVendor', '— select vendor —')}</option>
-                {vendors.map((v) => (<option key={v.id} value={v.id}>{v.display_name}</option>))}
-              </select>
+              {draft ? (
+                <Input value={draft.vendorName} readOnly aria-readonly className="bg-muted/40" />
+              ) : (
+                <select className={selectClass} value={vendorPartyId} onChange={(e) => setVendorPartyId(e.target.value)}>
+                  <option value="">{t('orva_finance.ap.form.selectVendor', '— select vendor —')}</option>
+                  {vendors.map((v) => (<option key={v.id} value={v.id}>{v.display_name}</option>))}
+                </select>
+              )}
             </label>
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">{t('orva_finance.ap.column.ref', 'Vendor ref')}</span>

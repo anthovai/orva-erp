@@ -120,3 +120,29 @@ export const receiveSchema = z.object({
 })
 
 export type ReceiveInput = z.infer<typeof receiveSchema>
+
+/**
+ * Linking a bill that finance already created.
+ *
+ * Purchasing never creates the bill — that keeps a half-written liability
+ * impossible — so this call names one that exists. A bill line is named by its
+ * POSITION rather than its id: the AP create route writes lines in payload
+ * order as `lineNo` 1..n and returns only the bill id, so the position is what
+ * a caller can know for certain, and this route resolves it to an id.
+ */
+export const billAllocationSchema = z.object({
+  /** The ordered line this charge answers. */
+  lineId: z.string().uuid(),
+  /** 1-based position of the line within the bill. */
+  billLineNo: z.coerce.number().int().positive().max(500),
+  /** Ex-VAT amount charged against that ordered line. */
+  amount: z.coerce.number().min(0).max(1_000_000_000),
+})
+
+export const linkBillSchema = z.object({
+  updatedAt: z.string().min(1),
+  billId: z.string().uuid(),
+  allocations: z.array(billAllocationSchema).min(1).max(200),
+})
+
+export type BillAllocationInput = z.infer<typeof billAllocationSchema>
