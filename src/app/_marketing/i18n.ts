@@ -18,9 +18,6 @@ import en from '@/i18n/en.json'
 
 export type MarketingLocale = Locale
 
-/** The two locales the marketing copy is actually written in; the switcher toggles between them. */
-export const MARKETING_LOCALES: readonly MarketingLocale[] = ['th', 'en']
-
 type Dictionary = Record<string, string>
 type TitleBody = { title: string; body: string }
 type ValueLabel = { value: string; label: string }
@@ -42,7 +39,6 @@ function build(dict: Dictionary) {
       admin: g('nav.admin'),
       login: g('nav.login'),
       switchLocale: g('nav.switchLocale'),
-      switchLocaleShort: g('nav.switchLocaleShort'),
     },
     hero: {
       badge: g('hero.badge'),
@@ -142,8 +138,13 @@ export type MarketingTranslations = {
 
 /**
  * Server-side: the request's locale and marketing copy, resolved exactly the
- * way the backoffice resolves its own. Locales without marketing copy (de,
- * pl, …) fall back to English per key, matching what `t()` does in the app.
+ * way the backoffice resolves its own.
+ *
+ * The copy itself is written in Thai and English. The other four locales the
+ * app supports fall back to English per key — the same thing `t()` does inside
+ * the app for a module with no catalog in that language — while the locale
+ * they set still applies to the backoffice, which is translated into all six.
+ * The language menu therefore offers every locale the profile menu does.
  */
 export async function resolveMarketingTranslations(): Promise<MarketingTranslations> {
   const { locale, dict } = await resolveTranslations()

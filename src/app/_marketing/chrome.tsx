@@ -43,12 +43,7 @@ export function MarketingNav({
         </nav>
         <div className="flex items-center gap-3">
           {localeLocked ? null : (
-            <LanguageSwitcher
-              locale={locale}
-              redirectTo={path}
-              label={dict.nav.switchLocale}
-              shortLabel={dict.nav.switchLocaleShort}
-            />
+            <LanguageSwitcher locale={locale} redirectTo={path} label={dict.nav.switchLocale} />
           )}
           <Link
             href="/backend"

@@ -14,12 +14,14 @@ describe('marketing translations share the app dictionary', () => {
   it('builds from a merged app dictionary, not a hand-picked file', () => {
     const dict = buildMarketingDict(th as Record<string, string>)
     expect(dict.nav.login).toBe((th as Record<string, string>)['marketing.nav.login'])
-    expect(dict.nav.switchLocaleShort).toBe('EN')
+    expect(dict.nav.switchLocale).toBe('เลือกภาษา')
   })
 
   it('falls back to English per key for a locale with no marketing copy', () => {
     const dict = buildMarketingDict({})
     expect(dict.hero.title).toBe((en as Record<string, string>)['marketing.hero.title'])
-    expect(dict.nav.switchLocaleShort).toBe('ไทย')
+    // de / es / pl / ko carry no marketing.* keys at all, so this is the path
+    // those four take: English copy, their own backoffice language.
+    expect(dict.nav.switchLocale).toBe((en as Record<string, string>)['marketing.nav.switchLocale'])
   })
 })
