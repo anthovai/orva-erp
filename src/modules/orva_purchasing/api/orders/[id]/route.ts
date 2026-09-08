@@ -152,7 +152,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
               to_char(l.expected_on, 'YYYY-MM-DD') as expected_on,
               l.short_qty::text as short_qty
          from orva_purchasing_order_lines l
-         left join orva_gl_accounts a on a.id = l.account_id
+         left join orva_gl_accounts a on a.id = l.account_id and a.tenant_id = l.tenant_id and a.organization_id = l.organization_id
         where l.order_id = ?::uuid and l.tenant_id = ?::uuid and l.deleted_at is null
         order by l.line_no`,
       [parsed.data.id, tenantId],
