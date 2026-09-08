@@ -38,5 +38,10 @@ module.exports = {
     ],
   },
   transformIgnorePatterns: ['/node_modules/(?!(@open-mercato|@mikro-orm|@tanstack/react-table|@tanstack/table-core|@tanstack/react-store|@tanstack/store)/)'],
-  testPathIgnorePatterns: ['/node_modules/', '/.next/', '/.mercato/', '/.ai/qa/'],
+  // `__integration__` holds Playwright specs run by `yarn test:integration:ephemeral`
+  // against a built app. Jest would load them, fail on @playwright/test's
+  // runner globals, and report two broken suites next to a green unit run —
+  // which is how the first integration suite in this repo went unnoticed for
+  // one commit.
+  testPathIgnorePatterns: ['/node_modules/', '/.next/', '/.mercato/', '/.ai/qa/', '/__integration__/'],
 }

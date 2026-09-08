@@ -20,7 +20,7 @@ async function api<T>(path: string, body?: Record<string, unknown>): Promise<{ o
 export default function MfaSettingsPage() {
   const t = useT()
   const [status, setStatus] = React.useState<Status | null>(null)
-  const [enrollment, setEnrollment] = React.useState<{ secret: string; otpauthUrl: string } | null>(null)
+  const [enrollment, setEnrollment] = React.useState<{ secret: string; otpauthUrl: string; qrDataUrl: string | null } | null>(null)
   const [recoveryCodes, setRecoveryCodes] = React.useState<string[] | null>(null)
   const [code, setCode] = React.useState('')
   const [error, setError] = React.useState<string | null>(null)
@@ -40,9 +40,9 @@ export default function MfaSettingsPage() {
   }
 
   const startEnroll = () => run(async () => {
-    const res = await api<{ secret: string; otpauthUrl: string; error?: string }>('/api/orva_mfa/enroll', {})
+    const res = await api<{ secret: string; otpauthUrl: string; qrDataUrl: string | null; error?: string }>('/api/orva_mfa/enroll', {})
     if (!res.ok) { setError(res.data.error ?? 'Failed'); return }
-    setEnrollment({ secret: res.data.secret, otpauthUrl: res.data.otpauthUrl })
+    setEnrollment({ secret: res.data.secret, otpauthUrl: res.data.otpauthUrl, qrDataUrl: res.data.qrDataUrl ?? null })
     setRecoveryCodes(null)
     await refresh()
   })
@@ -115,8 +115,18 @@ export default function MfaSettingsPage() {
               ) : (
                 <>
                   <p className="text-sm">
-                    {t('orva_mfa.settings.enterSecret', 'Add this key to your authenticator app (Google Authenticator, Microsoft Authenticator, 1Password …):')}
+                    {t('orva_mfa.settings.scanOrEnter', 'Scan this with your authenticator app (Google Authenticator, Microsoft Authenticator, 1Password …), or add the key by hand:')}
                   </p>
+                  {enrollment.qrDataUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element -- a data URL cannot go through the image optimizer, and the secret must not leave the response */
+                    <img
+                      src={enrollment.qrDataUrl}
+                      alt={t('orva_mfa.settings.qrAlt', 'QR code for setting up your authenticator app')}
+                      width={220}
+                      height={220}
+                      className="rounded-md border bg-white p-2"
+                    />
+                  ) : null}
                   <code className="break-all rounded-md bg-muted px-3 py-2 font-mono text-sm">{enrollment.secret}</code>
                   <a href={enrollment.otpauthUrl} className="text-xs text-primary underline underline-offset-2">
                     {t('orva_mfa.settings.openInApp', 'Open directly in an authenticator app')}

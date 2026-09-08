@@ -6,12 +6,18 @@ import type { EntityManager } from '@mikro-orm/postgresql'
 import { z } from 'zod'
 import { TotpCredential } from '../../data/entities'
 import { buildOtpauthUrl, generateTotpSecret } from '../../lib/totp'
+import { otpauthQrDataUrl } from '../../lib/qr'
 
 export const metadata = {
   POST: { requireAuth: true, requireFeatures: ['orva_mfa.self'] },
 }
 
-const responseSchema = z.object({ secret: z.string(), otpauthUrl: z.string() })
+const responseSchema = z.object({
+  secret: z.string(),
+  otpauthUrl: z.string(),
+  /** PNG data URL of the otpauth URI; null when rendering it failed. */
+  qrDataUrl: z.string().nullable(),
+})
 
 /**
  * Starts (or restarts) enrollment: creates a pending credential and returns
@@ -57,9 +63,12 @@ export async function POST(req: Request) {
   }
   await em.flush()
 
+  const otpauthUrl = buildOtpauthUrl(secret, auth.email ?? auth.sub)
   return Response.json({
     secret,
-    otpauthUrl: buildOtpauthUrl(secret, auth.email ?? auth.sub),
+    otpauthUrl,
+    // Additive: a client that ignores it behaves exactly as before.
+    qrDataUrl: await otpauthQrDataUrl(otpauthUrl),
   })
 }
 
@@ -71,7 +80,7 @@ export const openApi: OpenApiRouteDoc = {
       summary: 'Create a pending TOTP credential and return the secret once',
       description: 'Re-invoking replaces a pending secret. 409 when an active credential exists.',
       tags: ['Orva MFA'],
-      responses: [{ status: 200, description: 'Secret + otpauth URI (shown once).', schema: responseSchema }],
+      responses: [{ status: 200, description: 'Secret, otpauth URI and its QR (shown once).', schema: responseSchema }],
       errors: [
         { status: 401, description: 'Authentication required', schema: z.object({ error: z.string() }) },
         { status: 409, description: 'Already active', schema: z.object({ error: z.string() }) },
