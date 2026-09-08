@@ -1,5 +1,6 @@
 import { Check, ChevronDown, Globe } from 'lucide-react'
 import { locales } from '@open-mercato/shared/lib/i18n/config'
+import { BRAND } from './brand'
 import type { MarketingLocale } from './i18n'
 
 /**
@@ -18,7 +19,9 @@ import type { MarketingLocale } from './i18n'
  *
  * No client JavaScript: a native `<details>` disclosure holding six links.
  * These pages render before login and must stay light, and links mean the
- * cookie is set by the route rather than by script.
+ * cookie is set by the route rather than by script. Brand colours arrive as
+ * inline styles from `./brand`, the marketing surface's palette, rather than
+ * as arbitrary Tailwind values.
  */
 const LOCALE_LABELS: Record<string, string> = {
   en: 'English',
@@ -29,7 +32,7 @@ const LOCALE_LABELS: Record<string, string> = {
   th: 'ไทย',
 }
 
-/** Short label for the closed state — the tab is narrow on a phone. */
+/** Short label for the closed state — the header is narrow on a phone. */
 const LOCALE_SHORT: Record<string, string> = {
   en: 'EN',
   de: 'DE',
@@ -54,7 +57,8 @@ export function LanguageSwitcher({
     <details className="relative">
       <summary
         aria-label={label}
-        className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-white/20 px-3 py-2 text-sm font-medium text-[#d5efe6] transition hover:bg-white/10 hover:text-white [&::-webkit-details-marker]:hidden"
+        style={{ color: BRAND.onDark }}
+        className="flex cursor-pointer list-none items-center gap-1.5 rounded-lg border border-white/20 px-3 py-2 text-sm font-medium transition hover:bg-white/10 hover:text-white [&::-webkit-details-marker]:hidden"
       >
         <Globe className="size-4" />
         {LOCALE_SHORT[locale] ?? locale.toUpperCase()}
@@ -68,10 +72,11 @@ export function LanguageSwitcher({
               key={value}
               href={`/api/auth/locale?locale=${value}&redirect=${encodeURIComponent(redirectTo)}`}
               aria-current={isCurrent ? 'true' : undefined}
-              className="flex items-center justify-between gap-3 px-3 py-2 text-sm text-[#101828] transition hover:bg-[#f2f7f5]"
+              style={{ color: BRAND.ink }}
+              className="flex items-center justify-between gap-3 px-3 py-2 text-sm transition hover:bg-black/5"
             >
               <span>{LOCALE_LABELS[value] ?? value}</span>
-              {isCurrent ? <Check className="size-4 text-[#11836E]" /> : null}
+              {isCurrent ? <Check className="size-4" style={{ color: BRAND.base }} /> : null}
             </a>
           )
         })}

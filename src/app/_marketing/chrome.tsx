@@ -1,16 +1,13 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { BRAND } from './brand'
 import type { MarketingDict, MarketingTranslations } from './i18n'
 import { LanguageSwitcher } from './LanguageSwitcher'
 
-// Orva CI palette — see docs/BRAND.md (Orva Green / Orva Forest / Orva Mint;
-// `deep` is the one-step-darker background shade used in gradients).
-export const BRAND = {
-  deep: '#0A3D33',
-  dark: '#0E4A3E',
-  base: '#11836E',
-  mint: '#7EE0C4',
-}
+// The palette lives in ./brand so LanguageSwitcher can paint with it without
+// importing its own parent; re-exported here because the pages already take it
+// from this module.
+export { BRAND } from './brand'
 
 /**
  * Shared marketing navbar. Section anchors point at the landing page so the

@@ -98,12 +98,6 @@
       "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
     },
     {
-      "file": "src/app/_marketing/LanguageSwitcher.tsx",
-      "rule": "arbitrary-tailwind",
-      "match": "text-[#d5efe6]",
-      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
-    },
-    {
       "file": "src/app/about/page.tsx",
       "rule": "arbitrary-tailwind",
       "match": "text-[#101828]",
@@ -2202,6 +2196,30 @@
       "rule": "inline-style",
       "match": "style=",
       "reason": "A brand colour is user data: it is read from the brand record the document is issued under (orva_documents brands, doc.accentColor / brand.brandColor) and chosen by the tenant, not by this code. The rule exists to stop hard-coded palette values; no design token can express a colour a customer picked. Layout, spacing, radius and the contrasting text colour all come from tokens — only the fill is inline. On the brands screen the swatch exists to show that colour, and it is aria-hidden with the brand name beside it carrying the meaning."
+    },
+    {
+      "file": "src/app/_marketing/LanguageSwitcher.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "[&::-webkit-details-marker]",
+      "reason": "Hides the native <details> triangle so the pre-login language menu matches the profile menu inside the app. No design-system utility targets a UA pseudo-element, and the alternative is shipping client-side JavaScript to a page that must stay light."
+    },
+    {
+      "file": "src/app/_marketing/LanguageSwitcher.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/LanguageSwitcher.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/app/_marketing/LanguageSwitcher.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
     }
   ]
 }
