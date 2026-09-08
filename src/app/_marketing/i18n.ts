@@ -1,34 +1,34 @@
-// Marketing-page translations — SINGLE SOURCE with the system dictionaries.
+// Marketing-page translations — the SAME translator as the rest of the app.
 //
-// Every string lives as a flat `marketing.*` key in src/i18n/<locale>.json
-// (the app-level dictionary the framework's loader already serves), so the
-// same keys are also available to `t()` inside the app. The marketing pages
-// import those JSON files directly instead of bootstrapping the module
-// registry: /start and /about render before login and must stay light.
+// Every string lives as a flat `marketing.*` key in src/i18n/<locale>.json,
+// the app-level dictionary the framework's loader already serves, so the same
+// keys are also available to `t()` inside the app.
 //
-// The locale comes from the same `locale` cookie the app uses, so a choice
-// made on the landing page carries into the backoffice.
+// The locale is resolved by the framework's `detectLocale()` — the exact
+// resolution the backoffice uses (OM_FORCE_LOCALE, then the `locale` cookie,
+// then Accept-Language, then the default) — and the dictionary comes from the
+// same cached `loadDictionary()` the root layout already ran for this request.
+// Before this, /start and /about read the cookie by hand and defaulted to Thai
+// while the app defaulted through Accept-Language, so a visitor could land on
+// a Thai page and sign in to an English system.
+import type { Locale } from '@open-mercato/shared/lib/i18n/config'
+import { resolveForcedLocale } from '@open-mercato/shared/lib/i18n/locale'
+import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
 import en from '@/i18n/en.json'
-import th from '@/i18n/th.json'
 
-export type MarketingLocale = 'th' | 'en'
+export type MarketingLocale = Locale
 
-export function resolveMarketingLocale(cookieValue: string | undefined): MarketingLocale {
-  return cookieValue === 'en' ? 'en' : 'th'
-}
+/** The two locales the marketing copy is actually written in; the switcher toggles between them. */
+export const MARKETING_LOCALES: readonly MarketingLocale[] = ['th', 'en']
 
-const SOURCES: Record<MarketingLocale, Record<string, string>> = {
-  en: en as Record<string, string>,
-  th: th as Record<string, string>,
-}
-
+type Dictionary = Record<string, string>
 type TitleBody = { title: string; body: string }
 type ValueLabel = { value: string; label: string }
 
-function build(locale: MarketingLocale) {
-  const dict = SOURCES[locale]
-  const fallback = SOURCES.en
-  const g = (key: string): string => dict[`marketing.${key}`] ?? fallback[`marketing.${key}`] ?? key
+const EN_FALLBACK = en as Dictionary
+
+function build(dict: Dictionary) {
+  const g = (key: string): string => dict[`marketing.${key}`] ?? EN_FALLBACK[`marketing.${key}`] ?? key
   const titleBody = (key: string): TitleBody => ({ title: g(`${key}.title`), body: g(`${key}.body`) })
   const list = (key: string, count: number): string[] =>
     Array.from({ length: count }, (_, index) => g(`${key}.${index}`))
@@ -41,6 +41,8 @@ function build(locale: MarketingLocale) {
       about: g('nav.about'),
       admin: g('nav.admin'),
       login: g('nav.login'),
+      switchLocale: g('nav.switchLocale'),
+      switchLocaleShort: g('nav.switchLocaleShort'),
     },
     hero: {
       badge: g('hero.badge'),
@@ -126,7 +128,28 @@ function build(locale: MarketingLocale) {
 
 export type MarketingDict = ReturnType<typeof build>
 
-export const marketingDict: Record<MarketingLocale, MarketingDict> = {
-  th: build('th'),
-  en: build('en'),
+/** Pure: builds the marketing copy from an already-resolved flat dictionary. Exported for tests. */
+export function buildMarketingDict(dict: Dictionary): MarketingDict {
+  return build(dict)
+}
+
+export type MarketingTranslations = {
+  locale: MarketingLocale
+  /** True when OM_FORCE_LOCALE pins the locale — the switcher must not be offered. */
+  localeLocked: boolean
+  dict: MarketingDict
+}
+
+/**
+ * Server-side: the request's locale and marketing copy, resolved exactly the
+ * way the backoffice resolves its own. Locales without marketing copy (de,
+ * pl, …) fall back to English per key, matching what `t()` does in the app.
+ */
+export async function resolveMarketingTranslations(): Promise<MarketingTranslations> {
+  const { locale, dict } = await resolveTranslations()
+  return {
+    locale,
+    localeLocked: resolveForcedLocale(process.env) !== null,
+    dict: build(dict as Dictionary),
+  }
 }

@@ -1,6 +1,5 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { cookies } from 'next/headers'
 import { IBM_Plex_Sans_Thai } from 'next/font/google'
 import {
   ArrowRight,
@@ -15,7 +14,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react'
-import { marketingDict, resolveMarketingLocale } from '../_marketing/i18n'
+import { resolveMarketingTranslations } from '../_marketing/i18n'
 import { BRAND, MarketingFooter, MarketingNav } from '../_marketing/chrome'
 
 const plexThai = IBM_Plex_Sans_Thai({
@@ -45,12 +44,12 @@ function BrowserFrame({ src, alt }: { src: string; alt: string }) {
 }
 
 export default async function OrvaStartPage() {
-  const locale = resolveMarketingLocale((await cookies()).get('locale')?.value)
-  const t = marketingDict[locale]
+  const translations = await resolveMarketingTranslations()
+  const t = translations.dict
 
   return (
     <main className={`${plexThai.className} min-h-svh w-full bg-white text-[#101828]`}>
-      <MarketingNav locale={locale} dict={t} />
+      <MarketingNav {...translations} path="/start" />
 
       {/* ───── Hero (dark brand) ───── */}
       <section

@@ -1175,6 +1175,8 @@
   "marketing.nav.about": "เกี่ยวกับ",
   "marketing.nav.admin": "หน้าจัดการ",
   "marketing.nav.login": "เข้าสู่ระบบ",
+  "marketing.nav.switchLocale": "Switch to English",
+  "marketing.nav.switchLocaleShort": "EN",
   "marketing.hero.badge": "Orva ERP · โดย Anthovai",
   "marketing.hero.title": "ERP ครบวงจรสำหรับธุรกิจไทย",
   "marketing.hero.subtitle": "ความถูกต้องทางบัญชี ถูกบังคับถึงระดับฐานข้อมูล",

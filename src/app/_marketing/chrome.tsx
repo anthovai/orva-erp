@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import type { MarketingDict, MarketingLocale } from './i18n'
+import type { MarketingDict, MarketingTranslations } from './i18n'
 import { LanguageSwitcher } from './LanguageSwitcher'
 
 // Orva CI palette — see docs/BRAND.md (Orva Green / Orva Forest / Orva Mint;
@@ -16,7 +16,15 @@ export const BRAND = {
  * Shared marketing navbar. Section anchors point at the landing page so the
  * same nav works from /start and /about.
  */
-export function MarketingNav({ locale, dict }: { locale: MarketingLocale; dict: MarketingDict }) {
+export function MarketingNav({
+  locale,
+  localeLocked,
+  dict,
+  path,
+}: MarketingTranslations & {
+  /** The page rendering the nav; the locale switch returns here. */
+  path: string
+}) {
   return (
     <header
       className="sticky top-0 z-30 border-b border-white/10"
@@ -34,7 +42,14 @@ export function MarketingNav({ locale, dict }: { locale: MarketingLocale; dict: 
           <Link href="/about" className="transition hover:text-white">{dict.nav.about}</Link>
         </nav>
         <div className="flex items-center gap-3">
-          <LanguageSwitcher locale={locale} />
+          {localeLocked ? null : (
+            <LanguageSwitcher
+              locale={locale}
+              redirectTo={path}
+              label={dict.nav.switchLocale}
+              shortLabel={dict.nav.switchLocaleShort}
+            />
+          )}
           <Link
             href="/backend"
             className="hidden text-sm font-medium text-[#d5efe6cc] transition hover:text-white sm:block"

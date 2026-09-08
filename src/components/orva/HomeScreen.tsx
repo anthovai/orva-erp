@@ -2,7 +2,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { Button } from '@open-mercato/ui/primitives/button'
-import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
 import { FilePlus2, UserPlus, ReceiptText, PackageCheck, LayoutGrid } from 'lucide-react'
 import { FourQuestionsPanel } from '@/modules/orva_finance/components/FourQuestions'
 
@@ -17,7 +17,9 @@ import { FourQuestionsPanel } from '@/modules/orva_finance/components/FourQuesti
  */
 export function OrvaHomeScreen() {
   const t = useT()
-  const today = new Intl.DateTimeFormat('th-TH-u-ca-buddhist', {
+  const locale = useLocale()
+  // Same locale the rest of the app renders in; Thai gets the Buddhist year.
+  const today = new Intl.DateTimeFormat(locale === 'th' ? 'th-TH-u-ca-buddhist' : locale, {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   }).format(new Date())
 

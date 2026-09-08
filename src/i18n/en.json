@@ -1175,6 +1175,8 @@
   "marketing.nav.about": "About",
   "marketing.nav.admin": "Admin",
   "marketing.nav.login": "Sign in",
+  "marketing.nav.switchLocale": "เปลี่ยนเป็นภาษาไทย",
+  "marketing.nav.switchLocaleShort": "ไทย",
   "marketing.hero.badge": "Orva ERP · by Anthovai",
   "marketing.hero.title": "The complete ERP for Thai business",
   "marketing.hero.subtitle": "Accounting correctness, enforced down to the database",
