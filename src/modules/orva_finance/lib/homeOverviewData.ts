@@ -59,6 +59,8 @@ export type HomeOverviewData = {
     /** IT: licences/domains renewing within 30 days / already lapsed. */
     renewingSubscriptions: number
     lapsedSubscriptions: number
+    /** การตลาด: enquiries that became deals and have not moved off the first stage. */
+    untouchedLeads: number
     /** Quotes accepted by the customer with no งวด issued yet. */
     acceptedAwaitingInstallment: Array<{ id: string; ref: string; customer: string | null; total: string }>
   }
@@ -192,6 +194,40 @@ async function subscriptionRenewals(
   }
 }
 
+/**
+ * Enquiries nobody has picked up.
+ *
+ * A deal still sitting on the FIRST stage of its pipeline is one nobody has
+ * moved — which for a lead that arrived through the public form means nobody
+ * has replied. Counted within 30 days because after that it is not a new
+ * enquiry any more, it is a decision the owner has already made by not acting.
+ *
+ * The stage comparison is by position rather than by name, so renaming a
+ * pipeline stage cannot silently switch this off. Note that
+ * `customer_pipeline_stages` carries no `deleted_at` column — a stage is
+ * removed outright — so do not add the soft-delete predicate the sibling
+ * tables use here; it makes this query fail and the whole home screen 500. A scalar tenant-filtered
+ * read on the CRM tables, the same seam the stock and subscription counts
+ * above use.
+ */
+async function untouchedLeads(tem: EntityManager, scope: Scope, today: string): Promise<number> {
+  const rows = (await tem.execute(
+    `select count(*)::int as n
+       from customer_deals d
+       join customer_pipeline_stages s on s.id = d.pipeline_stage_id
+      where d.tenant_id = ?::uuid
+        and (?::uuid is null or d.organization_id = ?::uuid)
+        and d.deleted_at is null
+        and d.created_at >= ?::date - interval '30 days'
+        and s.position = (
+          select min(s2.position) from customer_pipeline_stages s2
+           where s2.pipeline_id = s.pipeline_id
+        )`,
+    [scope.tenantId, scope.organizationId, scope.organizationId, today],
+  )) as Array<{ n: number }>
+  return Number(rows[0]?.n ?? 0)
+}
+
 /** Customer display names live encrypted in customer_entities; resolve the few we show. */
 export async function resolveCustomerNames(tem: EntityManager, scope: Scope, ids: Array<string | null | undefined>): Promise<Map<string, string | null>> {
   const unique = [...new Set(ids.filter((id): id is string => Boolean(id)))]
@@ -205,7 +241,7 @@ export async function resolveCustomerNames(tem: EntityManager, scope: Scope, ids
 export async function buildHomeOverview(tem: EntityManager, scope: Scope, today: string): Promise<HomeOverviewData> {
   const month = monthOf(today)
   const bounds = monthBounds(month)
-  const [invoices, receipts, bank, quotes, books, stock, subs, accepted] = await Promise.all([
+  const [invoices, receipts, bank, quotes, books, stock, subs, leads, accepted] = await Promise.all([
     openInvoices(tem, scope),
     receiptsInMonth(tem, scope, bounds.from, bounds.to),
     cashBalances(tem, scope),
@@ -213,6 +249,7 @@ export async function buildHomeOverview(tem: EntityManager, scope: Scope, today:
     bookkeepingStatus(tem, scope, month, bounds.from, bounds.to),
     stockExpiryAlerts(tem, scope, today),
     subscriptionRenewals(tem, scope, today),
+    untouchedLeads(tem, scope, today),
     quotesAwaitingFirstInstallment(tem, scope),
   ])
   const deadlines = upcomingDeadlines(today)
@@ -290,6 +327,7 @@ export async function buildHomeOverview(tem: EntityManager, scope: Scope, today:
       expiringLots: stock.expiringLots,
       expiredLots: stock.expiredLots,
       renewingSubscriptions: subs.renewingSubscriptions,
+      untouchedLeads: leads,
       lapsedSubscriptions: subs.lapsedSubscriptions,
       acceptedAwaitingInstallment: accepted.map((row) => ({
         id: row.id,

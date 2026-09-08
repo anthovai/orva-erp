@@ -41,5 +41,7 @@
   "orva.nav.project": "Projects",
   "orva.nav.sales": "Sales",
   "orva.nav.stock": "Stock",
-  "orva.nav.support": "Support"
+  "orva.nav.support": "Support",
+  "orva.notifications.leadReceived.body": "{name} wrote in via {source} and nobody has replied yet",
+  "orva.notifications.leadReceived.title": "New enquiry from the contact form"
 }

@@ -611,7 +611,29 @@ first, project joined, lapsed renewals first), and the derived arithmetic by uni
    MFG/EXP, net content; sheet layout for A4 label paper; printed from the lot row.
 4. Gates + physical print test.
 
-### Phase G4 — Leads (REQ-009) — ✅ 2026-09-05
+### Phase G4 — Leads (REQ-009) — ✅ 2026-09-05, completed 2026-09-08
+
+**Follow-on shipped 2026-09-08 — the half that was missing.** The form created
+a deal and told nobody, which for a one-person company is the feature failing
+quietly: an enquiry at 02:00 waits on the first pipeline stage until the owner
+opens the pipeline. Closed by two additions, both verified by integration
+specs against a production build:
+
+1. `orva/notifications.ts` declares `orva.lead.received`; the lead route raises
+   it post-commit, addressed by `customers.deals.view` rather than by name, and
+   never throws — a stranger must not receive a 500 because an internal badge
+   could not be written. Deduplicated per deal, so the 24h resubmission path
+   cannot notify twice.
+2. The home waiting card gains **ลูกค้าใหม่ที่ยังไม่ได้ติดต่อ**: deals still on
+   the *first* stage of their pipeline (compared by `position`, so a rename
+   cannot switch it off) created within 30 days. It sorts above stock and
+   renewals because an unanswered enquiry decays faster than either.
+
+Still no automatic reply, by the same reasoning as the overdue scan: raise it,
+send nothing. Two bugs the specs caught: `customer_pipeline_stages` has no
+`deleted_at` column and the copied soft-delete predicate made the home screen
+answer 500, and the honeypot field is `website`, so the first version of the
+bot test passed a bot straight through.
 
 1. ✅ Public page `/[orgSlug]/portal/lead` + `POST /api/orva/lead`, owned by `orva`
    (the module that already defines `lead_source` in `ce.ts`). Honeypot, 5/min/IP,

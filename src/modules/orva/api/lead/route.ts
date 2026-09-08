@@ -16,6 +16,7 @@ import {
   DEDUPE_WINDOW_MS, isDuplicateWithin, leadDescription, leadTitle, looksLikeBot,
   normaliseEmail, normaliseSource,
 } from '../../lib/lead'
+import { raise } from '../../lib/notify'
 
 /** Public: anyone with the link may submit. Never expose a read here. */
 export const metadata = {
@@ -164,6 +165,23 @@ export async function POST(req: Request) {
       deduplicated: outcome.deduplicated,
       dealId: outcome.dealId,
     })
+
+    // After the commit, and only for a genuinely new enquiry: a repeat
+    // submission within the dedupe window appended to the same deal, and
+    // notifying twice for one person would train the owner to ignore this.
+    if (!outcome.deduplicated) {
+      await raise(container, 'orva.lead.received', {
+        tenantId,
+        organizationId,
+        dealId: outcome.dealId,
+        // One notification per deal, so a retry cannot double it.
+        groupKey: `orva.lead.received:${outcome.dealId ?? email}`,
+        bodyVariables: {
+          name: input.company?.trim() || input.name.trim(),
+          source,
+        },
+      })
+    }
     return accepted()
   } catch (error) {
     logger.error('Lead capture failed', {

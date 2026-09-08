@@ -51,6 +51,7 @@ const responseSchema = z.object({
     expiredLots: z.number(),
     renewingSubscriptions: z.number(),
     lapsedSubscriptions: z.number(),
+    untouchedLeads: z.number(),
     acceptedAwaitingInstallment: z.array(z.object({
       id: z.string(), ref: z.string(), customer: z.string().nullable(), total: z.string(),
     })),

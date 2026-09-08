@@ -42,6 +42,7 @@ export type HomeOverview = {
     expiredLots: number
     renewingSubscriptions: number
     lapsedSubscriptions: number
+    untouchedLeads: number
     acceptedAwaitingInstallment: Array<{ id: string; ref: string; customer: string | null; total: string }>
   }
 }
@@ -136,7 +137,7 @@ export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOver
   const t = useT()
   const overdue = data.cashIn.overdueCount > 0
   const accepted = data.waiting.acceptedAwaitingInstallment ?? []
-  const waitingCount = data.waiting.quotes.length + data.waiting.unpostedInvoices + data.waiting.draftJournals + data.waiting.unmatchedBankLines + (data.waiting.lastMonthPackSent ? 0 : 1) + (data.waiting.expiringLots ?? 0) + (data.waiting.expiredLots ?? 0) + (data.waiting.renewingSubscriptions ?? 0) + (data.waiting.lapsedSubscriptions ?? 0) + accepted.length
+  const waitingCount = data.waiting.quotes.length + data.waiting.unpostedInvoices + data.waiting.draftJournals + data.waiting.unmatchedBankLines + (data.waiting.lastMonthPackSent ? 0 : 1) + (data.waiting.expiringLots ?? 0) + (data.waiting.expiredLots ?? 0) + (data.waiting.renewingSubscriptions ?? 0) + (data.waiting.lapsedSubscriptions ?? 0) + (data.waiting.untouchedLeads ?? 0) + accepted.length
   const taxTone: Tone = data.tax.some((d) => d.state === 'overdue' && !d.packSentAt) ? 'bad' : data.tax.some((d) => d.state === 'due_soon' && !d.packSentAt) ? 'warn' : undefined
 
   return (
@@ -248,6 +249,17 @@ export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOver
           ) : null}
           {data.waiting.unmatchedBankLines > 0 ? (
             <Row left={<Link href="/backend/bank/reconciliation" className="hover:underline">{t('orva_finance.home.waiting.bank', 'รายการธนาคารยังไม่กระทบยอด')}</Link>} right={String(data.waiting.unmatchedBankLines)} tone="warn" />
+          ) : null}
+          {(data.waiting.untouchedLeads ?? 0) > 0 ? (
+            <Row
+              left={(
+                <Link href="/backend/customers/deals/pipeline" className="hover:underline">
+                  {t('orva_finance.home.waiting.untouchedLeads', 'ลูกค้าใหม่ที่ยังไม่ได้ติดต่อ')}
+                </Link>
+              )}
+              right={String(data.waiting.untouchedLeads)}
+              tone="warn"
+            />
           ) : null}
           {(data.waiting.expiredLots ?? 0) > 0 ? (
             <Row left={<Link href="/backend/stock/valuation" className="hover:underline">{t('orva_finance.home.waiting.expiredLots', 'ล็อตสินค้าหมดอายุแล้วแต่ยังมีของค้าง')}</Link>} right={String(data.waiting.expiredLots)} tone="bad" />

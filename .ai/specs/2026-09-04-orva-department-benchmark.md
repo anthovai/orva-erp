@@ -34,7 +34,8 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 | Unified inbox (email/LINE/Slack) | Odoo Discuss | ✅ upstream (messages, channels) | connect the LINE OA channel when available |
 | AI proposals from inbound mail | — | ✅ upstream (inbox_ops) | — |
 | Email campaigns / broadcast | Odoo Marketing | ❌ | phase F: broadcast to a customer segment through the messages module |
-| Lead capture form → deal | Odoo Website | ❌ | phase F: public form on the portal creating a deal |
+| Lead capture form → deal | Odoo Website | ✅ 2026-09-05 (G4) | public form at `/[orgSlug]/portal/lead`; honeypot + 24h dedupe |
+| **Enquiry actually reaches the owner** | Odoo activities | ✅ 2026-09-08 | the form was silent: it now raises `orva.lead.received` and the home waiting card counts enquiries still on the first pipeline stage within 30 days. No auto-reply — answering is a human act |
 | Lead source / UTM on deals | Odoo | ✅ 2026-09-04 | `lead_source` (ช่องทางที่มา) select on deals via orva/ce.ts, filterable |
 | Landing pages / CMS | Odoo Website | ⏸ (content module) | out of scope |
 | Customer portal (see quotes/invoices, pay) | Odoo | 🟡 upstream customer_accounts | enable when a customer asks |
