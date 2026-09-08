@@ -20,6 +20,8 @@ const events = [
   { id: 'orva_purchasing.order.sent', label: 'Purchase Order Sent To Vendor', entity: 'order', category: 'lifecycle' },
   { id: 'orva_purchasing.order.cancelled', label: 'Purchase Order Cancelled', entity: 'order', category: 'lifecycle' },
   { id: 'orva_purchasing.order.closed', label: 'Purchase Order Closed', entity: 'order', category: 'lifecycle' },
+  { id: 'orva_purchasing.order.received', label: 'Purchase Order Goods Received', entity: 'order', category: 'lifecycle' },
+  { id: 'orva_purchasing.order.repaired', label: 'Purchase Order Receipts Repaired', entity: 'order', category: 'lifecycle' },
   { id: 'orva_purchasing.order.line_adjusted', label: 'Purchase Order Line Quantity Raised', entity: 'order', category: 'lifecycle' },
 ] as const
 

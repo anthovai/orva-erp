@@ -102,9 +102,9 @@ const toJson = (row: Row) => ({
  * The response still feeds a `DataTable`, and the surrounding contracts
  * (per-method features, Zod query, tenant scope, OpenAPI) are unchanged.
  *
- * A line counts as late when its expected date has passed while the order is
- * still open. Until phase A2 there are no receipts, so "open" is the closest
- * the data can get to "not yet arrived"; A2 subtracts what was received.
+ * A line counts as late when its expected date has passed, the order is still
+ * open, and less has arrived than was ordered — the receipts decide, not the
+ * order's status.
  */
 export async function GET(req: Request) {
   const auth = await getAuthFromRequest(req)
@@ -132,12 +132,18 @@ export async function GET(req: Request) {
          from orva_purchasing_orders o
          left join orva_parties p on p.id = o.vendor_party_id and p.deleted_at is null
          left join (
-           select order_id,
+           select pl.order_id,
                   count(*) as line_count,
-                  count(*) filter (where expected_on is not null and expected_on < current_date) as late_count
-             from orva_purchasing_order_lines
-            where deleted_at is null
-            group by order_id
+                  count(*) filter (
+                    where pl.expected_on is not null and pl.expected_on < current_date
+                      and pl.quantity > coalesce((
+                        select sum(r.quantity) from orva_purchasing_receipts r
+                         where r.order_line_id = pl.id and r.deleted_at is null
+                      ), 0)
+                  ) as late_count
+             from orva_purchasing_order_lines pl
+            where pl.deleted_at is null
+            group by pl.order_id
          ) l on l.order_id = o.id
         where o.deleted_at is null and o.tenant_id = ?::uuid and o.organization_id = ?::uuid
           and (?::boolean is false or o.status not in ('closed', 'cancelled'))

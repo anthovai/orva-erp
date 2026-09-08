@@ -9,6 +9,7 @@ import { withTenantRls } from '@/lib/rls'
 import { PurchaseOrderLine } from '../../../../data/entities'
 import { orderIdParamsSchema, reasonedSchema } from '../../../../data/validators'
 import { assertVersion, fail, findOrder, orderEvent } from '../../../../lib/orders'
+import { receivedByLine } from '../../../../lib/receipts'
 import { canTransition } from '../../../../lib/status'
 import { emitPurchasingEvent } from '../../../../events'
 
@@ -26,9 +27,8 @@ export const metadata = {
  * scan and the committed-not-billed figure, and accepts no further receipts
  * or bill links.
  *
- * Until phase A2 nothing has been received, so the shortfall of a closed
- * order is its whole quantity — which is exactly right for an order the
- * vendor never fulfilled.
+ * An order with nothing received closes with its whole quantity short, which
+ * is exactly right for one the vendor never fulfilled.
  */
 export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const auth = await getAuthFromRequest(req)
@@ -52,12 +52,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
       }
       const now = new Date()
       const lines = await tem.find(PurchaseOrderLine, { orderId: order.id, tenantId: scope.tenantId, deletedAt: null })
+      const received = await receivedByLine(tem, scope, order.id)
       const shortfalls: Array<{ lineNo: number; description: string; shortQty: number }> = []
       for (const line of lines) {
-        // A2 subtracts the receipt sum here; with no receipts the shortfall is
-        // the full ordered quantity.
-        const received = 0
-        const short = Math.max(0, Number(line.quantity) - received)
+        const short = Math.max(0, Number(line.quantity) - (received.get(line.id) ?? 0))
         line.shortQty = short.toFixed(4)
         line.updatedAt = now
         if (short > 0) shortfalls.push({ lineNo: line.lineNo, description: line.description, shortQty: short })

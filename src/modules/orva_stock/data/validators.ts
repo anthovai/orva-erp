@@ -22,6 +22,16 @@ export const receiveSchema = z.object({
   expiresOn: isoDate.optional().nullable(),
   receivedOn: isoDate,
   reason: z.string().trim().max(500).optional(),
+  /**
+   * What this receipt belongs to, stamped on the WMS movement so another
+   * module can find its own receipts again. Additive and optional: without
+   * them the route behaves exactly as before, deriving 'po' from a bill id.
+   * `orva_purchasing` passes 'po' with the order id and the line id, which is
+   * what makes its repair pass possible.
+   */
+  referenceType: z.enum(['po', 'bill', 'manual']).optional(),
+  referenceId: z.string().uuid().optional().nullable(),
+  poLineId: z.string().uuid().optional().nullable(),
 })
 
 export const retailSaleLineSchema = z.object({

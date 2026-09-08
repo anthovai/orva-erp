@@ -8,6 +8,7 @@ import { withTenantRls } from '@/lib/rls'
 import { orderIdParamsSchema } from '../../../data/validators'
 import { lineNet, lineVat, priceVariance, round2, type VatMode } from '../../../lib/totals'
 import { remainingQty } from '../../../lib/status'
+import { findOrphanReceipts, receivedByLine } from '../../../lib/receipts'
 
 export const metadata = {
   GET: { requireAuth: true, requireFeatures: ['orva_purchasing.view'] },
@@ -62,6 +63,21 @@ const detailSchema = z.object({
     updatedAt: z.string(),
   }),
   lines: z.array(lineSchema),
+  receipts: z.array(
+    z.object({
+      id: z.string(),
+      lineId: z.string(),
+      lineNo: z.number(),
+      description: z.string(),
+      quantity: z.number(),
+      receivedOn: z.string(),
+      lotNumber: z.string().nullable(),
+      movementId: z.string().nullable(),
+      unitCost: z.number().nullable(),
+      memo: z.string().nullable(),
+    }),
+  ),
+  unlinkedReceipts: z.number(),
 })
 
 type OrderRow = {
@@ -86,6 +102,19 @@ type OrderRow = {
   updated_at: string
 }
 
+type ReceiptRow = {
+  id: string
+  order_line_id: string
+  quantity: string
+  received_on: string
+  lot_number: string | null
+  movement_id: string | null
+  unit_cost: string | null
+  memo: string | null
+  line_no: number
+  description: string
+}
+
 type LineRow = {
   id: string
   line_no: number
@@ -108,10 +137,10 @@ type LineRow = {
  * One order with its lines, and the three numbers that make the page worth
  * opening: ordered, received and billed.
  *
- * Received and billed are zero here by construction — phases A2 and A3 add
- * the receipt and bill-link tables and replace the two literals below with
- * their sums. The shape is already the final one so the page, its tests and
- * the printed sheet do not change when they arrive.
+ * Received comes from the receipt rows; billed is still zero until phase A3
+ * adds the bill-link table. The response also reports how many WMS receipts
+ * exist for this order with no receipt row here, so the page can offer the
+ * repair instead of quietly under-reporting what arrived.
  *
  * `vendor_snapshot` is deliberately not selected: it is encrypted at rest, so
  * raw SQL would hand back ciphertext (see .ai/lessons.md). The live party
@@ -157,7 +186,20 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
         order by l.line_no`,
       [parsed.data.id, tenantId],
     )) as LineRow[]
-    return { order, lines }
+    const receipts = (await tem.execute(
+      `select r.id, r.order_line_id, r.quantity::text as quantity,
+              to_char(r.received_on, 'YYYY-MM-DD') as received_on,
+              r.lot_number, r.movement_id, r.unit_cost::text as unit_cost, r.memo,
+              l.line_no, l.description
+         from orva_purchasing_receipts r
+         join orva_purchasing_order_lines l on l.id = r.order_line_id
+        where r.order_id = ?::uuid and r.tenant_id = ?::uuid and r.deleted_at is null
+        order by r.received_on, r.created_at`,
+      [parsed.data.id, tenantId],
+    )) as ReceiptRow[]
+    const received = await receivedByLine(tem, { tenantId, organizationId }, parsed.data.id)
+    const orphans = await findOrphanReceipts(tem, { tenantId, organizationId }, { orderId: parsed.data.id })
+    return { order, lines, receipts, received, orphanCount: orphans.length }
   })
 
   if (!payload) return Response.json({ error: 'ไม่พบใบสั่งซื้อ' }, { status: 404 })
@@ -169,8 +211,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     const unitPrice = Number(row.unit_price)
     const vatMode = (row.vat_mode === 'none' ? 'none' : '7') as VatMode
     const net = lineNet({ quantity, unitPrice, vatMode })
-    // A2 and A3 replace these two with the receipt and bill-link sums.
-    const receivedQty = 0
+    const receivedQty = payload.received.get(row.id) ?? 0
+    // A3 replaces this with the bill-link sum.
     const billedAmount = 0
     return {
       id: row.id,
@@ -222,6 +264,20 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
       updatedAt: payload.order.updated_at,
     },
     lines,
+    receipts: payload.receipts.map((row) => ({
+      id: row.id,
+      lineId: row.order_line_id,
+      lineNo: row.line_no,
+      description: row.description,
+      quantity: Number(row.quantity),
+      receivedOn: row.received_on,
+      lotNumber: row.lot_number,
+      movementId: row.movement_id,
+      unitCost: row.unit_cost == null ? null : Number(row.unit_cost),
+      memo: row.memo,
+    })),
+    /** WMS receipts for this order with no row here — offer the repair. */
+    unlinkedReceipts: payload.orphanCount,
   })
 }
 

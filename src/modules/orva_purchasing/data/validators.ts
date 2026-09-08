@@ -92,3 +92,31 @@ export const settingsPutSchema = z.object({
 export type LineInput = z.infer<typeof lineInputSchema>
 export type OrderCreateInput = z.infer<typeof orderCreateSchema>
 export type OrderUpdateInput = z.infer<typeof orderUpdateSchema>
+
+/**
+ * Receiving against an order. One call may cover several lines — an OEM
+ * delivery arrives as one pallet, not one line at a time.
+ *
+ * A goods line needs a lot number because that is what WMS creates and what
+ * expiry, cost and traceability hang off; a service line needs nothing but a
+ * quantity. `unitCost` defaults to the ordered price and is editable, because
+ * the invoice sometimes disagrees with the order and the stock valuation
+ * should follow what was actually paid for the goods.
+ */
+export const receiveLineSchema = z.object({
+  lineId: z.string().uuid(),
+  quantity: z.coerce.number().positive().max(1_000_000),
+  lotNumber: z.string().trim().max(120).optional().nullable(),
+  manufacturedOn: isoDate.optional().nullable(),
+  expiresOn: isoDate.optional().nullable(),
+  unitCost: z.coerce.number().min(0).optional().nullable(),
+  memo: z.string().trim().max(500).optional().nullable(),
+})
+
+export const receiveSchema = z.object({
+  updatedAt: z.string().min(1),
+  receivedOn: isoDate,
+  lines: z.array(receiveLineSchema).min(1).max(50),
+})
+
+export type ReceiveInput = z.infer<typeof receiveSchema>

@@ -226,3 +226,66 @@ export class PurchaseOrderLine {
   @Property({ name: 'deleted_at', type: Date, nullable: true })
   deletedAt?: Date | null
 }
+
+/**
+ * One arrival against one order line.
+ *
+ * Append-only, and a database trigger enforces it: a receipt is something that
+ * happened, so a wrong one is reversed rather than rewritten. For a goods line
+ * `movementId` points at the WMS movement `orva_stock` created (and is unique,
+ * which is what lets the repair pass be idempotent); for a service line there
+ * is nothing to move, so it stays null and the row is the whole record.
+ */
+@Entity({ tableName: 'orva_purchasing_receipts' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class PurchaseReceipt {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ name: 'order_id', type: 'uuid' })
+  @Index()
+  orderId!: string
+
+  @Property({ name: 'order_line_id', type: 'uuid' })
+  @Index()
+  orderLineId!: string
+
+  @Property({ type: 'numeric', precision: 16, scale: 4 })
+  quantity!: string
+
+  @Property({ name: 'received_on', type: 'date' })
+  receivedOn!: string
+
+  /** The WMS movement for a goods line; null for a service. */
+  @Property({ name: 'movement_id', type: 'uuid', nullable: true })
+  movementId?: string | null
+
+  @Property({ name: 'lot_id', type: 'uuid', nullable: true })
+  lotId?: string | null
+
+  /** Kept alongside the id so the detail page can name the lot without a join. */
+  @Property({ name: 'lot_number', type: 'text', nullable: true })
+  lotNumber?: string | null
+
+  /** What was passed to orva_stock as the cost of this receipt. */
+  @Property({ name: 'unit_cost', type: 'numeric', precision: 18, scale: 4, nullable: true })
+  unitCost?: string | null
+
+  @Property({ type: 'text', nullable: true })
+  memo?: string | null
+
+  @Property({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'deleted_at', type: Date, nullable: true })
+  deletedAt?: Date | null
+}

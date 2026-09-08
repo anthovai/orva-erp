@@ -64,12 +64,21 @@ export async function POST(req: Request) {
         catalogVariantId: input.catalogVariantId,
         lotNumber: input.lotNumber,
         quantity: input.quantity,
-        referenceType: input.billId ? 'po' : 'manual',
-        referenceId: input.billId ?? crypto.randomUUID(),
+        // The caller may say what this receipt belongs to; a bill-driven
+        // receive keeps its old derivation when it does not.
+        referenceType: input.referenceType ?? (input.billId ? 'po' : 'manual'),
+        referenceId: input.referenceId ?? input.billId ?? crypto.randomUUID(),
         performedBy: userId,
         receivedAt: new Date(`${input.receivedOn}T00:00:00Z`).toISOString(),
         reason: input.reason ?? (input.billId ? 'รับเข้าจากบิลผู้ขาย' : 'รับเข้าคลัง'),
-        metadata: { source: 'orva_stock', billId: input.billId ?? null, billLineId: input.billLineId ?? null },
+        metadata: {
+          source: 'orva_stock',
+          billId: input.billId ?? null,
+          billLineId: input.billLineId ?? null,
+          // Traceability for the caller that owns the commitment: purchasing
+          // finds an unlinked receipt by this and repairs it.
+          poLineId: input.poLineId ?? null,
+        },
       })
 
       const movement = (await tem.execute(

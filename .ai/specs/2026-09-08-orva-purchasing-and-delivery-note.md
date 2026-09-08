@@ -1,7 +1,7 @@
 # จัดซื้อ (purchase orders) and ใบส่งของ (delivery note) — closing the two ends of the goods cycle
 
 **Date**: 2026-09-08
-**Status**: In implementation — **Phase A1 shipped 2026-09-08** (code complete, gates green; the migration awaits the owner's go). A2 next.
+**Status**: In implementation — **Phases A1 and A2 shipped 2026-09-08**, migrations applied, static gates green. Runtime walkthrough outstanding (see Phase A2 → *Not yet done*). A3 next.
 
 > Written with `om-spec-writing`. Companion to `2026-09-04-orva-department-benchmark.md`
 > (Stock: "Purchase order to OEM → bill → receive ❌", Sales: "ใบส่งของ ⏸") and
@@ -359,7 +359,8 @@ Validated by `deliveryFactsSchema` in `orva_documents/data/validators.ts`; writt
 | `GET` | `/api/orva_purchasing/orders/[id]` | `orva_purchasing.view` | — | header, lines with `orderedQty/receivedQty/billedAmount/variance`, receipts, billLinks, `updatedAt` | 404 | REQ-002–004 |
 | `POST` | `/api/orva_purchasing/orders/[id]/send` | `orva_purchasing.manage` | `{ updatedAt }` | `{ ok, poNumber, updatedAt }` + `order.sent` | 409 `invalid_transition`/`conflict` | REQ-002 |
 | `POST` | `…/[id]/cancel`, `…/[id]/close` | `orva_purchasing.manage` | `{ updatedAt, reason }` | `{ ok, status, shortQty[] }` + `order.cancelled`/`order.closed` | 409 (`has_receipts`, `has_bills`, `invalid_transition`, `conflict`) | REQ-002 |
-| `POST` | `…/[id]/receive` | `orva_purchasing.receive` (+ goods: `orva_stock.manage`, `wms.receive_inventory`) | `{ updatedAt, lines: [{ lineId, quantity, lotNumber?, manufacturedOn?, expiresOn?, unitCost? }], receivedOn }` | `{ ok, receipts[], status, updatedAt }` + `order.received` | 409 `over_receipt` (per line, nothing written), 400 from stock surfaced, 409 `conflict` | REQ-004 |
+| `POST` | `…/[id]/receive` | `orva_purchasing.receive` (+ goods: `orva_stock.manage`, `wms.receive_inventory`, enforced by the internal call with the caller's own cookies) | `{ updatedAt, receivedOn, lines: [{ lineId, quantity, lotNumber?, manufacturedOn?, expiresOn?, unitCost?, memo? }] }` | `{ ok, receipts[], status, updatedAt }` + `order.received` | 409 `over_receipt` / `closed` / `invalid_transition` / `conflict` (nothing written in any case), 400 `lot_required` / `nothing_to_receive`, stock's own 400 surfaced verbatim | REQ-004 |
+| `POST` | `…/[id]/reconcile` | `orva_purchasing.receive` | — (no version: it writes down what the warehouse already did) | `{ ok, repaired, status, updatedAt }` + `order.repaired` when > 0 | 409 `closed` | REQ-004 |
 | `GET` | `…/[id]/bill-draft` | `orva_purchasing.view` + `orva_finance.ap.view` | — | prefill for `BillCreateForm`: vendor, `poId`, lines (unbilled ex-VAT amounts, accounts, vat, `lineId` per row) | 404, 409 `closed` | REQ-003 |
 | `POST` | `…/[id]/bill` | `orva_purchasing.bill` + `orva_finance.ap.manage` | `{ updatedAt, billId, allocations: [{ lineId, billLineId, amount }] }` — the bill already exists | `{ ok, links[] }` + `order.billed` | 404 bill not found / wrong vendor; 409 `already_linked` (bill line linked to another PO), `closed`, `conflict`; idempotent for identical allocations | REQ-003 |
 | `GET` | `…/[id]/unlinked-bills` | `orva_purchasing.view` + `orva_finance.ap.view` | — | vendor's bills with unlinked lines | — | REQ-003 |
@@ -427,7 +428,7 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 
 ## 📋 Implementation Plan
 
-### Phase A1 — The order exists (REQ-001, REQ-002) — ✅ SHIPPED 2026-09-08 (migration pending the owner's go)
+### Phase A1 — The order exists (REQ-001, REQ-002) — ✅ SHIPPED 2026-09-08 (migration applied)
 
 **What shipped**, beyond the deliverables below:
 
@@ -464,17 +465,63 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 - **Validation:** `yarn generate && yarn typecheck && yarn lint && yarn test -- orva_purchasing orva_documents`; `yarn db:generate` reviewed, snapshot updated, **migration applied only after asking**; dev server restarted (lesson: new entity class); `node scripts/verify-rls.mjs`.
 - **Exit gate:** in the browser, light and dark, 375px: create → send → number appears → preview → email logged in `orva_documents_sends`; edit qty after send shows disabled-with-reason; a second tab's stale save shows the conflict UI.
 
-### Phase A2 — Goods against the order (REQ-004)
+### Phase A2 — Goods against the order (REQ-004) — ✅ SHIPPED 2026-09-08
+
+**What shipped**, beyond the deliverables below:
+
+- **The decision is a pure function.** `lib/receivePlan.ts` decides what a
+  delivery may record — every line checked before anything moves, so a payload
+  with one bad line moves no stock at all — and the route keeps only the
+  locking, the stock call and the Thai wording. That is what made the rule
+  testable without a database: 10 of the module's 25 unit tests are this file,
+  including the case two rows for the same line in one payload used to slip
+  through (each measured against the full remainder instead of the running one).
+- **The repair path is real, not a promise.** `orva_stock` receives in its own
+  database session, so a failure in this module's write afterwards leaves goods
+  in the warehouse and the order under-counting. The movement now carries
+  `reference_type='po'`, `reference_id` and `metadata.poLineId`, and
+  `findOrphanReceipts` joins WMS, purchasing and stock costs to find exactly
+  those. Two ways to fix it: `POST …/reconcile` behind the "ซ่อมการรับของ"
+  button that appears on the detail page when the count is non-zero, and
+  `mercato orva_purchasing reconcile --tenant --org [--dry-run]` for a
+  scheduled sweep. Both idempotent — the unique index on `movement_id` is what
+  guarantees it, not care on the caller's part.
+- **A receipt is append-only at the database.** A third trigger refuses any
+  edit to quantity, line, movement or date; a wrong receipt is reversed, not
+  rewritten.
+- **The three places that reported zero now report receipts:** the detail
+  page's received/remaining columns, the list's late-line count (a line is late
+  only if less arrived than was ordered), and the close route's per-line
+  shortfall.
+- **Additive on `orva_stock`, as designed:** `referenceType`, `referenceId` and
+  `poLineId` are optional on its receive contract; absent, that route behaves
+  exactly as before, deriving `'po'` from a bill id.
+- Gates: `yarn generate`, `yarn typecheck`, `yarn lint` (0 errors), `yarn
+  ds:check` (716 files) and `yarn test` (384 tests, 41 suites) pass. Migration
+  applied after a rolled-back dry run; RLS forced on the new table; all ten
+  hand-written SQL statements executed against the real schema with dummy
+  parameters inside a rolled-back transaction, including the four-table orphan
+  join.
+- **Not yet done, and it applies to A1 too:** nobody has walked either phase in
+  a browser. Two things block it, neither of them code. The tenant has **no
+  party holding the vendor role**, so the create form cannot be completed; and
+  signing in needs the owner's password, which this agent does not type. The
+  integration oracles the spec names for this phase (TEST-003, TEST-012,
+  TEST-015) are also unwritten, because the repository has no integration
+  harness at all — `.ai/qa/tests` holds a Playwright config and no tests, and
+  `yarn test:integration:ephemeral` therefore runs nothing. Building that
+  harness is the honest next task before A3, and it is what turns these three
+  test ids from intentions into oracles.
 
 - **Depends on:** A1 exit gate
 - **Outcome:** receiving is done *from the PO*; the WMS movement and lot cost reference the PO; over-receipt impossible.
 - **Why this order / value delivered:** supersedes G3.2 with a better anchor; the Marventine dry-run (G3.1) can now run PO → receive → valuation.
-- **Deliverables:** `api/orders/[id]/receive/route.ts`; `orva_purchasing_receipts`; `lib/status.ts` derivation; `orva_stock/data/validators.ts` `referenceType/referenceId` (+ route pass-through, `metadata.poLineId` forwarded to WMS); receive dialog in `PoDetail.tsx`; receipts section on detail; DB trigger mirroring over-receipt guard; `cli.ts` `orva_purchasing reconcile` + "ซ่อมการรับของ" action.
+- **Deliverables:** `api/orders/[id]/receive/route.ts`, `api/orders/[id]/reconcile/route.ts`; `orva_purchasing_receipts` (+ append-only trigger); `lib/receivePlan.ts`, `lib/receipts.ts`, `lib/internal.ts`; `orva_stock/data/validators.ts` `referenceType`/`referenceId`/`poLineId` (+ route pass-through into the movement's metadata); `components/ReceiveDialog.tsx`; receipt history and repair banner on the detail page; `cli.ts` `orva_purchasing reconcile`.
 - **Independent slices / estimated commits:** (1) stock additive fields + test; (2) receive route + status + tests; (3) dialog. ~3 commits.
 - **Requirements closed:** REQ-004
-- **Tests:** TEST-003, TEST-010 (receive part), TEST-012, TEST-015 (receive-after-close half)
+- **Tests:** shipped as unit coverage of `receivePlan` (10 cases: partial, measured against arrivals, whole-payload refusal, same-line summing, lot required, unknown line, zero rows, edited cost, raised quantity). TEST-003, TEST-012 and TEST-015 remain unwritten — they need the integration harness this repository does not have yet.
 - **Validation:** as A1 plus `yarn test -- orva_stock`.
-- **Exit gate:** receive 480 then 30 (409) then 20 in the browser; `wms_inventory_movements.reference_id` = PO id; valuation page shows the lot at 85.00.
+- **Exit gate:** NOT met — receive 480 then 30 (409) then 20 in the browser, `wms_inventory_movements.reference_id` = PO id, valuation showing the lot at 85.00. Blocked on a vendor party and a session; see *Not yet done* above.
 
 ### Phase A3 — Bill against the order (REQ-003)
 
@@ -571,7 +618,7 @@ Extension-surface rows (per `.ai/guides/spec-delivery.md`): new module registrat
 - [ ] **AC-006** — An invoice prints as ใบส่งของ with `DN-` number, quantities, signature boxes, prices hidden by default, and is reachable by public link and email like other types.
 - [ ] **AC-007** — Delivery facts saved from the invoices list survive a reload, appear on the reprinted note, and a stale save shows the conflict UI without clobbering `metadata.quoteId`.
 - [ ] Every listed backend surface matches its recorded Open Mercato reference and uses the canonical shell/components, shared API helpers, semantic tokens, and complete loading, empty, error, conflict, keyboard, accessibility, responsive, light-mode, and dark-mode states.
-- [ ] Every affected API and UI path has self-contained integration coverage and the configured validation gate passes.
+- [ ] Every affected API and UI path has self-contained integration coverage and the configured validation gate passes. **Open after A1/A2: the validation gate passes; integration coverage does not exist yet, because the repository has no integration harness — `.ai/qa/tests` holds a Playwright config and no tests.**
 
 ## 📝 Final Compliance Report
 
@@ -600,5 +647,6 @@ Verdict: **Ready for implementation.** The owner confirmed A3 and A8 on 2026-09-
 | Date | Change |
 |---|---|
 | 2026-09-08 | Initial draft with autonomous defaults A0–A8 |
+| 2026-09-08 | Phase A2 shipped: receipts, the receive route on a pure planner, the reconcile route/CLI/button, append-only receipts, and real received sums in the list, detail and close paths. Integration coverage recorded as an open gap |
 | 2026-09-08 | Owner confirmed A3 (warn, never block) and A8 (facts in `metadata`); Q-001 and Q-002 closed; status → Ready for implementation |
 | 2026-09-08 | Adversarial fresh-context review applied: bill flow made two-step (finance creates, purchasing links; no orphan possible), reconcile anchored on the WMS movement (`metadata.poLineId`, unique `movement_id`), quantity increase-only after send, `closed` defined with `short_qty`, variance defined against ordered value, A4 now depends on A3, `orva_purchasing.bill` feature for Accounting, TEST-012–015 added, rollback covers triggers and shared tokens, Q-004 owns the PII question, monthly sequence reset defined |

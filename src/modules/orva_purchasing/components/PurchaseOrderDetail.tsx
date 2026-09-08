@@ -13,8 +13,9 @@ import { apiCall, readApiResultOrThrow } from '@open-mercato/ui/backend/utils/ap
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
-import { Printer, Send } from 'lucide-react'
+import { PackageCheck, Printer, Send, Wrench } from 'lucide-react'
 import { PurchaseOrderForm } from './PurchaseOrderForm'
+import { ReceiveDialog, type ReceiveLinePayload } from './ReceiveDialog'
 
 type DetailLine = {
   id: string
@@ -65,6 +66,22 @@ type Detail = {
     updatedAt: string
   }
   lines: DetailLine[]
+  receipts: DetailReceipt[]
+  /** WMS receipts for this order with no row here — the repair is offered. */
+  unlinkedReceipts: number
+}
+
+type DetailReceipt = {
+  id: string
+  lineId: string
+  lineNo: number
+  description: string
+  quantity: number
+  receivedOn: string
+  lotNumber: string | null
+  movementId: string | null
+  unitCost: number | null
+  memo: string | null
 }
 
 const money = (value: number) => value.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -246,6 +263,7 @@ export default function PurchaseOrderDetail({ orderId }: { orderId: string }) {
   const [closing, setClosing] = React.useState(false)
   const [cancelling, setCancelling] = React.useState(false)
   const [adjusting, setAdjusting] = React.useState<DetailLine | null>(null)
+  const [receiving, setReceiving] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
 
   const detail = useQuery({
@@ -256,6 +274,9 @@ export default function PurchaseOrderDetail({ orderId }: { orderId: string }) {
   const refresh = async () => {
     await queryClient.invalidateQueries({ queryKey: ['orva_purchasing.order', orderId] })
     await queryClient.invalidateQueries({ queryKey: ['orva_purchasing.orders'] })
+    // Receiving moved stock, so the lot and valuation screens are stale too.
+    await queryClient.invalidateQueries({ queryKey: ['orva_stock.lots'] })
+    await queryClient.invalidateQueries({ queryKey: ['orva_stock.valuation'] })
   }
 
   const post = async (path: string, body: Record<string, unknown>, success: string) => {
@@ -300,11 +321,12 @@ export default function PurchaseOrderDetail({ orderId }: { orderId: string }) {
     )
   }
 
-  const { order, lines } = detail.data
+  const { order, lines, receipts, unlinkedReceipts } = detail.data
   const isDraft = order.status === 'draft'
   const isSettled = order.status === 'closed' || order.status === 'cancelled'
   const canCancel = order.status === 'draft' || order.status === 'sent'
   const heading = order.poNumber ?? t('orva_purchasing.status.draft', 'ฉบับร่าง')
+  const outstanding = lines.filter((line) => line.remainingQty > 0)
 
   const send = async () => {
     const confirmed = await confirm({
@@ -312,6 +334,20 @@ export default function PurchaseOrderDetail({ orderId }: { orderId: string }) {
     })
     if (!confirmed) return
     await post('/send', { updatedAt: order.updatedAt }, t('orva_purchasing.sent', 'จองเลขที่และล็อกรายการแล้ว'))
+  }
+
+  const receive = async (receivedOn: string, payload: ReceiveLinePayload[]) => {
+    await post(
+      '/receive',
+      { updatedAt: order.updatedAt, receivedOn, lines: payload },
+      t('orva_purchasing.received', 'บันทึกการรับของแล้ว'),
+    )
+  }
+
+  /** Writes down WMS receipts this order is missing. Idempotent, so a second
+   *  press is harmless — which is why it needs no confirmation. */
+  const repair = async () => {
+    await post('/reconcile', {}, t('orva_purchasing.repaired', 'ผูกการรับของที่ค้างแล้ว'))
   }
 
   const remove = async () => {
@@ -360,9 +396,15 @@ export default function PurchaseOrderDetail({ orderId }: { orderId: string }) {
               </>
             ) : null}
             {!isDraft && !isSettled ? (
-              <Button variant="outline" size="sm" onClick={() => setClosing(true)} disabled={busy}>
-                {t('orva_purchasing.actions.close', 'ปิดใบสั่งซื้อ')}
-              </Button>
+              <>
+                <Button size="sm" onClick={() => setReceiving(true)} disabled={busy || outstanding.length === 0}>
+                  <PackageCheck className="size-4" />
+                  {t('orva_purchasing.actions.receive', 'รับของ')}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setClosing(true)} disabled={busy}>
+                  {t('orva_purchasing.actions.close', 'ปิดใบสั่งซื้อ')}
+                </Button>
+              </>
             ) : null}
             {canCancel ? (
               <Button
@@ -489,6 +531,54 @@ export default function PurchaseOrderDetail({ orderId }: { orderId: string }) {
               </table>
             </div>
 
+            {unlinkedReceipts > 0 ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-status-warning-border bg-status-warning-bg px-4 py-3 text-sm">
+                <span>
+                  {t(
+                    'orva_purchasing.repair.notice',
+                    'มีการรับของในคลัง {n} รายการที่ยังไม่ผูกกับใบสั่งซื้อนี้ — ของอยู่ในคลังแล้วแต่ใบนี้ยังนับไม่ครบ',
+                  ).replace('{n}', String(unlinkedReceipts))}
+                </span>
+                <Button size="sm" variant="outline" onClick={repair} disabled={busy}>
+                  <Wrench className="size-4" />
+                  {t('orva_purchasing.actions.repair', 'ซ่อมการรับของ')}
+                </Button>
+              </div>
+            ) : null}
+
+            {receipts.length > 0 ? (
+              <section className="flex flex-col gap-2">
+                <h2 className="text-sm font-semibold">{t('orva_purchasing.receipts.title', 'ประวัติการรับของ')}</h2>
+                <div className="overflow-x-auto rounded-md border">
+                  <table className="w-full min-w-max text-sm">
+                    <caption className="sr-only">{t('orva_purchasing.receipts.title', 'ประวัติการรับของ')}</caption>
+                    <thead className="bg-muted/50 text-left">
+                      <tr>
+                        <th scope="col" className="px-3 py-2 font-medium">{t('orva_purchasing.receive.receivedOn', 'วันที่รับของ')}</th>
+                        <th scope="col" className="px-3 py-2 font-medium">{t('orva_purchasing.lines.item', 'รายการ')}</th>
+                        <th scope="col" className="px-3 py-2 text-right font-medium">{t('orva_purchasing.receive.quantity', 'รับจำนวน')}</th>
+                        <th scope="col" className="px-3 py-2 font-medium">{t('orva_purchasing.receive.lotNumber', 'เลขล็อต')}</th>
+                        <th scope="col" className="px-3 py-2 text-right font-medium">{t('orva_purchasing.receive.unitCost', 'ต้นทุน/หน่วย')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {receipts.map((receipt) => (
+                        <tr key={receipt.id} className="border-t">
+                          <td className="px-3 py-2">{receipt.receivedOn}</td>
+                          <td className="px-3 py-2">{receipt.description}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{qty(receipt.quantity)}</td>
+                          <td className="px-3 py-2">{receipt.lotNumber ?? '—'}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {receipt.unitCost == null ? '—' : money(receipt.unitCost)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            ) : null}
+
             <div className="flex flex-wrap justify-between gap-6 rounded-md border p-4 text-sm">
               <dl className="grid gap-1">
                 <div className="flex gap-3">
@@ -571,6 +661,23 @@ export default function PurchaseOrderDetail({ orderId }: { orderId: string }) {
         onSubmit={(reason) =>
           post('/cancel', { updatedAt: order.updatedAt, reason }, t('orva_purchasing.cancelled', 'ยกเลิกใบสั่งซื้อแล้ว'))
         }
+      />
+      <ReceiveDialog
+        open={receiving}
+        onOpenChange={setReceiving}
+        poNumber={heading}
+        lines={lines.map((line) => ({
+          id: line.id,
+          lineNo: line.lineNo,
+          kind: line.kind,
+          description: line.description,
+          unit: line.unit,
+          unitPrice: line.unitPrice,
+          quantity: line.quantity,
+          receivedQty: line.receivedQty,
+          remainingQty: line.remainingQty,
+        }))}
+        onSubmit={receive}
       />
       <AdjustDialog
         line={adjusting}
