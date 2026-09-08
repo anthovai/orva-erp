@@ -1,7 +1,7 @@
 # จัดซื้อ (purchase orders) and ใบส่งของ (delivery note) — closing the two ends of the goods cycle
 
 **Date**: 2026-09-08
-**Status**: In implementation — **Phases A1 and A2 shipped 2026-09-08**, migrations applied, static gates green. Runtime walkthrough outstanding (see Phase A2 → *Not yet done*). A3 next.
+**Status**: In implementation — **Phases A1 and A2 shipped and verified 2026-09-08**. Migrations applied; six integration specs pass against a production build of the app on an ephemeral database. A3 next.
 
 > Written with `om-spec-writing`. Companion to `2026-09-04-orva-department-benchmark.md`
 > (Stock: "Purchase order to OEM → bill → receive ❌", Sales: "ใบส่งของ ⏸") and
@@ -502,16 +502,23 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
   hand-written SQL statements executed against the real schema with dummy
   parameters inside a rolled-back transaction, including the four-table orphan
   join.
-- **Not yet done, and it applies to A1 too:** nobody has walked either phase in
-  a browser. Two things block it, neither of them code. The tenant has **no
-  party holding the vendor role**, so the create form cannot be completed; and
-  signing in needs the owner's password, which this agent does not type. The
-  integration oracles the spec names for this phase (TEST-003, TEST-012,
-  TEST-015) are also unwritten, because the repository has no integration
-  harness at all — `.ai/qa/tests` holds a Playwright config and no tests, and
-  `yarn test:integration:ephemeral` therefore runs nothing. Building that
-  harness is the honest next task before A3, and it is what turns these three
-  test ids from intentions into oracles.
+- **Verified 2026-09-08** by the repository's first integration suite,
+  `src/modules/orva_purchasing/__integration__/purchase-orders.spec.ts`: six
+  specs against a **production build** of the app on an ephemeral database,
+  through the real HTTP routes. They close TEST-002 (draft editable, send
+  numbers and freezes, stale version conflicts), TEST-003 (partial receive,
+  over-receipt refused with nothing written), TEST-015 (short close records the
+  shortfall and blocks further receipts) and TEST-005 (a party without the
+  vendor role is refused), plus the quantity-adjust rule and the ใบสั่งซื้อ
+  sheet rendering with its party blocks the right way round. Every purchasing
+  route passed on first contact; the five failed attempts before that were all
+  environment, and are recorded in `.ai/lessons.md` →
+  `ephemeral-integration-env-gotchas`.
+- **Still not walked in a browser by a human.** The API paths are covered; the
+  screens are not. The owner's tenant also still has no party holding the
+  vendor role, so the create form cannot be completed there until one exists.
+  TEST-010 (UI states, keyboard, narrow width) and TEST-012 (the reconcile
+  repair) remain unwritten.
 
 - **Depends on:** A1 exit gate
 - **Outcome:** receiving is done *from the PO*; the WMS movement and lot cost reference the PO; over-receipt impossible.
@@ -519,9 +526,9 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 - **Deliverables:** `api/orders/[id]/receive/route.ts`, `api/orders/[id]/reconcile/route.ts`; `orva_purchasing_receipts` (+ append-only trigger); `lib/receivePlan.ts`, `lib/receipts.ts`, `lib/internal.ts`; `orva_stock/data/validators.ts` `referenceType`/`referenceId`/`poLineId` (+ route pass-through into the movement's metadata); `components/ReceiveDialog.tsx`; receipt history and repair banner on the detail page; `cli.ts` `orva_purchasing reconcile`.
 - **Independent slices / estimated commits:** (1) stock additive fields + test; (2) receive route + status + tests; (3) dialog. ~3 commits.
 - **Requirements closed:** REQ-004
-- **Tests:** shipped as unit coverage of `receivePlan` (10 cases: partial, measured against arrivals, whole-payload refusal, same-line summing, lot required, unknown line, zero rows, edited cost, raised quantity). TEST-003, TEST-012 and TEST-015 remain unwritten — they need the integration harness this repository does not have yet.
+- **Tests:** unit coverage of `receivePlan` (10 cases) plus the integration suite above, which closes TEST-003 and TEST-015 for the service path. TEST-012 (reconcile) and the goods path through WMS remain unwritten: they need a catalog variant and a warehouse in the ephemeral fixture.
 - **Validation:** as A1 plus `yarn test -- orva_stock`.
-- **Exit gate:** NOT met — receive 480 then 30 (409) then 20 in the browser, `wms_inventory_movements.reference_id` = PO id, valuation showing the lot at 85.00. Blocked on a vendor party and a session; see *Not yet done* above.
+- **Exit gate:** met at the API level — 8 of 10 received, 3 more refused with `over_receipt` and nothing written, a short close recording 2 outstanding, further receipts refused with `closed`. The goods half (a WMS movement carrying the PO id, valuation showing the lot) is still unproven: the ephemeral fixture has no catalog variant or warehouse yet.
 
 ### Phase A3 — Bill against the order (REQ-003)
 
@@ -618,7 +625,7 @@ Extension-surface rows (per `.ai/guides/spec-delivery.md`): new module registrat
 - [ ] **AC-006** — An invoice prints as ใบส่งของ with `DN-` number, quantities, signature boxes, prices hidden by default, and is reachable by public link and email like other types.
 - [ ] **AC-007** — Delivery facts saved from the invoices list survive a reload, appear on the reprinted note, and a stale save shows the conflict UI without clobbering `metadata.quoteId`.
 - [ ] Every listed backend surface matches its recorded Open Mercato reference and uses the canonical shell/components, shared API helpers, semantic tokens, and complete loading, empty, error, conflict, keyboard, accessibility, responsive, light-mode, and dark-mode states.
-- [ ] Every affected API and UI path has self-contained integration coverage and the configured validation gate passes. **Open after A1/A2: the validation gate passes; integration coverage does not exist yet, because the repository has no integration harness — `.ai/qa/tests` holds a Playwright config and no tests.**
+- [ ] Every affected API and UI path has self-contained integration coverage and the configured validation gate passes. **After A1/A2: the validation gate passes and every API path of the lifecycle has integration coverage. The UI paths do not (TEST-010), and neither does the goods receipt through WMS.**
 
 ## 📝 Final Compliance Report
 
@@ -647,6 +654,7 @@ Verdict: **Ready for implementation.** The owner confirmed A3 and A8 on 2026-09-
 | Date | Change |
 |---|---|
 | 2026-09-08 | Initial draft with autonomous defaults A0–A8 |
+| 2026-09-08 | First integration suite in the repository: six specs against a production build on an ephemeral database, closing TEST-002/003/005/015. The five environment failures on the way are recorded as a lesson |
 | 2026-09-08 | Phase A2 shipped: receipts, the receive route on a pure planner, the reconcile route/CLI/button, append-only receipts, and real received sums in the list, detail and close paths. Integration coverage recorded as an open gap |
 | 2026-09-08 | Owner confirmed A3 (warn, never block) and A8 (facts in `metadata`); Q-001 and Q-002 closed; status → Ready for implementation |
 | 2026-09-08 | Adversarial fresh-context review applied: bill flow made two-step (finance creates, purchasing links; no orphan possible), reconcile anchored on the WMS movement (`metadata.poLineId`, unique `movement_id`), quantity increase-only after send, `closed` defined with `short_qty`, variance defined against ordered value, A4 now depends on A3, `orva_purchasing.bill` feature for Accounting, TEST-012–015 added, rollback covers triggers and shared tokens, Q-004 owns the PII question, monthly sequence reset defined |

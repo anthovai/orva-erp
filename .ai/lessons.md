@@ -43,6 +43,7 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 
 ### testing
 
+- [Four things break an ephemeral integration run before a single test is meaningful](lessons/ephemeral-integration-env-gotchas.md) - area:testing,debugging; module:platform,orva_purchasing; topic:integration-tests,playwright,ephemeral-env,secure-cookie,single-instance-lock,windows
 - [A test file without `import { describe, expect, it } from '@jest/globals'` passes jest and fails typecheck](lessons/jest-tests-need-explicit-globals-import.md) — area:testing,debugging; module:orva_purchasing,platform; topic:jest,typecheck,tsconfig,validation-gate
 
 ### debugging
