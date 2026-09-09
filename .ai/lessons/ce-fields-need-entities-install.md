@@ -49,3 +49,7 @@ dev database. Until that is located, server-side Orva code that must not miss a
 stored value reads `custom_field_values` as columns (`value_int`/`value_text`,
 `entity_id`, `field_key`, `record_id`, `tenant_id`, `deleted_at is null`) — the
 reportQueries precedent — and the harness asserts writes against the table.
+Narrowed the same day on the real tenant: the companies list *did* return
+`cf_th_tax_id` for stored rows there, where the definitions are tenant-scoped;
+the ephemeral app's definitions are tenant-null. Suspect the global-definition
+read path, not the loader as such.
