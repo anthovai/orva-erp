@@ -1,6 +1,6 @@
 # Orva by department — benchmark against the market and the gap plan
 
-Status: design + rolling implementation (2026-09-04). Companion to
+Status: design + rolling implementation (2026-09-04; **reconciled against the code 2026-09-09** — every row below was checked by grep, not memory). Companion to
 `2026-09-03-orva-for-kaiser-klowns-operating-model.md` (phases A–E shipped).
 
 Benchmarks used (from product knowledge, not a live audit): **Odoo 17 Community**,
@@ -16,11 +16,11 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 |---|---|---|---|
 | Quotation → acceptance link → invoice by installment (งวด) | Odoo/FlowAccount | ✅ | — |
 | Tax invoice / receipt / abbreviated tax invoice, e-Tax by Email (PDF/A-3) | FlowAccount/PEAK | ✅ | — |
-| **ใบลดหนี้ / ใบเพิ่มหนี้** (credit / debit note) with RD reason codes, referencing the original tax invoice, posting to GL + ภ.พ.30 | FlowAccount/PEAK (statutory) | ❌ | **Gap #1 — this phase** |
-| **ใบวางบิล** (billing note) listing open invoices per customer | FlowAccount/PEAK | ❌ | Gap #2 — this phase (per customer) |
+| **ใบลดหนี้ / ใบเพิ่มหนี้** (credit / debit note) with RD reason codes, referencing the original tax invoice, posting to GL + ภ.พ.30 | FlowAccount/PEAK (statutory) | ✅ | `orva_documents/api/notes` (RD codes C1–C9/D1–D9, ป.82/2542 reference block), posted through `financeBridge.postNote`, credit memos in the VAT register (`reportQueries`) |
+| **ใบวางบิล** (billing note) listing open invoices per customer | FlowAccount/PEAK | ✅ | document type `billing_note`, row action on the invoices list |
 | ใบส่งของ / delivery note | all | ✅ 2026-09-09 (B1–B2) | `delivery_note` document type printed from the invoice (upstream shipments need a sales order, which this profile hides). Prices hidden by default, delivery block, two dated signature lines, two counterparts, and the delivery date/carrier/tracking recorded from the invoices list with a conflict guard. No receiver name is stored — invoice metadata is plaintext at rest. Public link live 2026-09-09 (own token table, no prices, rotation); emailed PDF rides the existing send route |
-| Customer statement (ใบแจ้งยอด) | Odoo/ERPNext | ❌ | Gap #3 — from AR open items |
-| Recurring invoices (annual maintenance) | Odoo/ERPNext | ❌ | phase F: recurring งวด from quote |
+| Customer statement (ใบแจ้งยอด) | Odoo/ERPNext | ✅ | document type `statement` (`asOf` date), billed − paid = closing balance |
+| Recurring invoices (annual maintenance) | Odoo/ERPNext | ❌ | deferred (roadmap G5, assumption A1) — no code |
 | PromptPay QR on invoice | FlowAccount/PEAK | 🚫 | built then declined by owner 2026-09-04 ("ไม่เอา QR") — reverted in d430d3c; do NOT rebuild |
 | Price lists, products on quotes, discounts | Odoo | ✅ upstream | — |
 | Sales orders / channels | Odoo | ⏸ | not the business |
@@ -33,7 +33,7 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 |---|---|---|---|
 | Unified inbox (email/LINE/Slack) | Odoo Discuss | ✅ upstream (messages, channels) | connect the LINE OA channel when available |
 | AI proposals from inbound mail | — | ✅ upstream (inbox_ops) | — |
-| Email campaigns / broadcast | Odoo Marketing | ❌ | phase F: broadcast to a customer segment through the messages module |
+| Email campaigns / broadcast | Odoo Marketing | ❌ | deferred (roadmap G5, assumption A7) — lead capture ✅ 2026-09-08 is the inbound half only |
 | Lead capture form → deal | Odoo Website | ✅ 2026-09-05 (G4) | public form at `/[orgSlug]/portal/lead`; honeypot + 24h dedupe |
 | **Enquiry actually reaches the owner** | Odoo activities | ✅ 2026-09-08 | the form was silent: it now raises `orva.lead.received` and the home waiting card counts enquiries still on the first pipeline stage within 30 days. No auto-reply — answering is a human act |
 | Lead source / UTM on deals | Odoo | ✅ 2026-09-04 | `lead_source` (ช่องทางที่มา) select on deals via orva/ce.ts, filterable |
@@ -45,10 +45,10 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 | Capability | Benchmark | Orva | Plan |
 |---|---|---|---|
 | Tasks, calendar, workflow user tasks | all | ✅ | — |
-| **Timesheets + projects** | Odoo/ERPNext | ⏸ upstream staff | **exposed this phase under Projects** |
-| Project = quote, milestones = งวด, profitability (billed − hours × rate) | Odoo Project | 🟡 2026-09-04 | โปรเจกต์ page (/backend/projects): billed/paid % per quote, unpaid งวด, remaining; hours × rate later |
+| **Timesheets + projects** | Odoo/ERPNext | ✅ | `orva_time` (project hours via interceptors on the installed timesheet) + โปรเจกต์ page; upstream staff screens stay hidden |
+| Project = quote, milestones = งวด, profitability (billed − hours × rate) | Odoo Project | 🟡 | โปรเจกต์ page: billed/paid % per quote, unpaid งวด, remaining, hours logged; **no rate**, so no margin yet |
 | Kanban board | all | 🟡 (customer tasks) | later |
-| Client acceptance → triggers next งวด invoice | — | 🟡 (acceptance link on quote) | later |
+| Client acceptance → triggers next งวด invoice | — | 🟡 | G1 (2026-09-05): accepted quotes appear as a derived "issue งวด" row on the home screen; no event exists upstream to automate the issue itself |
 
 ## 4. คลังสินค้า (Stock)
 
@@ -57,9 +57,9 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 | Lots, expiry, balances, movements | Odoo Inventory | ✅ upstream wms | — |
 | Cost per lot, valuation, COGS posting | Odoo | ✅ (orva_stock) | — |
 | **Purchase order to OEM → bill → receive** | Odoo Purchase | ✅ 2026-09-08 (A1–A4) | `orva_purchasing`: order → receive through orva_stock → link the bill finance raised. Three-way match complete (ordered / received / billed), over-receipt refused, over-billing warned. What is late and what is committed-but-unbilled now reach the home screen and a daily 06:30 notification without opening the module. Every screen and dialog walked by browser specs 2026-09-09 (TEST-010, 11 specs), which found and fixed empty dropdowns on the create form |
-| Reorder point / low-stock alert | Odoo | 🟡 | expiry alerts (≤90 วัน + expired) on the home waiting card 2026-09-04; reorder point later |
-| Barcode / lot label printing (with FDA no.) | Odoo | ❌ | phase F: label sheet from lot + product fields |
-| Marketplace order import (Shopee/Lazada/TikTok) | Odoo connectors | ❌ | phase G |
+| Reorder point / low-stock alert | Odoo | 🟡 | expiry alerts (≤90 วัน + expired) on the home waiting card; no reorder point — no code |
+| Barcode / lot label printing (with FDA no.) | Odoo | ❌ | **G3** — no label surface exists; the only "label" hits in `orva_stock` are form labels |
+| Marketplace order import (Shopee/Lazada/TikTok) | Odoo connectors | ❌ | the retail sale can *record* a marketplace as its payment channel; nothing imports orders |
 | Shipping labels (Flash/Kerry) | — | ⏸ shipping_carriers | phase G |
 
 ## 5. บัญชี (Accounting)
@@ -67,22 +67,22 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 | Capability | Benchmark | Orva | Plan |
 |---|---|---|---|
 | GL, periods, journals, TB, statements, cash flow, FA, bank reco, AR/AP, VAT/WHT registers, 50 ทวิ, month pack | PEAK | ✅ | — |
-| Credit/debit notes in books and ภ.พ.30 | PEAK | ❌ | Gap #1 (see Sales) |
-| **Expense claims / petty cash** (เบิกจ่าย, ใบสำคัญจ่าย) | PEAK/Odoo Expenses | ❌ | Gap #5 — this phase: expense entry with receipt image → bill-less journal + WHT |
+| Credit/debit notes in books and ภ.พ.30 | PEAK | ✅ | see Sales — `postNote` + VAT register |
+| **Expense claims / petty cash** (เบิกจ่าย, ใบสำคัญจ่าย) | PEAK/Odoo Expenses | ✅ | `ExpensesPage`: date, payee, net/VAT/WHT, category + cash account, receipt image attached to the journal; no approval step (one person) |
 | Recurring journals | ERPNext | ❌ | later |
 | ภ.พ.30 e-filing file (RD text format) | PEAK | 🟡 (CSV) | later |
 | ภ.ง.ด.3/53 e-filing file + ภ.ง.ด.1 for payroll | PEAK | 🟡 | later, with HR |
-| Corporate income tax estimate (ภ.ง.ด.51/50) | PEAK | ❌ | phase F: half-year estimate from P&L |
+| Corporate income tax estimate (ภ.ง.ด.51/50) | PEAK | ❌ | no code; P&L exists to derive it from |
 | Budget vs actual | Odoo/ERPNext | ❌ | later |
 | Multi-currency | all | ⏸ | not needed |
-| Attachments on journals (slip/receipt) | all | 🟡 (invoice slips) | with expense claims |
+| Attachments on journals (slip/receipt) | all | ✅ | invoice payment slips and expense receipts ride `/api/attachments` after the journal exists |
 
 ## 6. บุคคล (HR)
 
 | Capability | Benchmark | Orva | Plan |
 |---|---|---|---|
 | Employees, payroll runs, ประกันสังคม, WHT | ERPNext HR | ✅ | — |
-| **Leave / availability** | Odoo Time Off | ⏸ upstream staff | **exposed this phase under HR** |
+| **Leave / availability** | Odoo Time Off | ⏸ upstream staff | hidden on purpose in `src/modules.ts` (one person); re-enable per tenant when there is a second |
 | Payslip PDF + email | Odoo | ✅ 2026-09-04 | `payslip` document type: own sheet (earnings / deductions / net pay, signatures, confidentiality note), printed from a payroll line (`/backend/documents/preview?type=payslip&documentId=<line>`), linked per employee from the payroll run; print, PDF and email reuse the document rails |
 | ภ.ง.ด.1/1ก, สปส.1-10 files | Thai payroll (e.g. HumanSoft) | ❌ | later |
 | Attendance | Odoo | ❌ | not needed for one person |
