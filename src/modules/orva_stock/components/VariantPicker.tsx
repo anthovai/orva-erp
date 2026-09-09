@@ -7,14 +7,25 @@ import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/u
 
 export type Variant = { id: string; product_id: string; name: string | null; sku: string | null; barcode: string | null }
 
+/**
+ * The first twenty catalog variants matching a search term. Shared with the
+ * purchasing line picker so both screens read one cache entry of one shape
+ * (see src/lib/__tests__/queryKeyOwnership.test.ts).
+ */
+export function useVariantSearch(term: string, enabled = true) {
+  const scopeVersion = useOrganizationScopeVersion()
+  return useQuery({
+    queryKey: ['catalog.variants.pick', term, scopeVersion],
+    queryFn: async () =>
+      (await readApiResultOrThrow<{ items: Variant[] }>(`/api/catalog/variants?pageSize=20${term ? `&search=${encodeURIComponent(term)}` : ''}`)).items,
+    enabled,
+  })
+}
+
 /** Search-as-you-type over catalog variants (name / SKU / barcode). */
 export function VariantPicker({ value, onChange, t }: { value: Variant | null; onChange: (v: Variant | null) => void; t: (k: string, f: string) => string }) {
-  const scopeVersion = useOrganizationScopeVersion()
   const [q, setQ] = React.useState('')
-  const { data } = useQuery({
-    queryKey: ['catalog.variants.pick', q, scopeVersion],
-    queryFn: async () => (await readApiResultOrThrow<{ items: Variant[] }>(`/api/catalog/variants?pageSize=20${q ? `&search=${encodeURIComponent(q)}` : ''}`)).items,
-  })
+  const { data } = useVariantSearch(q)
   if (value) {
     return (
       <div className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">

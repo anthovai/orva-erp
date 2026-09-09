@@ -6,10 +6,7 @@ import { usePortalContext } from '@open-mercato/ui/portal/PortalContext'
 import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 
-type PortalProject = {
-  id: string; name: string; total: number; done: number; percent: number
-  overdue: number; nextDue: string | null
-}
+import { usePortalProjects } from '../../../components/queries'
 
 /**
  * Work progress on the customer's own front page.
@@ -23,12 +20,7 @@ export default function PortalWorkWidget() {
   const t = useT()
   const { orgSlug } = usePortalContext()
 
-  const projects = useQuery({
-    queryKey: ['orva_tasking.portal.projects'],
-    queryFn: async () =>
-      (await readApiResultOrThrow<{ items: PortalProject[] }>('/api/orva_tasking/portal/projects')).items,
-    retry: false,
-  })
+  const projects = usePortalProjects({ retry: false })
 
   if (projects.isLoading) {
     return <p className="text-sm text-muted-foreground">{t('orva_tasking.portal.loading', 'กำลังโหลด…')}</p>

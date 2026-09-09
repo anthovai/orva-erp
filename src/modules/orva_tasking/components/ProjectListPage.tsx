@@ -8,6 +8,7 @@ import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import type { TaskProjectSummary } from './taskTypes'
+import { useTaskProjects } from './queries'
 import { byProject, formatHours, hoursPerDoneTask, type ProjectHours } from '@/modules/orva_time/lib/hours'
 
 type QuoteProject = {
@@ -33,11 +34,7 @@ export default function ProjectListPage() {
   const t = useT()
   const scopeVersion = useOrganizationScopeVersion()
 
-  const projects = useQuery({
-    queryKey: ['orva_tasking.projects', scopeVersion],
-    queryFn: async () =>
-      (await readApiResultOrThrow<{ items: TaskProjectSummary[] }>('/api/orva_tasking/projects')).items,
-  })
+  const projects = useTaskProjects()
 
   // Billing lives in the documents module, keyed by the same quotation id.
   const billing = useQuery({

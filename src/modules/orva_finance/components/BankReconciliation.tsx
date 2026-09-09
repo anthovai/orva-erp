@@ -9,6 +9,7 @@ import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { byType, useActiveAccounts } from './queries'
 
 type AccountOption = { id: string; code: string; name: string; account_type: string }
 type StatementLine = { id: string; txn_date: string; description: string | null; reference: string | null; amount: string; status: string; journal_line_id: string | null }
@@ -92,13 +93,10 @@ export default function BankReconciliation() {
   const [csv, setCsv] = React.useState('')
   const [importing, setImporting] = React.useState(false)
 
-  const { data: accountsData } = useQuery({
-    queryKey: ['orva_finance.accounts.all', scopeVersion],
-    queryFn: async () => fetchCrudList<AccountOption>('orva_finance/gl/accounts', { page: 1, pageSize: 100, sortField: 'code', sortDir: 'asc', isActive: true }),
-  })
+  const { accounts } = useActiveAccounts()
   React.useEffect(() => {
-    if (!accountId && accountsData?.items?.length) setAccountId((accountsData.items.find((a) => a.code === '1020') ?? accountsData.items[0]).id)
-  }, [accountsData, accountId])
+    if (!accountId && accounts.length) setAccountId((accounts.find((a) => a.code === '1020') ?? accounts[0]).id)
+  }, [accounts, accountId])
 
   const { data, isLoading } = useQuery({
     queryKey: ['orva_finance.bank.recon', accountId, from, to, scopeVersion],
@@ -144,7 +142,7 @@ export default function BankReconciliation() {
         actions={(
           <div className="flex flex-wrap items-center gap-2">
             <select className={`${selectClass} max-w-72`} value={accountId} onChange={(e) => setAccountId(e.target.value)} aria-label={t('orva_finance.bank.account', 'บัญชีธนาคาร')}>
-              {(accountsData?.items ?? []).filter((a) => a.account_type === 'asset').map((a) => (<option key={a.id} value={a.id}>{a.code} · {a.name}</option>))}
+              {byType(accounts, 'asset').map((a) => (<option key={a.id} value={a.id}>{a.code} · {a.name}</option>))}
             </select>
             <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
             <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />

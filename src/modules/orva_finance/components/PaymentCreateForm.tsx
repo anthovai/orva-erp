@@ -9,6 +9,8 @@ import { Input } from '@open-mercato/ui/primitives/input'
 import { createCrud, fetchCrudList } from '@open-mercato/ui/backend/utils/crud'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useVendors } from '@/modules/orva_party/components/queries'
+import { byType, useActiveAccounts, useOpenPeriods } from './queries'
 
 const LIST_HREF = '/backend/ap/payments'
 
@@ -44,33 +46,10 @@ export default function PaymentCreateForm() {
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
-  const { data: vendorRolesData } = useQuery({
-    queryKey: ['orva_party.vendor-roles'],
-    queryFn: async () => fetchCrudList<PartyRoleRow>('orva_party/party-roles', { page: 1, pageSize: 100, role: 'vendor' }),
-  })
-  const vendorIds = React.useMemo(
-    () => Array.from(new Set((vendorRolesData?.items ?? []).map((r) => r.party_id))),
-    [vendorRolesData?.items],
-  )
-  const { data: vendorsData } = useQuery({
-    queryKey: ['orva_party.vendors', vendorIds.join(',')],
-    queryFn: async () => fetchCrudList<PartyRow>('orva_party/parties', { ids: vendorIds.join(','), pageSize: 100 }),
-    enabled: vendorIds.length > 0,
-  })
-  const { data: cashAccountsData } = useQuery({
-    queryKey: ['orva_finance.accounts.asset'],
-    queryFn: async () =>
-      fetchCrudList<AccountOption>('orva_finance/gl/accounts', {
-        page: 1, pageSize: 100, sortField: 'code', sortDir: 'asc', accountType: 'asset', isActive: true,
-      }),
-  })
-  const { data: periodsData } = useQuery({
-    queryKey: ['orva_finance.periods.open'],
-    queryFn: async () =>
-      fetchCrudList<PeriodOption>('orva_finance/gl/periods', {
-        page: 1, pageSize: 100, sortField: 'starts_on', sortDir: 'desc', status: 'open',
-      }),
-  })
+  const { vendors } = useVendors()
+  const { accounts } = useActiveAccounts()
+  const cashAccounts = byType(accounts, 'asset')
+  const { periods } = useOpenPeriods()
   const { data: billsData } = useQuery({
     queryKey: ['orva_finance.ap.open-bills', vendorPartyId],
     queryFn: async () =>
@@ -160,21 +139,21 @@ export default function PaymentCreateForm() {
                 onChange={(e) => { setVendorPartyId(e.target.value); setAmounts({}) }}
               >
                 <option value="">{t('orva_finance.ap.form.selectVendor', '— select vendor —')}</option>
-                {(vendorsData?.items ?? []).map((v) => (<option key={v.id} value={v.id}>{v.display_name}</option>))}
+                {vendors.map((v) => (<option key={v.id} value={v.id}>{v.display_name}</option>))}
               </select>
             </label>
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">{t('orva_finance.payments.form.cashAccount', 'Paid from (asset)')} *</span>
               <select className={selectClass} value={cashAccountId} onChange={(e) => setCashAccountId(e.target.value)}>
                 <option value="">{t('orva_finance.journals.form.selectAccount', '— select account —')}</option>
-                {(cashAccountsData?.items ?? []).map((a) => (<option key={a.id} value={a.id}>{a.code} · {a.name}</option>))}
+                {cashAccounts.map((a) => (<option key={a.id} value={a.id}>{a.code} · {a.name}</option>))}
               </select>
             </label>
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">{t('orva_finance.periods.column.code', 'Period')} *</span>
               <select className={selectClass} value={periodId} onChange={(e) => setPeriodId(e.target.value)}>
                 <option value="">{t('orva_finance.journals.form.selectPeriod', '— select open period —')}</option>
-                {(periodsData?.items ?? []).map((p) => (<option key={p.id} value={p.id}>{p.code}</option>))}
+                {periods.map((p) => (<option key={p.id} value={p.id}>{p.code}</option>))}
               </select>
             </label>
             <label className="flex flex-col gap-1 text-sm">

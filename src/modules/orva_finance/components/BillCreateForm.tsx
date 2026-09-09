@@ -10,6 +10,8 @@ import { createCrud, fetchCrudList } from '@open-mercato/ui/backend/utils/crud'
 import { apiCall, readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useVendors } from '@/modules/orva_party/components/queries'
+import { byType, useActiveAccounts, useOpenPeriods } from './queries'
 
 const LIST_HREF = '/backend/ap/bills'
 
@@ -86,38 +88,10 @@ export default function BillCreateForm() {
   }, [purchaseOrderId])
   const nextKey = React.useRef(2)
 
-  const { data: vendorRolesData } = useQuery({
-    queryKey: ['orva_party.vendor-roles'],
-    queryFn: async () =>
-      fetchCrudList<PartyRoleRow>('orva_party/party-roles', { page: 1, pageSize: 100, role: 'vendor' }),
-  })
-  const vendorIds = React.useMemo(
-    () => Array.from(new Set((vendorRolesData?.items ?? []).map((r) => r.party_id))),
-    [vendorRolesData?.items],
-  )
-  const { data: vendorsData } = useQuery({
-    queryKey: ['orva_party.vendors', vendorIds.join(',')],
-    queryFn: async () => fetchCrudList<PartyRow>('orva_party/parties', { ids: vendorIds.join(','), pageSize: 100 }),
-    enabled: vendorIds.length > 0,
-  })
-  const { data: accountsData } = useQuery({
-    queryKey: ['orva_finance.accounts.expense'],
-    queryFn: async () =>
-      fetchCrudList<AccountOption>('orva_finance/gl/accounts', {
-        page: 1, pageSize: 100, sortField: 'code', sortDir: 'asc', accountType: 'expense', isActive: true,
-      }),
-  })
-  const { data: periodsData } = useQuery({
-    queryKey: ['orva_finance.periods.open'],
-    queryFn: async () =>
-      fetchCrudList<PeriodOption>('orva_finance/gl/periods', {
-        page: 1, pageSize: 100, sortField: 'starts_on', sortDir: 'desc', status: 'open',
-      }),
-  })
-
-  const vendors = vendorsData?.items ?? []
-  const accounts = accountsData?.items ?? []
-  const periods = periodsData?.items ?? []
+  const { vendors, isLoading: vendorsLoading, failed: vendorsFailed } = useVendors()
+  const { accounts: chart } = useActiveAccounts()
+  const { periods } = useOpenPeriods()
+  const accounts = byType(chart, 'expense')
 
   const updateLine = (key: number, patch: Partial<LineDraft>) =>
     setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...patch } : line)))
@@ -243,7 +217,7 @@ export default function BillCreateForm() {
             </div>
           ) : null}
           {error ? <div className="text-sm text-destructive">{error}</div> : null}
-          {vendorIds.length === 0 && vendorRolesData ? (
+          {vendors.length === 0 && !vendorsLoading && !vendorsFailed ? (
             <div className="rounded-md border border-status-warning-border bg-status-warning-bg px-4 py-3 text-sm">
               {t('orva_finance.ap.form.noVendors', 'No parties hold the vendor role yet — assign it in Parties first.')}
             </div>

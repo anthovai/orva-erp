@@ -6,6 +6,7 @@ import { fetchCrudList } from '@open-mercato/ui/backend/utils/crud'
 import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useAllPeriods } from './queries'
 
 type PeriodOption = { id: string; code: string; status: string }
 
@@ -31,13 +32,7 @@ export default function TrialBalanceReport() {
   const scopeVersion = useOrganizationScopeVersion()
   const [periodId, setPeriodId] = React.useState('')
 
-  const { data: periodsData } = useQuery({
-    queryKey: ['orva_finance.periods.options', scopeVersion],
-    queryFn: async () =>
-      fetchCrudList<PeriodOption>('orva_finance/gl/periods', {
-        page: 1, pageSize: 100, sortField: 'starts_on', sortDir: 'desc',
-      }),
-  })
+  const { periods } = useAllPeriods()
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['orva_finance.trial-balance', periodId, scopeVersion],
@@ -60,7 +55,7 @@ export default function TrialBalanceReport() {
         actions={(
           <select className={selectClass} value={periodId} onChange={(e) => setPeriodId(e.target.value)}>
             <option value="">{t('orva_finance.trialBalance.allPeriods', 'All periods')}</option>
-            {(periodsData?.items ?? []).map((p) => (
+            {periods.map((p) => (
               <option key={p.id} value={p.id}>{p.code}</option>
             ))}
           </select>

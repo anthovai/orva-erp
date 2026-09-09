@@ -24,7 +24,7 @@ export const TASK_ATTACHMENT_ENTITY_ID = 'orva_tasking:task'
 
 export type DrawerTask = BoardTask
 
-type Label = { id: string; title: string; hexColor: string; usageCount: number; updatedAt: string }
+import { labelsQuery, useLabels, type Label } from './queries'
 type Comment = {
   id: string; body: string; authorName: string | null; isCustomerVisible: boolean
   isFromCustomer: boolean; editedAt: string | null; createdAt: string
@@ -81,11 +81,7 @@ export function TaskDrawer({
   const open = Boolean(task)
   const taskId = task?.id ?? null
 
-  const labels = useQuery({
-    queryKey: ['orva_tasking.labels'],
-    queryFn: async () => (await readApiResultOrThrow<{ items: Label[] }>('/api/orva_tasking/labels')).items,
-    enabled: open,
-  })
+  const labels = useLabels(open)
   const comments = useQuery({
     queryKey: ['orva_tasking.comments', taskId],
     queryFn: async () => (await readApiResultOrThrow<{ items: Comment[] }>(`/api/orva_tasking/comments?taskId=${taskId!}`)).items,
@@ -173,10 +169,7 @@ export function TaskDrawer({
     if (ok) {
       setNewLabel('')
       // Apply it straight away: nobody creates a label in order not to use it.
-      const refreshed = await qc.fetchQuery({
-        queryKey: ['orva_tasking.labels'],
-        queryFn: async () => (await readApiResultOrThrow<{ items: Label[] }>('/api/orva_tasking/labels')).items,
-      })
+      const refreshed = await qc.fetchQuery(labelsQuery)
       const created = refreshed.find((label) => label.title === title)
       if (created) toggleLabel(created)
     }

@@ -8,6 +8,7 @@ import { fetchCrudList } from '@open-mercato/ui/backend/utils/crud'
 import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useActiveAccounts } from './queries'
 
 type AccountOption = { id: string; code: string; name: string; account_type: string }
 type LedgerLine = { journal_id: string; journal_no: string | null; journal_date: string; journal_kind: string; memo: string | null; description: string | null; debit: string; credit: string; balance: string }
@@ -34,17 +35,13 @@ export default function LedgerReport() {
   const [from, setFrom] = React.useState(firstOfMonth())
   const [to, setTo] = React.useState(today())
 
-  const { data: accountsData } = useQuery({
-    queryKey: ['orva_finance.accounts.all', scopeVersion],
-    queryFn: async () =>
-      fetchCrudList<AccountOption>('orva_finance/gl/accounts', { page: 1, pageSize: 100, sortField: 'code', sortDir: 'asc', isActive: true }),
-  })
+  const { accounts } = useActiveAccounts()
   React.useEffect(() => {
-    if (!accountId && accountsData?.items?.length) {
-      const bank = accountsData.items.find((a) => a.code === '1020') ?? accountsData.items[0]
+    if (!accountId && accounts.length) {
+      const bank = accounts.find((a) => a.code === '1020') ?? accounts[0]
       setAccountId(bank.id)
     }
-  }, [accountsData, accountId])
+  }, [accounts, accountId])
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['orva_finance.reports.ledger', accountId, from, to, scopeVersion],
@@ -59,7 +56,7 @@ export default function LedgerReport() {
         actions={(
           <div className="flex flex-wrap items-center gap-2 print:hidden">
             <select className={`${selectClass} max-w-80`} value={accountId} onChange={(e) => setAccountId(e.target.value)} aria-label={t('orva_finance.accounts.page.title', 'Chart of Accounts')}>
-              {(accountsData?.items ?? []).map((a) => (<option key={a.id} value={a.id}>{a.code} · {a.name}</option>))}
+              {accounts.map((a) => (<option key={a.id} value={a.id}>{a.code} · {a.name}</option>))}
             </select>
             <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-40" />
             <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-40" />

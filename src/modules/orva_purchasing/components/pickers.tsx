@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Input } from '@open-mercato/ui/primitives/input'
 import { fetchCrudList } from '@open-mercato/ui/backend/utils/crud'
 import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
-import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
+import { useVariantSearch } from '@/modules/orva_stock/components/VariantPicker'
 
 /**
  * The three references a purchase-order line makes, each rendered as a
@@ -27,52 +27,16 @@ const PAGE_SIZE = 100
 export const selectClass =
   'h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
-type PartyRoleRow = { id: string; party_id: string }
-type PartyRow = { id: string; display_name: string }
 export type AccountRow = { id: string; code: string; name: string; account_type?: string }
 export type Variant = { id: string; name: string | null; sku: string | null; barcode: string | null }
 
-/** Parties holding an active vendor role — the same source AP bills use. */
-export function useVendors() {
-  const scopeVersion = useOrganizationScopeVersion()
-  const roles = useQuery({
-    queryKey: ['orva_party.vendor-roles', scopeVersion],
-    queryFn: async () => fetchCrudList<PartyRoleRow>('orva_party/party-roles', { page: 1, pageSize: PAGE_SIZE, role: 'vendor' }),
-  })
-  const ids = React.useMemo(
-    () => Array.from(new Set((roles.data?.items ?? []).map((row) => row.party_id))),
-    [roles.data?.items],
-  )
-  const parties = useQuery({
-    queryKey: ['orva_party.vendors', ids.join(','), scopeVersion],
-    queryFn: async () => fetchCrudList<PartyRow>('orva_party/parties', { ids: ids.join(','), pageSize: PAGE_SIZE }),
-    enabled: ids.length > 0,
-  })
-  return {
-    vendors: parties.data?.items ?? [],
-    isLoading: roles.isLoading || (ids.length > 0 && parties.isLoading),
-    // Reported separately from emptiness on purpose: a failed lookup rendered
-    // as "you have no vendors" sends the operator to fix data that is fine.
-    failed: roles.isError || parties.isError,
-  }
-}
-
-/** Active GL accounts, ordered by code, for the account a line will post to. */
-export function useAccounts() {
-  const scopeVersion = useOrganizationScopeVersion()
-  const query = useQuery({
-    queryKey: ['orva_finance.accounts.active', scopeVersion],
-    queryFn: async () =>
-      fetchCrudList<AccountRow>('orva_finance/gl/accounts', {
-        page: 1,
-        pageSize: PAGE_SIZE,
-        sortField: 'code',
-        sortDir: 'asc',
-        isActive: true,
-      }),
-  })
-  return { accounts: query.data?.items ?? [], isLoading: query.isLoading, failed: query.isError }
-}
+/**
+ * Vendors and accounts come from the modules that own them — one hook, one
+ * cache entry, one shape per key (see src/lib/__tests__/queryKeyOwnership.test.ts).
+ * Re-exported here so this module's screens keep importing from their pickers.
+ */
+export { useVendors } from '@/modules/orva_party/components/queries'
+export { useActiveAccounts as useAccounts } from '@/modules/orva_finance/components/queries'
 
 export function AccountSelect({
   value,
@@ -109,18 +73,8 @@ export function VariantSearch({
   onChange: (variant: Variant | null) => void
   t: (key: string, fallback: string) => string
 }) {
-  const scopeVersion = useOrganizationScopeVersion()
   const [term, setTerm] = React.useState('')
-  const { data } = useQuery({
-    queryKey: ['catalog.variants.pick', term, scopeVersion],
-    queryFn: async () =>
-      (
-        await readApiResultOrThrow<{ items: Variant[] }>(
-          `/api/catalog/variants?pageSize=20${term ? `&search=${encodeURIComponent(term)}` : ''}`,
-        )
-      ).items,
-    enabled: value == null,
-  })
+  const { data } = useVariantSearch(term, value == null)
 
   if (value) {
     return (

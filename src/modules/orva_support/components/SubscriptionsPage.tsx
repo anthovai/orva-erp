@@ -7,6 +7,7 @@ import { Input } from '@open-mercato/ui/primitives/input'
 import { apiCall, readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
+import { useProjectOptions } from '@/modules/orva_documents/components/queries'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 
 type Subscription = {
@@ -54,11 +55,7 @@ export default function SubscriptionsPage() {
       return readApiResultOrThrow<Response>(`/api/orva_support/subscriptions?${qs}`)
     },
   })
-  const projects = useQuery({
-    queryKey: ['orva_documents.projects.pick', scopeVersion],
-    queryFn: async () => (await readApiResultOrThrow<{ items: Project[] }>('/api/orva_documents/projects')).items,
-    enabled: creating,
-  })
+  const projects = useProjectOptions(creating)
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['orva_support.subscriptions'] })
 

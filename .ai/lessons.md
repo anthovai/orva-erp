@@ -1,6 +1,6 @@
 # Lessons
 
-This catalog indexes 12 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
+This catalog indexes 15 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
 
 ## How to use this catalog
 
@@ -43,10 +43,11 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 
 - [t() fallbacks hide missing catalog keys — audit i18n/{th,en}.json whenever strings are added](lessons/i18n-fallbacks-hide-missing-catalog-keys.md) — area:backend-ui; module:orva_documents,orva,orva_party; topic:i18n,translations,catalogs
 - [A picker asking for pageSize above the list contract's max renders an empty select, not a capped one](lessons/picker-pagesize-over-contract-empties-the-select.md) — area:backend-ui,debugging,testing; module:orva_purchasing,orva_party,orva_finance; topic:crud-list,pagesize,zod-validation,react-query,quality-states,browser-tests
+- [A React Query key is a shape contract: one first segment, one definition file](lessons/query-key-is-a-shape-contract.md) — area:backend-ui,debugging,testing; module:orva_finance,orva_tasking,orva_party,orva_documents,orva_stock,orva_purchasing; topic:react-query,cache,client-side-navigation,quality-states,integration-tests
 
 ### testing
 
-- [Four things break an ephemeral integration run before a single test is meaningful](lessons/ephemeral-integration-env-gotchas.md) - area:testing,debugging; module:platform,orva_purchasing; topic:integration-tests,playwright,ephemeral-env,secure-cookie,single-instance-lock,windows
+- [Four things break an ephemeral integration run before a single test is meaningful](lessons/ephemeral-integration-env-gotchas.md) — area:testing,debugging; module:platform,orva_purchasing; topic:integration-tests,playwright,ephemeral-env,secure-cookie,single-instance-lock,windows
 - [A test file without `import { describe, expect, it } from '@jest/globals'` passes jest and fails typecheck](lessons/jest-tests-need-explicit-globals-import.md) — area:testing,debugging; module:orva_purchasing,platform; topic:jest,typecheck,tsconfig,validation-gate
 - [A printable sheet can be proven in jest with renderToStaticMarkup — no dev server, no browser](lessons/thai-sheets-are-render-testable-in-jest.md) — area:testing,backend-ui; module:orva_documents,platform; topic:jest,component-tests,react-dom-server,document-templates,playwright-vs-jest-expect
 

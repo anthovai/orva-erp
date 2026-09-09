@@ -10,6 +10,7 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useActiveAccounts, useOpenPeriods } from './queries'
 
 type AccountOption = { id: string; code: string; name: string; account_type: string }
 type PeriodOption = { id: string; code: string }
@@ -44,14 +45,7 @@ function ArSettingsCard({ settings }: { settings: ArSettingsDto }) {
   const [bank, setBank] = React.useState(settings.defaultCashAccountId ?? '')
   const [saving, setSaving] = React.useState(false)
 
-  const { data: accountsData } = useQuery({
-    queryKey: ['orva_finance.accounts.all', scopeVersion],
-    queryFn: async () =>
-      fetchCrudList<AccountOption>('orva_finance/gl/accounts', {
-        page: 1, pageSize: 100, sortField: 'code', sortDir: 'asc', isActive: true,
-      }),
-  })
-  const accounts = accountsData?.items ?? []
+  const { accounts } = useActiveAccounts()
   const byType = (type: string) => accounts.filter((a) => a.account_type === type)
 
   return (
@@ -131,13 +125,7 @@ export default function ArPosting() {
     queryKey: ['orva_finance.ar.settings', scopeVersion],
     queryFn: async () => readApiResultOrThrow<ArSettingsDto>('/api/orva_finance/ar/settings'),
   })
-  const { data: periodsData } = useQuery({
-    queryKey: ['orva_finance.periods.open', scopeVersion],
-    queryFn: async () =>
-      fetchCrudList<PeriodOption>('orva_finance/gl/periods', {
-        page: 1, pageSize: 100, sortField: 'starts_on', sortDir: 'desc', status: 'open',
-      }),
-  })
+  const { periods } = useOpenPeriods()
   const { data: invoicesData, isLoading } = useQuery({
     queryKey: ['orva_finance.ar.unposted', scopeVersion],
     queryFn: async () => readApiResultOrThrow<{ items: InvoiceRow[] }>('/api/orva_finance/ar/unposted-invoices'),
@@ -187,7 +175,7 @@ export default function ArPosting() {
           <div className="flex items-center gap-2 text-sm">
             <select className={selectClass} value={periodId} onChange={(e) => setPeriodId(e.target.value)}>
               <option value="">{t('orva_finance.journals.form.selectPeriod', '— select open period —')}</option>
-              {(periodsData?.items ?? []).map((p) => (<option key={p.id} value={p.id}>{p.code}</option>))}
+              {periods.map((p) => (<option key={p.id} value={p.id}>{p.code}</option>))}
             </select>
             <Input type="date" value={postingDate} onChange={(e) => setPostingDate(e.target.value)} />
             <Button onClick={post} disabled={!canPost}>

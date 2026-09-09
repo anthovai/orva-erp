@@ -12,6 +12,7 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useActiveAccounts, useOpenPeriods } from '@/modules/orva_finance/components/queries'
 import { OrvaEmptyState } from '@/components/orva/NodeMark'
 
 type RunRow = {
@@ -46,17 +47,10 @@ function HrSettingsCard() {
     queryKey: ['orva_hr.settings', scopeVersion],
     queryFn: async () => readApiResultOrThrow<HrSettingsDto>('/api/orva_hr/settings'),
   })
-  const { data: accountsData } = useQuery({
-    queryKey: ['orva_finance.accounts.all', scopeVersion],
-    queryFn: async () =>
-      fetchCrudList<AccountRow>('orva_finance/gl/accounts', {
-        page: 1, pageSize: 100, sortField: 'code', sortDir: 'asc', isActive: true,
-      }),
-  })
+  const { accounts } = useActiveAccounts()
   const [values, setValues] = React.useState<Record<string, string>>({})
   const [saving, setSaving] = React.useState(false)
 
-  const accounts = accountsData?.items ?? []
   const configured = Boolean(settings && Object.values(settings).every(Boolean))
   if (!settings || configured) return null
 
@@ -123,20 +117,14 @@ function CreateRunBar() {
   const [payDate, setPayDate] = React.useState(() => new Date().toISOString().slice(0, 10))
   const [creating, setCreating] = React.useState(false)
 
-  const { data: periodsData } = useQuery({
-    queryKey: ['orva_finance.periods.open', scopeVersion],
-    queryFn: async () =>
-      fetchCrudList<PeriodOption>('orva_finance/gl/periods', {
-        page: 1, pageSize: 100, sortField: 'starts_on', sortDir: 'desc', status: 'open',
-      }),
-  })
+  const { periods } = useOpenPeriods()
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
       <Input value={monthCode} onChange={(e) => setMonthCode(e.target.value)} className="w-28" placeholder="2026-08" />
       <select className={selectClass} value={periodId} onChange={(e) => setPeriodId(e.target.value)}>
         <option value="">{t('orva_finance.journals.form.selectPeriod', '— select open period —')}</option>
-        {(periodsData?.items ?? []).map((p) => (<option key={p.id} value={p.id}>{p.code}</option>))}
+        {periods.map((p) => (<option key={p.id} value={p.id}>{p.code}</option>))}
       </select>
       <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
       <Button

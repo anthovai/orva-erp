@@ -9,6 +9,7 @@ import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useActiveAccounts, useOpenPeriods } from './queries'
 
 type AccountOption = { id: string; code: string; name: string; account_type: string }
 type PeriodOption = { id: string; code: string; status: string }
@@ -33,19 +34,12 @@ export default function FixedAssets() {
   const [periodId, setPeriodId] = React.useState('')
   const [running, setRunning] = React.useState(false)
 
-  const { data: accountsData } = useQuery({
-    queryKey: ['orva_finance.accounts.all', scopeVersion],
-    queryFn: async () => fetchCrudList<AccountOption>('orva_finance/gl/accounts', { page: 1, pageSize: 100, sortField: 'code', sortDir: 'asc', isActive: true }),
-  })
-  const { data: periodsData } = useQuery({
-    queryKey: ['orva_finance.periods.open', scopeVersion],
-    queryFn: async () => fetchCrudList<PeriodOption>('orva_finance/gl/periods', { page: 1, pageSize: 100, sortField: 'starts_on', sortDir: 'desc', status: 'open' }),
-  })
+  const { accounts } = useActiveAccounts()
+  const { periods } = useOpenPeriods()
   const { data: schedule, isLoading } = useQuery({
     queryKey: ['orva_finance.fa.schedule', scopeVersion],
     queryFn: async () => readApiResultOrThrow<{ items: ScheduleRow[] }>('/api/orva_finance/fa/depreciate'),
   })
-  const accounts = accountsData?.items ?? []
   const byType = (type: string) => accounts.filter((a) => a.account_type === type)
   const pick = (code: string) => accounts.find((a) => a.code === code)?.id ?? ''
 
@@ -117,7 +111,7 @@ export default function FixedAssets() {
           <div className="flex flex-wrap items-center gap-2">
             <select className={`${selectClass} w-40`} value={periodId} onChange={(e) => setPeriodId(e.target.value)} aria-label={t('orva_finance.periods.column.code', 'Period')}>
               <option value="">{t('orva_finance.journals.form.selectPeriod', '— select open period —')}</option>
-              {(periodsData?.items ?? []).map((p) => (<option key={p.id} value={p.id}>{p.code}</option>))}
+              {periods.map((p) => (<option key={p.id} value={p.id}>{p.code}</option>))}
             </select>
             <Button variant="outline" onClick={runDepreciation} disabled={!periodId || running || items.length === 0}>
               {t('orva_finance.fa.actions.depreciate', 'คิดค่าเสื่อมราคางวดนี้')}

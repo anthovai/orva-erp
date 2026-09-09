@@ -16,6 +16,8 @@ import { TimelineView } from './TimelineView'
 import { TaskListView } from './TaskListView'
 import { TaskTableView, type TaskFilters } from './TaskTableView'
 import type { BoardTask, TaskProjectSummary } from './taskTypes'
+import { useLabels, useTaskProjects } from './queries'
+import { useProjectOptions } from '@/modules/orva_documents/components/queries'
 
 type QuoteOption = { quoteId: string; quoteNumber: string; customerName: string | null }
 
@@ -61,30 +63,11 @@ export default function TasksPage() {
   const [openTaskId, setOpenTaskId] = React.useState<string | null>(null)
   const [publishing, setPublishing] = React.useState(false)
 
-  const projects = useQuery({
-    queryKey: ['orva_tasking.projects', scopeVersion],
-    /*
-      Unwrapped to the array, like every other query on this page.
-
-      This key is shared with ProjectListPage, which always unwrapped it. Two
-      queryFns writing two shapes into one React Query key meant whichever
-      screen rendered first decided what the other one read: opening งาน and
-      then clicking โปรเจกต์ handed the list page an envelope and it died on
-      `.filter is not a function`. A key holds one shape.
-    */
-    queryFn: async () =>
-      (await readApiResultOrThrow<{ items: TaskProjectSummary[] }>('/api/orva_tasking/projects')).items,
-  })
-  const quotes = useQuery({
-    queryKey: ['orva_documents.projects.pick', scopeVersion],
-    queryFn: async () => (await readApiResultOrThrow<{ items: QuoteOption[] }>('/api/orva_documents/projects')).items,
-    enabled: creatingProject || linkingQuote,
-  })
-  const labels = useQuery({
-    queryKey: ['orva_tasking.labels'],
-    queryFn: async () =>
-      (await readApiResultOrThrow<{ items: { id: string; title: string }[] }>('/api/orva_tasking/labels')).items,
-  })
+  // Shared option sources live in ./queries and the owning modules: one hook,
+  // one cache entry, one shape per key (queryKeyOwnership.test.ts).
+  const projects = useTaskProjects()
+  const quotes = useProjectOptions(creatingProject || linkingQuote)
+  const labels = useLabels()
   const assignees = useQuery({
     queryKey: ['orva_tasking.assignees', scopeVersion],
     queryFn: async () =>

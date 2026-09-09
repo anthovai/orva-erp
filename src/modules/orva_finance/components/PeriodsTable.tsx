@@ -12,6 +12,7 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useGlSettings } from './queries'
 import { OrvaEmptyState } from '@/components/orva/NodeMark'
 
 type PeriodRow = {
@@ -34,10 +35,7 @@ function RetainedEarningsBanner() {
   const [selected, setSelected] = React.useState('')
   const [saving, setSaving] = React.useState(false)
 
-  const { data: settings } = useQuery({
-    queryKey: ['orva_finance.gl.settings', scopeVersion],
-    queryFn: async () => readApiResultOrThrow<{ retainedEarningsAccountId: string | null }>('/api/orva_finance/gl/settings'),
-  })
+  const { data: settings } = useGlSettings()
   const { data: accountsData } = useQuery({
     queryKey: ['orva_finance.accounts.equity', scopeVersion],
     queryFn: async () =>

@@ -9,10 +9,9 @@ import { Button } from '@open-mercato/ui/primitives/button'
 import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 
-export type PortalProject = {
-  id: string; name: string; total: number; done: number; percent: number
-  overdue: number; dueSoon: number; nextDue: string | null; quoteNumber: string | null
-}
+import { usePortalProjects, type PortalProject } from '../../../../components/queries'
+
+export type { PortalProject }
 
 /**
  * งานของเรา — what the customer sees instead of the old share link.
@@ -28,11 +27,7 @@ export default function PortalWorkPage({ params }: { params: { orgSlug: string }
   const t = useT()
   const { orgSlug } = params
 
-  const projects = useQuery({
-    queryKey: ['orva_tasking.portal.projects'],
-    queryFn: async () =>
-      (await readApiResultOrThrow<{ items: PortalProject[] }>('/api/orva_tasking/portal/projects')).items,
-  })
+  const projects = usePortalProjects()
 
   return (
     <div className="space-y-6">

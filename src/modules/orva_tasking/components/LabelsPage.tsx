@@ -8,7 +8,7 @@ import { apiCall, readApiResultOrThrow } from '@open-mercato/ui/backend/utils/ap
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 
-type Label = { id: string; title: string; hexColor: string; usageCount: number; updatedAt: string }
+import { useLabels, type Label } from './queries'
 
 /**
  * A small fixed palette rather than a colour wheel.
@@ -35,10 +35,7 @@ export default function LabelsPage() {
   const [draft, setDraft] = React.useState('')
   const [busy, setBusy] = React.useState(false)
 
-  const labels = useQuery({
-    queryKey: ['orva_tasking.labels'],
-    queryFn: async () => (await readApiResultOrThrow<{ items: Label[] }>('/api/orva_tasking/labels')).items,
-  })
+  const labels = useLabels()
 
   const send = async (method: 'POST' | 'PUT' | 'DELETE', body: Record<string, unknown>) => {
     setBusy(true)

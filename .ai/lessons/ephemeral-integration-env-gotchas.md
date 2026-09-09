@@ -66,3 +66,20 @@ code — reproduce with `yarn start`, which names the offending pid and port.
 
 **Applies to**: every `**/__integration__/*.spec.ts` run through
 `yarn test:integration:ephemeral` on this machine.
+
+**Addendum 2026-09-10 — the dev server and the ephemeral build share `.mercato/next`.**
+A rerun died at "Building application… ENOTEMPTY: directory not empty, rmdir
+'.mercato\next'": the runner clears the Next build directory, and a running
+`orva-dev` (Turbopack) holds files in it on Windows. Stop the dev server
+before `yarn test:integration:ephemeral`, and check for the previous run's
+own app first — `mercato server start`, `next start` and a `queue worker
+--all` were still alive after a run that had finished cleanly. Also: the
+runner prints nothing until the end (35 min for 47 specs), so a zero-byte
+output file is progress, not a hang; `.ai/qa/test-results/artifacts/` fills
+up while it runs.
+Also from the same day: the sidebar walk in `screens-smoke.spec.ts` stalled for
+15 minutes because a create page's CrudForm raised its "unsaved changes" dialog
+on the next click, and every later click waited on the overlay — answer the
+guard (its confirm button) before and after each navigation. And a run killed
+mid-way leaves `.ai/qa/ephemeral-runtime.lock`; the next run then dies with
+"Application process exited before readiness check" and no other output.

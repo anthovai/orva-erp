@@ -11,6 +11,7 @@ import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { byType, useActiveAccounts, useOpenPeriods } from './queries'
 
 const LIST_HREF = '/backend/ar/receipts'
 
@@ -42,20 +43,9 @@ export default function ReceiptCreateForm() {
   const [submitting, setSubmitting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
-  const { data: cashAccountsData } = useQuery({
-    queryKey: ['orva_finance.accounts.asset', scopeVersion],
-    queryFn: async () =>
-      fetchCrudList<AccountOption>('orva_finance/gl/accounts', {
-        page: 1, pageSize: 100, sortField: 'code', sortDir: 'asc', accountType: 'asset', isActive: true,
-      }),
-  })
-  const { data: periodsData } = useQuery({
-    queryKey: ['orva_finance.periods.open', scopeVersion],
-    queryFn: async () =>
-      fetchCrudList<PeriodOption>('orva_finance/gl/periods', {
-        page: 1, pageSize: 100, sortField: 'starts_on', sortDir: 'desc', status: 'open',
-      }),
-  })
+  const { accounts } = useActiveAccounts()
+  const cashAccounts = byType(accounts, 'asset')
+  const { periods } = useOpenPeriods()
   const { data: openItemsData, isLoading } = useQuery({
     queryKey: ['orva_finance.ar.open-items', scopeVersion],
     queryFn: async () => readApiResultOrThrow<{ items: OpenItem[] }>('/api/orva_finance/ar/open-items'),
@@ -127,14 +117,14 @@ export default function ReceiptCreateForm() {
               <span className="font-medium">{t('orva_finance.receipts.form.cashAccount', 'Received into (asset)')} *</span>
               <select className={selectClass} value={cashAccountId} onChange={(e) => setCashAccountId(e.target.value)}>
                 <option value="">{t('orva_finance.journals.form.selectAccount', '— select account —')}</option>
-                {(cashAccountsData?.items ?? []).map((a) => (<option key={a.id} value={a.id}>{a.code} · {a.name}</option>))}
+                {cashAccounts.map((a) => (<option key={a.id} value={a.id}>{a.code} · {a.name}</option>))}
               </select>
             </label>
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium">{t('orva_finance.periods.column.code', 'Period')} *</span>
               <select className={selectClass} value={periodId} onChange={(e) => setPeriodId(e.target.value)}>
                 <option value="">{t('orva_finance.journals.form.selectPeriod', '— select open period —')}</option>
-                {(periodsData?.items ?? []).map((p) => (<option key={p.id} value={p.id}>{p.code}</option>))}
+                {periods.map((p) => (<option key={p.id} value={p.id}>{p.code}</option>))}
               </select>
             </label>
             <label className="flex flex-col gap-1 text-sm">

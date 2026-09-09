@@ -9,6 +9,7 @@ import { Input } from '@open-mercato/ui/primitives/input'
 import { createCrud, fetchCrudList } from '@open-mercato/ui/backend/utils/crud'
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useActiveAccounts, useOpenPeriods } from './queries'
 
 const LIST_HREF = '/backend/gl/journals'
 
@@ -42,23 +43,8 @@ export default function JournalCreateForm() {
   const [error, setError] = React.useState<string | null>(null)
   const nextKey = React.useRef(3)
 
-  const { data: accountsData } = useQuery({
-    queryKey: ['orva_finance.accounts.options'],
-    queryFn: async () =>
-      fetchCrudList<AccountOption>('orva_finance/gl/accounts', {
-        page: 1, pageSize: 100, sortField: 'code', sortDir: 'asc', isActive: true,
-      }),
-  })
-  const { data: periodsData } = useQuery({
-    queryKey: ['orva_finance.periods.options'],
-    queryFn: async () =>
-      fetchCrudList<PeriodOption>('orva_finance/gl/periods', {
-        page: 1, pageSize: 100, sortField: 'starts_on', sortDir: 'desc', status: 'open',
-      }),
-  })
-
-  const accounts = accountsData?.items ?? []
-  const periods = periodsData?.items ?? []
+  const { accounts } = useActiveAccounts()
+  const { periods } = useOpenPeriods()
 
   const updateLine = (key: number, patch: Partial<LineDraft>) => {
     setLines((prev) => prev.map((line) => (line.key === key ? { ...line, ...patch } : line)))

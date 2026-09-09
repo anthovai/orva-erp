@@ -9,6 +9,7 @@ import { apiCall, readApiResultOrThrow } from '@open-mercato/ui/backend/utils/ap
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useGlSettings } from './queries'
 
 type Plan = {
   month: string
@@ -62,10 +63,7 @@ export default function MonthPackPage() {
     queryFn: async () => readApiResultOrThrow<Plan>(`/api/orva_finance/reports/month-pack?month=${month}`),
     enabled: validMonth,
   })
-  const settings = useQuery({
-    queryKey: ['orva_finance.gl.settings', scopeVersion],
-    queryFn: async () => readApiResultOrThrow<GlSettingsResponse>('/api/orva_finance/gl/settings'),
-  })
+  const settings = useGlSettings()
   React.useEffect(() => {
     if (settings.data) {
       setTo(settings.data.accountantEmail ?? '')

@@ -12,6 +12,7 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useActiveAccounts, useApSettings } from './queries'
 import { OrvaEmptyState } from '@/components/orva/NodeMark'
 
 type BillRow = {
@@ -33,7 +34,6 @@ type AccountRow = { id: string; code: string; name: string; account_type: string
 const selectClass =
   'h-9 rounded-md border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
-type ApSettingsDto = { apAccountId: string | null; inputVatAccountId?: string | null; whtPayableAccountId?: string | null }
 
 function ApSettingsBanner() {
   const t = useT()
@@ -45,24 +45,14 @@ function ApSettingsBanner() {
   const [whtPay, setWhtPay] = React.useState('')
   const [saving, setSaving] = React.useState(false)
 
-  const { data: settings } = useQuery({
-    queryKey: ['orva_finance.ap.settings', scopeVersion],
-    queryFn: async () => readApiResultOrThrow<ApSettingsDto>('/api/orva_finance/ap/settings'),
-  })
+  const { data: settings } = useApSettings()
   React.useEffect(() => {
     if (!settings) return
     setAp(settings.apAccountId ?? '')
     setVatIn(settings.inputVatAccountId ?? '')
     setWhtPay(settings.whtPayableAccountId ?? '')
   }, [settings])
-  const { data: accountsData } = useQuery({
-    queryKey: ['orva_finance.accounts.all', scopeVersion],
-    queryFn: async () =>
-      fetchCrudList<AccountRow & { account_type?: string }>('orva_finance/gl/accounts', {
-        page: 1, pageSize: 100, sortField: 'code', sortDir: 'asc', isActive: true,
-      }),
-  })
-  const accounts = accountsData?.items ?? []
+  const { accounts } = useActiveAccounts()
   const byType = (type: string) => accounts.filter((a) => a.account_type === type)
 
   if (!settings) return null
