@@ -146,9 +146,16 @@ export async function POST(req: Request) {
     const updatedRows = await withTenantRls(em, auth.tenantId, async (tem) =>
       (await tem.execute(
         `update sales_invoices
-         set paid_total_amount = ?, outstanding_amount = ?, metadata = ?::jsonb, updated_at = now()
+         set paid_total_amount = ?, outstanding_amount = ?, metadata = ?::jsonb,
+             updated_at = date_trunc('milliseconds', now())
          where id = ?::uuid and tenant_id = ?::uuid and deleted_at is null
-           and updated_at = ?::timestamptz
+         -- The version is read back as an ISO string truncated to
+         -- milliseconds, while now() carries microseconds: comparing the two
+         -- for equality makes the SECOND write on a row always 409, because
+         -- the value the caller echoes can no longer match what is stored.
+         -- Truncating both sides is the fix; writing a truncated timestamp
+         -- keeps the value the caller gets back exact for its next write.
+           and date_trunc('milliseconds', updated_at) = ?::timestamptz
          returning id`,
         [String(paidTotal), String(outstanding), JSON.stringify(metadata), invoiceId, auth.tenantId, updatedAt],
       )) as Array<{ id: string }>,

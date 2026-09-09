@@ -12,6 +12,11 @@ const ignores = [
   // to another project and cannot be fixed from this one.
   'vendor/**',
   '.ai/framework-context/**',
+  // Playwright writes its HTML report and traces here on every failing
+  // integration run. The bundle is minified vendor JS: linting it reports
+  // ~180 rules-of-hooks errors that belong to Playwright's own UI, so a
+  // failed test run would otherwise also fail `yarn lint`.
+  '.ai/qa/test-results/**',
   'dist/**',
   'out/**',
   'build/**',

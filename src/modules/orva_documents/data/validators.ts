@@ -102,6 +102,33 @@ export const recordPaymentSchema = z.object({
   updatedAt: z.string().min(1),
 })
 
+/**
+ * Recording what actually happened to a delivery (Phase B2).
+ *
+ * No receiver name: `sales_invoices.metadata` is not in sales' encryption map
+ * (Q-004), so a third party's name would sit in plaintext at rest. The route
+ * refuses a payload that carries one rather than dropping it quietly.
+ *
+ * Every field is optional because the office learns them at different times —
+ * the date on the day, the tracking number when the carrier emails it.
+ */
+export const deliveryFactsSchema = z.object({
+  invoiceId: z.string().uuid(),
+  /** YYYY-MM-DD. The VAT point for goods, so it is the one worth chasing. */
+  deliveredOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  carrier: z.string().trim().max(200).optional().nullable(),
+  // Blank entries are dropped by the merge rather than refused here: a stray
+  // empty box in a list of parcel numbers is a typo, not a reason to reject
+  // the whole save and make the operator retype the rest.
+  trackingNumbers: z.array(z.string().trim().max(60)).max(20).optional(),
+  address: z.string().trim().max(500).optional().nullable(),
+  note: z.string().trim().max(500).optional().nullable(),
+  /** Print prices on the ใบส่งของ. Off unless the operator turns it on. */
+  showPrices: z.boolean().optional(),
+  /** Optimistic lock: the invoice's updatedAt as read — mismatch is a 409. */
+  updatedAt: z.string().min(1),
+})
+
 /** Minting a customer link for a quotation (rotates the acceptance token). */
 export const shareSchema = z.object({
   quoteId: z.string().uuid(),

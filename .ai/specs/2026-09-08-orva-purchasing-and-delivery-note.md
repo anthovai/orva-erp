@@ -1,7 +1,7 @@
 # จัดซื้อ (purchase orders) and ใบส่งของ (delivery note) — closing the two ends of the goods cycle
 
 **Date**: 2026-09-08
-**Status**: **Track A complete — phases A1–A4 shipped and verified 2026-09-08.** The three-way match reads from facts (ordered, received, billed) and the owner sees what is late and what is committed without opening the module. Migrations applied; 19 integration specs pass against a production build on an ephemeral database. Track B has B1 shipped (the sheet prints; screens unwalked) and B2 open; TEST-010 (a human or a browser walking the screens) is the standing gap across all of Track A.
+**Status**: **Complete — Track A (A1–A4) 2026-09-08, Track B (B1–B2) 2026-09-09.** The three-way match reads from facts (ordered, received, billed) and the owner sees what is late and what is committed without opening the module. Track B prints ใบส่งของ from any invoice and records what happened to the delivery. Migrations applied; the whole spec's integration coverage runs against a production build on an ephemeral database. Standing gap: TEST-010 is covered for the delivery-note preview and the invoices list (a browser spec walks them) but **not** for any purchasing screen — those have only API-level coverage.
 
 > Written with `om-spec-writing`. Companion to `2026-09-04-orva-department-benchmark.md`
 > (Stock: "Purchase order to OEM → bill → receive ❌", Sales: "ใบส่งของ ⏸") and
@@ -369,7 +369,9 @@ Validated by `deliveryFactsSchema` in `orva_documents/data/validators.ts`; writt
 | `GET/PUT` | `/api/orva_purchasing/settings` | `orva_purchasing.view` / `.manage` | settings body | row + `updatedAt` | 409 | REQ-001 |
 | `POST` (additive) | `/api/orva_stock/receive` | unchanged | + `referenceType?`, `referenceId?` | unchanged | unchanged | REQ-004 |
 | `GET` (extended) | `/api/orva_documents/preview` | unchanged | `type=purchase_order&documentId=<po>` / `type=delivery_note&documentId=<invoice>` | sheet | 400 `type_unavailable` when purchasing DI absent | REQ-001, 006 |
-| `PUT` (installed) | `/api/sales/invoices` via `sales.invoices.update` | `sales.invoices.manage` | `{ id, metadata: { …existing, delivery } }` + `If-Match` | installed response | 409 installed | REQ-007 |
+| `GET/POST` | `/api/orva_documents/delivery-facts` | `orva_documents.view` / `sales.invoices.manage` | `{ invoiceId, deliveredOn?, carrier?, trackingNumbers?, address?, note?, showPrices?, updatedAt }` | `{ id, delivery, updatedAt }` | 409 stale `updatedAt`; **400 when the payload carries `receiverName`**; 404 unknown invoice | REQ-007 |
+
+**Deviation from the planned contract (B2, 2026-09-09):** REQ-007 was specified as a `PUT /api/sales/invoices` with `If-Match`. That installed route cannot do it — its update command diffs the payload with `buildChanges()` and then assigns the resulting `{from,to}` audit records back onto the entity, so **any** partial update throws a MikroORM ValidationError. `orva_documents/api/record-payment` had already hit this and documented it. B2 therefore owns its write the same way: an app route doing a scoped `UPDATE sales_invoices SET metadata = ? WHERE … AND updated_at = ?` inside `withTenantRls`, with `updated_at` as the optimistic lock and 409 on a mismatch. Every other metadata key is merged, not replaced, by a pure function (`lib/deliveryFacts.ts`) so the invoice's `quoteId` cannot be lost by a delivery edit.
 
 `orders` list/create/update/delete use `makeCrudRoute` with commands `orva_purchasing.orders.{create,update,delete}`; the action routes are guarded command routes (`send`, `cancel`, `close`, `receive`, `bill`) with `withAtomicFlush(..., { transaction: true })`, optimistic lock on the order's `updatedAt`, and post-commit event emission. The one internal call (`orva_stock` receive) is HTTP-internal and therefore **not** in purchasing's transaction: purchasing calls first and writes its receipt rows only after a 2xx, so a stock failure writes nothing anywhere, while a purchasing failure after a successful receive leaves an orphan the data can find — the WMS movement carries `reference_type='po'`, `reference_id=<po>`, and `metadata.poLineId` (passed through `orva_stock`'s existing `metadata` field). `orva_purchasing reconcile` (CLI, also run by the PO detail's "ซ่อมการรับของ" button) lists such movements without a receipt row and inserts the missing rows idempotently (keyed by `movement_id`, unique). Bills need no reconcile: they are created by finance and linked afterwards by an idempotent call the UI can repeat. Every route: per-method `metadata` + `openApi`.
 
@@ -389,7 +391,7 @@ Cache: the home overview already caches per org; purchasing summary invalidates 
 
 - **Authorization:** features `orva_purchasing.view`, `.manage` (dependsOn view), `.receive` (dependsOn view), `.approve` (declared, ungranted — A2). Goods receipt additionally requires the existing `orva_stock.manage` + `wms.receive_inventory`; billing requires `orva_finance.ap.manage`. Granted in `setup.ts` `defaultRoleFeatures` to admin/owner; `yarn mercato auth sync-role-acls` noted in rollout.
 - **Tenant isolation:** all queries in `withTenantRls`; `orva_apply_rls()` on the five tables; `verify-rls.mjs` extended with a purchasing probe.
-- **Sensitive data:** `vendor_snapshot` (company name, tax id, address, contact) encrypted through `encryption.ts` `defaultEncryptionMaps` like sales' `customer_snapshot`; read with the decryption find helpers (lesson: raw SQL on encrypted columns leaks ciphertext — the summary query selects ids and joins `orva_parties.display_name` live instead of reading the snapshot). Delivery facts contain a receiver's name (third-party PII). Whether `sales_invoices.metadata` is inside sales' encryption map is **Q-004**, resolved as the first step of Phase B1 by reading `.ai/guides/modules/sales/encryption.md`: if it is encrypted, `receiverName` is stored there; if not, `receiverName` is **not stored** (the sheet leaves the line blank for a handwritten name) and only non-personal facts (date, carrier, tracking, address, showPrices) are kept. The decision is recorded in this spec's changelog and asserted by TEST-009.
+- **Sensitive data:** `vendor_snapshot` (company name, tax id, address, contact) encrypted through `encryption.ts` `defaultEncryptionMaps` like sales' `customer_snapshot`; read with the decryption find helpers (lesson: raw SQL on encrypted columns leaks ciphertext — the summary query selects ids and joins `orva_parties.display_name` live instead of reading the snapshot). Delivery facts contain a receiver's name (third-party PII). **Q-004 is resolved (2026-09-09): `sales:sales_invoice` has no encryption map at all**, so `sales_invoices.metadata` is plaintext at rest. `receiverName` is therefore **not stored** — the sheet leaves the line blank for a handwritten name — and only non-personal facts are kept: date, carrier, tracking, address, note, showPrices. A carrier string may name a company vehicle's plate, which is the tenant's own asset, not a third party. The route **refuses** a payload carrying `receiverName` with a 400 rather than stripping it silently, so a future caller learns why instead of believing it saved; both the refusal and the fact that nothing at all is written are asserted by TEST-009. Recording a receiver's name later means an `orva_*`-owned table with its own entry in `encryption.ts` — never this column.
 - **Abuse and failure modes:** PO numbers claimed under row lock (no duplicates under concurrency); over-receipt enforced server-side under `select … for update` on the line; internal calls carry the caller's auth (no privilege widening); public delivery-note links reuse the token rail with its rate limit; no free-text is rendered unescaped in the sheet (existing renderer escapes).
 
 ## 📝 Integration Coverage
@@ -404,8 +406,8 @@ Cache: the home overview already caches per org; purchasing summary invalidates 
 | TEST-006 | integration | late line (expected yesterday) | `GET summary`; run `late_scan` twice | line listed with `daysLate=1`; one notification, not two | REQ-005 |
 | TEST-007 | integration | purchasing DI present / absent | preview `type=purchase_order` | sheet with heading ใบสั่งซื้อ; 400 `type_unavailable` when absent | REQ-001 |
 | TEST-008 | unit | invoice source + delivery facts | `buildPrintableDocument('delivery_note')` | number `DN-…`, no prices when `showPrices=false`, delivery block present, not a tax document (no buyer tax id required) | REQ-006 |
-| TEST-009 | integration | invoice | PUT metadata.delivery with `If-Match`; stale → | 200 then 409; preview reflects facts; other metadata keys (`quoteId`) preserved | REQ-007 |
-| TEST-010 | UI | 3 POs incl. one late, one frozen | list filters; detail actions gating; receive dialog keyboard (⌘⏎/Esc); 375px; dark | correct rows; disabled-with-reason; dialog contract; no horizontal page scroll | REQ-002, 004 |
+| TEST-009 | integration | invoice | POST `delivery-facts` with the read version; then the same stale version; then a payload with `receiverName` | 200, preview reflects the facts and dates the sheet by them; 409 and the first write stands; 400 and nothing written; `quoteId` and every other metadata key preserved | REQ-007 |
+| TEST-010 | UI | an invoice with delivery facts (**done**, browser spec); 3 POs incl. one late, one frozen (**open**) | delivery note preview + invoices list load with a real session, sheet text read, no client error (done); PO list filters, detail action gating, receive dialog keyboard (⌘⏎/Esc), 375px, dark (open) | printed sheet states the goods and no prices; no page error. Purchasing screens still unproven | REQ-002, 004, 006, 007 |
 | TEST-011 | unit | i18n (Track A) | th/en key parity for `orva_purchasing.*` and the `purchase_order` heading | equal key sets | localization |
 | TEST-012 | integration | sent PO; stock receive succeeds, purchasing flush forced to throw | receive → error; run `reconcile` twice | WMS movement exists with `reference_id=po`; after reconcile exactly one receipt row; second run inserts nothing; status `partially_received` | REQ-004 |
 | TEST-013 | integration | sent PO; bill created via finance route, link call not made | `unlinked-bills` → `bill` twice with same allocations; then link the same bill line to another PO | bill listed; one link set; second call 200 idempotent; other PO → 409 `already_linked` | REQ-003 |
@@ -423,7 +425,7 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 | **A3 — Bill against the order** | bill-draft + bill, links, variance, reconcile CLI | A1 (A2 optional for received-qty variance) |
 | **A4 — The owner sees it without opening the module** ✅ | summary DI, home rows, late scan notification | A2 and A3 |
 | **B1 — ใบส่งของ prints** ✅ | `delivery_note` type from invoice, headings, sample, row action | none |
-| **B2 — Delivery facts recorded** | dialog + metadata write + sheet reads them; public link/email verified | B1 |
+| **B2 — Delivery facts recorded** ✅ | dialog + metadata write + sheet reads them; public link/email verified | B1 |
 | B3 (design only, A7) | stock issue on delivery for B2B goods invoices | Marventine launch spec |
 
 ## 📋 Implementation Plan
@@ -609,7 +611,7 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 - **Requirements closed:** REQ-006
 - **Tests:** TEST-008 and TEST-014 shipped, plus 12 **template render** tests — the first component tests in this repo. The sheets are pure React, so `renderToStaticMarkup` prints them in jest and the assertions read the actual HTML: no unit price, no line amount, no totals block, no VAT line, no amount in words and no bank block on a hidden-price ใบส่งของ, and all of them back when `showPrices` is on. 26 tests in total.
 - **Validation:** `yarn typecheck`, `yarn lint` (0 errors), `yarn ds:check` (732 files), `yarn test` (427 tests / 46 suites).
-- **Exit gate:** **partially met.** The sheet itself is proven — heading, delivery block, two dated signature lines, price hiding on both eligible templates, and the fallback when a wrong template is forced. Not proven: the public link, the emailed PDF, and the row action as clicked, all three of which need a running app. The dev server could not be started in this session (blocked by the environment's permission classifier), so **no screen has been walked** — the same standing gap as Track A's TEST-010.
+- **Exit gate:** **met, in two steps.** The sheet's rules are proven by the render tests — heading, delivery block, two dated signature lines, price hiding on both eligible templates, and the fallback when a wrong template is forced. The sheet itself was then walked in a browser by B2's integration spec: the preview page loads with a real session against a production build, the printed text states the goods and the delivery and no prices, and the page raises no client-side error. Still not proven: the **public link** and the **emailed PDF** — the share route mints tokens for quotations only, and email needs a provider key the harness has none of. Both are recorded as open rather than claimed.
 
 **Decisions taken during B1:**
 
@@ -622,17 +624,25 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 - **Two sheets print, like a tax document** — but for a different reason: one is left with the goods and one comes back signed.
 - **No new email template.** The send route already builds its subject from `headingTh` + number, so a delivery note mails itself as "ใบส่งของ DN-…". The spec's deliverable list assumed a per-type template that does not exist.
 
-### Phase B2 — Delivery facts recorded (REQ-007)
+### Phase B2 — Delivery facts recorded (REQ-007) — ✅ SHIPPED 2026-09-09
 
 - **Depends on:** B1 exit gate
 - **Outcome:** delivery facts are captured once and printed every time.
 - **Why this order / value delivered:** turns the sheet from a blank form into a record of the delivery date (the VAT point for goods).
-- **Deliverables:** `deliveryFactsSchema` in `orva_documents/data/validators.ts`, `DeliveryFactsDialog.tsx`, row action, installed invoice update call with `If-Match` via the shared helpers, query invalidation; encryption check noted in Security.
-- **Independent slices / estimated commits:** 1–2.
+- **Deliverables:** `deliveryFactsSchema` in `data/validators.ts`, `lib/deliveryFacts.ts` (the pure merge), `api/delivery-facts/route.ts` (GET context + POST), `DeliveryFactsDialog.tsx`, the "บันทึกการส่งของ" row action with `refetch` on save, th/en keys; encryption answered in Security above.
+- **Independent slices / estimated commits:** 1.
 - **Requirements closed:** REQ-007
-- **Tests:** TEST-009, TEST-010 (dialog keyboard)
-- **Validation:** as B1.
-- **Exit gate:** save facts, reprint shows them; stale second tab gets the conflict UI; `metadata.quoteId` survives the write.
+- **Tests:** TEST-009 (7 integration specs) + 7 unit tests of the merge. TEST-010 is covered for these two screens by a browser spec in the same file — the first in this repo — which loads the preview and the invoices list with a real session, reads the printed sheet's text and fails on any client-side error.
+- **Validation:** `yarn typecheck`, `yarn lint` (0 errors), `yarn ds:check` (735 files), `yarn test` (434 tests / 47 suites), `yarn test:integration:ephemeral` (**26 specs green**, 7 of them this file's).
+- **Exit gate:** met. Facts save and the sheet reprints with them; a second writer holding the old version gets a 409 and the first writer's date stands; `metadata.quoteId` and every other key survive the write; a payload carrying `receiverName` is refused and writes nothing at all.
+
+**Decisions taken during B2:**
+
+- **The installed `PUT /api/sales/invoices` could not be used** — see the deviation note under the API tables. The app owns the write, with `updated_at` as the lock.
+- **A field absent from the payload keeps its stored value; a field sent as `null` or `''` clears it.** The office learns the facts at different times — the date on the day, the tracking number when the carrier emails it — so adding one fact must not erase another. That distinction is why the merge is a function with its own tests rather than a spread.
+- **`showPrices` lives with the delivery facts, not in settings.** It is a decision about one delivery to one customer, not a tenant-wide policy.
+- **The dialog defaults the date to today** rather than to blank: for goods that date is the VAT point, and the sheet is usually completed on the day the van leaves.
+- **No receiver-name field exists in the dialog at all**, so the refusal is a guard against other callers rather than something a user can trip over.
 
 ## 📝 Requirement Traceability
 
@@ -710,6 +720,8 @@ Verdict: **Ready for implementation.** The owner confirmed A3 and A8 on 2026-09-
 | Date | Change |
 |---|---|
 | 2026-09-08 | Initial draft with autonomous defaults A0–A8 |
+| 2026-09-09 | Bug found by B2's save-twice integration spec and fixed in two routes: an `updated_at` optimistic lock read with `to_char(… .MS …)` but written with `now()` lets the first write through and 409s every one after, because the read truncates to milliseconds and `now()` carries microseconds. `delivery-facts` and the pre-existing `record-payment` (where a second payment on one invoice could never be recorded) now truncate both sides. Recorded as a lesson |
+| 2026-09-09 | Phase B2 shipped: `lib/deliveryFacts.ts`, the `delivery-facts` route (GET context + POST merge, `updated_at` lock, 409, and a 400 for `receiverName`), `DeliveryFactsDialog`, the row action. Track B closed. The planned installed `PUT /api/sales/invoices` was replaced by an app-owned scoped UPDATE for the reason `record-payment` already documented; recorded under the API tables. TEST-010 now has real browser coverage for the preview and the invoices list |
 | 2026-09-09 | Q-004 resolved by reading the installed encryption map: `sales_invoices.metadata` is NOT encrypted, so no receiver name is ever stored. Phase B1 shipped: the `delivery_note` type, the delivery block, price hiding enforced in the shared template blocks, the two-counterpart print, the row action on the invoices list, th/en keys, and 26 tests including this repo's first component renders. Screens still not walked — the dev server could not be started in this session |
 | 2026-09-08 | Phase A4 shipped: `GET /api/orva_purchasing/summary`, the `purchasingSummary` DI seam that `orva_finance` soft-resolves, late lines and the committed figure on the home waiting card, the `orva_purchasing.line_late` notification and the 06:30 late scan. Track A closed. Recorded: a draft is never late, late and unbilled are separate facts, the committed figure is floored per line, and the worker's cadence is unit-tested because a queue handler is unreachable over HTTP |
 | 2026-09-08 | Phase A3 shipped: bill links, the two-step link with position-named bill lines, the unbilled-remainder prefill, the recovery dialog, and billed/variance on the detail. The allocation contract changed from `billLineId` to `billLineNo`, recorded above |

@@ -9,6 +9,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy'
 import { RecordPaymentDialog } from '../../../components/RecordPaymentDialog'
+import { DeliveryFactsDialog } from '../../../components/DeliveryFactsDialog'
 import { NoteDialog } from '../../../components/NoteDialog'
 
 /**
@@ -40,6 +41,7 @@ export default function OrvaInvoicesPage() {
   const router = useRouter()
   const [page, setPage] = React.useState(1)
   const [paymentInvoiceId, setPaymentInvoiceId] = React.useState<string | null>(null)
+  const [deliveryInvoiceId, setDeliveryInvoiceId] = React.useState<string | null>(null)
   const [noteInvoice, setNoteInvoice] = React.useState<{ id: string; number: string } | null>(null)
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['orva_documents.invoices', page],
@@ -132,6 +134,13 @@ export default function OrvaInvoicesPage() {
                   href: `/backend/documents/preview?type=delivery_note&documentId=${row.id}`,
                 },
                 {
+                  // …and recording what happened sits right under printing it,
+                  // because the office does the two in one sitting.
+                  id: 'delivery-facts',
+                  label: t('orva_documents.rowAction.deliveryFacts', 'บันทึกการส่งของ'),
+                  onSelect: () => setDeliveryInvoiceId(row.id),
+                },
+                {
                   id: 'billing-note',
                   label: t('orva_documents.rowAction.billingNote', 'ใบวางบิล'),
                   href: `/backend/documents/preview?type=billing_note&documentId=${row.id}`,
@@ -155,6 +164,12 @@ export default function OrvaInvoicesPage() {
               {t('orva_documents.invoices.empty', 'ยังไม่มีใบแจ้งหนี้ — ออกได้จากใบเสนอราคาที่ต้องการเรียกเก็บ')}
             </div>
           }
+        />
+        <DeliveryFactsDialog
+          invoiceId={deliveryInvoiceId}
+          open={deliveryInvoiceId !== null}
+          onOpenChange={(next) => { if (!next) setDeliveryInvoiceId(null) }}
+          onRecorded={() => { void refetch() }}
         />
         <RecordPaymentDialog
           invoiceId={paymentInvoiceId}

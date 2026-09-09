@@ -1,6 +1,6 @@
 # Lessons
 
-This catalog indexes 8 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
+This catalog indexes 10 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
 
 ## How to use this catalog
 
@@ -36,6 +36,7 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 - [ce.ts custom fields are inert until `yarn mercato entities install` syncs them](lessons/ce-fields-need-entities-install.md) — area:umes,module-data; module:orva,entities,customers,catalog; topic:custom-fields,ce-dsl,entities-install,definitions-cache
 - [A new entity class needs the dev server restarted, not just `yarn generate`](lessons/new-entity-needs-dev-restart.md) — area:module-data,debugging; module:platform,orva_documents,orva_support; topic:mikro-orm,entity-discovery,generated-bundle,dev-server
 - [Raw SQL on an encrypted column returns ciphertext, and `??` fallbacks then prefer it](lessons/raw-sql-on-encrypted-columns-leaks-ciphertext.md) — area:debugging,module-data; module:orva_finance,orva,customers; topic:encryption,raw-sql,customer-entities,coalesce,dedupe
+- [An updated_at optimistic lock read as .MS and written with now() lets the FIRST write through and 409s every one after](lessons/updated-at-lock-truncates-to-milliseconds.md) — area:module-data,debugging,testing; module:orva_documents,platform; topic:optimistic-locking,postgres,timestamptz,raw-sql,integration-tests
 
 ### backend-ui
 
@@ -45,6 +46,7 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 
 - [Four things break an ephemeral integration run before a single test is meaningful](lessons/ephemeral-integration-env-gotchas.md) - area:testing,debugging; module:platform,orva_purchasing; topic:integration-tests,playwright,ephemeral-env,secure-cookie,single-instance-lock,windows
 - [A test file without `import { describe, expect, it } from '@jest/globals'` passes jest and fails typecheck](lessons/jest-tests-need-explicit-globals-import.md) — area:testing,debugging; module:orva_purchasing,platform; topic:jest,typecheck,tsconfig,validation-gate
+- [A printable sheet can be proven in jest with renderToStaticMarkup — no dev server, no browser](lessons/thai-sheets-are-render-testable-in-jest.md) — area:testing,backend-ui; module:orva_documents,platform; topic:jest,component-tests,react-dom-server,document-templates,playwright-vs-jest-expect
 
 ### debugging
 
