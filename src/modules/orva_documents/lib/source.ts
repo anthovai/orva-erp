@@ -7,9 +7,12 @@ import { brandForNumber, loadBrands, settingsWithBrand } from './brands'
 import {
   buildPrintableDocument,
   sampleBuyer,
+  sampleDelivery,
+  sampleDeliverySource,
   sampleEmployee,
   samplePayslipSource,
   sampleSource,
+  type DeliveryBlock,
   type DocumentLine,
   type DocumentReference,
   type DocumentSource,
@@ -73,8 +76,16 @@ export function templateFor(type: DocumentType, settings: DocumentSettings | nul
     payslip: settings.templateInvoice,
     // a purchase order reads like a quotation with the parties swapped
     purchase_order: settings.templateQuotation,
+    // the delivery note follows the invoice, within the limits below
+    delivery_note: settings.templateInvoice,
   }
   const chosen = byType[type]
+  // A ใบส่งของ has to be signable and must not demand payment. The brand form
+  // is the tenant's own ORIGINAL TAX INVOICE — it ends in "จำนวนเงินสุทธิที่
+  // ต้องชำระ" — and the compact half sheet carries no signature block at all.
+  // Both are wrong for a delivery note, so it prints classic unless the
+  // invoice template is modern.
+  if (type === 'delivery_note') return chosen === 'modern' ? 'modern' : fallback
   return chosen === 'modern' || chosen === 'compact' || chosen === 'brand' ? (chosen as TemplateId) : fallback
 }
 
@@ -176,6 +187,9 @@ export async function findInvoiceById(
     customer_entity_id: metadata.customerEntityId ?? null,
     customer_snapshot: jsonRecord(metadata.customerSnapshot),
     billing_address_snapshot: jsonRecord(metadata.billingAddressSnapshot),
+    shipping_address_snapshot: jsonRecord(metadata.shippingAddressSnapshot),
+    // Recorded by Phase B2; absent until then, and the sheet prints blanks.
+    delivery: jsonRecord(metadata.delivery),
     tenant_id: invoice.tenantId,
     organization_id: invoice.organizationId,
     issue_date: isoDate(invoice.issueDate ?? invoice.createdAt),
@@ -341,6 +355,49 @@ function billingAddressText(row: QuoteRow): string | null {
   return parts.length ? parts.join(' ') : null
 }
 
+/** Address text out of any snapshot shaped like sales' address snapshots. */
+function addressText(snapshot: Record<string, unknown>): string | null {
+  const parts = ['addressLine1', 'addressLine2', 'city', 'region', 'postalCode']
+    .map((key) => (typeof snapshot[key] === 'string' ? (snapshot[key] as string).trim() : ''))
+    .filter(Boolean)
+  return parts.length ? parts.join(' ') : null
+}
+
+/**
+ * The delivery block for a ใบส่งของ, read off `metadata.delivery`.
+ *
+ * Where the goods went, in falling order of how specifically it was stated:
+ * the address recorded with the delivery, then the invoice's shipping
+ * address, then the billing address. A ใบส่งของ posted to the accounts
+ * department instead of the warehouse is worse than one with a blank line, so
+ * nothing is invented beyond that chain.
+ *
+ * `receiverName` is deliberately not read even if a caller wrote one: see
+ * `DeliveryBlock` and Q-004.
+ */
+export function deliveryFrom(row: QuoteRow): { delivery: DeliveryBlock; showPrices: boolean } {
+  const facts = jsonRecord(row.delivery)
+  const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : null)
+  const tracking = Array.isArray(facts.trackingNumbers)
+    ? facts.trackingNumbers.filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+    : []
+  return {
+    delivery: {
+      deliveredOn: isoDate(facts.deliveredOn),
+      carrier: text(facts.carrier),
+      trackingNumbers: tracking,
+      address:
+        text(facts.address) ||
+        addressText(jsonRecord(row.shipping_address_snapshot)) ||
+        billingAddressText(row),
+      note: text(facts.note),
+    },
+    // Hidden unless the operator asked for prices: the sheet is handed to
+    // whoever takes the boxes, and that is not always the buyer's office.
+    showPrices: facts.showPrices === true,
+  }
+}
+
 function partyFromSnapshot(row: QuoteRow, identity: { taxId: string | null; branch: string | null }): Party {
   const snapshot = (row.customer_snapshot ?? {}) as Record<string, unknown>
   const customer = snapshot.customer as Record<string, unknown> | undefined
@@ -431,6 +488,7 @@ export async function documentFromQuote(
   // Neither carries VAT of its own: the tax invoices already do. The billing
   // note totals what is open; the statement totals billed minus paid, so its
   // grand total IS the closing balance.
+  const delivery = args.type === 'delivery_note' ? deliveryFrom(args.row) : null
   const row = billing
     ? {
         ...args.row,
@@ -441,7 +499,11 @@ export async function documentFromQuote(
         valid_until: null,
         quote_number: `${args.type === 'statement' ? 'ST' : 'BN'}-${String(args.row.quote_number ?? '')}`,
       }
-    : args.row
+    // The note is a counterpart of the invoice, not a document of its own
+    // series: DN-INV-202609-0007 says which invoice these goods answer.
+    : args.type === 'delivery_note'
+      ? { ...args.row, quote_number: `DN-${String(args.row.quote_number ?? '')}` }
+      : args.row
   return buildPrintableDocument({
     type: args.type,
     template: args.template ?? templateFor(args.type, settings),
@@ -453,6 +515,8 @@ export async function documentFromQuote(
     logoHeader: headerLogoFor(args.type, settings),
     logoFooter: settings?.logoFooter ?? null,
     terms: settings?.documentTerms ?? null,
+    delivery: delivery?.delivery ?? null,
+    showPrices: delivery?.showPrices,
   })
 }
 
@@ -500,12 +564,14 @@ export function sampleDocument(args: {
   settings: DocumentSettings | null
 }): PrintableDocument {
   const payslip = args.type === 'payslip'
+  const deliveryNote = args.type === 'delivery_note'
   return buildPrintableDocument({
     type: args.type,
     template: args.template ?? templateFor(args.type, args.settings),
     seller: sellerFrom(args.settings),
     buyer: payslip ? sampleEmployee() : sampleBuyer(),
-    source: payslip ? samplePayslipSource() : sampleSource(),
+    source: payslip ? samplePayslipSource() : deliveryNote ? sampleDeliverySource() : sampleSource(),
+    delivery: deliveryNote ? sampleDelivery() : null,
     accentColor: args.settings?.brandColor ?? null,
     paymentDetails: args.settings?.paymentDetails ?? null,
     logoHeader: headerLogoFor(args.type, args.settings),

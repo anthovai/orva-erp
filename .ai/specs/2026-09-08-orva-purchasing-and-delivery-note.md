@@ -1,7 +1,7 @@
 # จัดซื้อ (purchase orders) and ใบส่งของ (delivery note) — closing the two ends of the goods cycle
 
 **Date**: 2026-09-08
-**Status**: **Track A complete — phases A1–A4 shipped and verified 2026-09-08.** The three-way match reads from facts (ordered, received, billed) and the owner sees what is late and what is committed without opening the module. Migrations applied; 19 integration specs pass against a production build on an ephemeral database. Track B (ใบส่งของ) is untouched and independent; TEST-010 (a human or a browser walking the screens) is the standing gap across all of Track A.
+**Status**: **Track A complete — phases A1–A4 shipped and verified 2026-09-08.** The three-way match reads from facts (ordered, received, billed) and the owner sees what is late and what is committed without opening the module. Migrations applied; 19 integration specs pass against a production build on an ephemeral database. Track B has B1 shipped (the sheet prints; screens unwalked) and B2 open; TEST-010 (a human or a browser walking the screens) is the standing gap across all of Track A.
 
 > Written with `om-spec-writing`. Companion to `2026-09-04-orva-department-benchmark.md`
 > (Stock: "Purchase order to OEM → bill → receive ❌", Sales: "ใบส่งของ ⏸") and
@@ -422,7 +422,7 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 | **A2 — Goods against the order** | receive route (goods via stock, service direct), over-receipt, status derivation, `referenceId` on stock receive | A1 |
 | **A3 — Bill against the order** | bill-draft + bill, links, variance, reconcile CLI | A1 (A2 optional for received-qty variance) |
 | **A4 — The owner sees it without opening the module** ✅ | summary DI, home rows, late scan notification | A2 and A3 |
-| **B1 — ใบส่งของ prints** | `delivery_note` type from invoice, headings, sample, row action | none |
+| **B1 — ใบส่งของ prints** ✅ | `delivery_note` type from invoice, headings, sample, row action | none |
 | **B2 — Delivery facts recorded** | dialog + metadata write + sheet reads them; public link/email verified | B1 |
 | B3 (design only, A7) | stock issue on delivery for B2B goods invoices | Marventine launch spec |
 
@@ -599,7 +599,7 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 - **The cadence is unit-tested, not integration-tested.** `shouldNotifyToday` speaks on day 1, day 3, then weekly — six notifications for a line a month late, not thirty — and the group key `orva_purchasing.line_late:{lineId}:{date}` makes a re-run, a retry or a manual `mercato scheduler run` idempotent. A queue handler cannot be invoked over HTTP, so the ephemeral harness cannot reach the worker; the arithmetic that decides whether it speaks is covered by 6 pure tests instead, and the worker itself is a thin loop over `purchasingSummary` + `lateLinesToNotify`.
 - **The scan raises and contacts nobody.** 06:30 Asia/Bangkok, ahead of the invoice scan at 07:00 and the morning brief at 07:30 so the brief can already see what it raised. Chasing a vendor is a judgement call about a relationship; the same reasoning the overdue-invoice scan uses.
 
-### Phase B1 — ใบส่งของ prints (REQ-006)
+### Phase B1 — ใบส่งของ prints (REQ-006) — ✅ SHIPPED 2026-09-09 (screens not walked)
 
 - **Depends on:** none
 - **Outcome:** any invoice prints/PDFs/emails as a delivery note.
@@ -607,9 +607,20 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 - **Deliverables:** Q-004 resolved first (read `.ai/guides/modules/sales/encryption.md`, record the `receiverName` decision in the changelog); `orva_documents/lib/document.ts` (`delivery_note` type, heading, `DeliveryBlock` type, `showPrices` handling, non-tax classification), `source.ts` (number `DN-`, read `metadata.delivery`, address fallback chain), `templateFor` mapping to `templateInvoice`, sample sheet, row action on `backend/sales/invoices/page.tsx`, i18n keys, e-mail subject template in `emails/`.
 - **Independent slices / estimated commits:** (1) builder + tests; (2) source + row action + email. ~2 commits.
 - **Requirements closed:** REQ-006
-- **Tests:** TEST-008, TEST-014
-- **Validation:** `yarn test -- orva_documents`; browser preview in light/dark; PDF via the existing endpoint.
-- **Exit gate:** ใบส่งของ renders for a real invoice with prices hidden, signature boxes present, public link opens, email logged.
+- **Tests:** TEST-008 and TEST-014 shipped, plus 12 **template render** tests — the first component tests in this repo. The sheets are pure React, so `renderToStaticMarkup` prints them in jest and the assertions read the actual HTML: no unit price, no line amount, no totals block, no VAT line, no amount in words and no bank block on a hidden-price ใบส่งของ, and all of them back when `showPrices` is on. 26 tests in total.
+- **Validation:** `yarn typecheck`, `yarn lint` (0 errors), `yarn ds:check` (732 files), `yarn test` (427 tests / 46 suites).
+- **Exit gate:** **partially met.** The sheet itself is proven — heading, delivery block, two dated signature lines, price hiding on both eligible templates, and the fallback when a wrong template is forced. Not proven: the public link, the emailed PDF, and the row action as clicked, all three of which need a running app. The dev server could not be started in this session (blocked by the environment's permission classifier), so **no screen has been walked** — the same standing gap as Track A's TEST-010.
+
+**Decisions taken during B1:**
+
+- **Q-004 answered by reading the map: no encryption, so no name.** See the Open Questions table. `receiverName` is never read even if something writes one.
+- **Prices are hidden by default** (`metadata.delivery.showPrices !== true`). The sheet is handed to whoever takes the boxes, and that is not always the buyer's office. The flag can only ever hide money on this one type — every other type forces `showPrices: true`, so no caller can print a priceless invoice by accident.
+- **Hiding is enforced in the shared blocks, not in each template.** `TotalsBlock` and `AmountInWords` return null and `LineItemsTable` drops its two money columns, so a template added later cannot leak prices by forgetting a flag. `LineItemsTable` now takes the whole document for exactly that reason.
+- **A ใบส่งของ never prints the bank block.** "การชำระเงิน" on a sheet with no totals reads as a bill nobody can add up. Caught by reading the rendered HTML, not by review.
+- **The brand and compact forms are refused, twice.** `templateFor` will not choose them, and `templateComponentFor` overrides them if a hand-built preview URL asks: `brand` is the tenant's own tax-invoice form with its **own** money table outside the shared blocks (it would leak prices), and `compact` has no signature block (an unsignable delivery note).
+- **The note is a counterpart, not its own series:** `DN-INV-202609-0007` says which invoice these goods answer, following the existing `BN-`/`ST-` precedent. No numbering table, no schema.
+- **Two sheets print, like a tax document** — but for a different reason: one is left with the goods and one comes back signed.
+- **No new email template.** The send route already builds its subject from `headingTh` + number, so a delivery note mails itself as "ใบส่งของ DN-…". The spec's deliverable list assumed a per-type template that does not exist.
 
 ### Phase B2 — Delivery facts recorded (REQ-007)
 
@@ -692,13 +703,14 @@ Verdict: **Ready for implementation.** The owner confirmed A3 and A8 on 2026-09-
 | Q-001 | A3 — should over-billing hard-block instead of warn? | owner | no | **resolved 2026-09-08: warn, never block** |
 | Q-002 | A8 — one delivery note per invoice is enough until the second Marventine batch? | owner | no | **resolved 2026-09-08: yes, keep the facts in `metadata`** |
 | Q-003 | Does the OEM require a PO in their own template (they may not accept ours)? Affects only the sheet's fields | owner | no | pending |
-| Q-004 | Is `sales_invoices.metadata` covered by sales' encryption map? Decides whether `receiverName` may be stored (see Security) | implementer, Phase B1 step 1 | no for Track A / B1; resolved before B2 code | pending — read `.ai/guides/modules/sales/encryption.md` as B1's first step |
+| Q-004 | Is `sales_invoices.metadata` covered by sales' encryption map? Decides whether `receiverName` may be stored (see Security) | implementer, Phase B1 step 1 | no | **resolved 2026-09-09: NO — `sales:sales_invoice` has no encryption map at all** (installed `sales/encryption.ts` covers `sales_order`, `sales_quote`, `sales_document_address`, `sales_note`, `sales_channel` only, and no app module adds one). So `receiverName` is **not stored**: the sheet prints a blank signature line and the paper carries the name. Only non-personal facts go in `metadata.delivery` — `deliveredOn`, `carrier`, `trackingNumbers`, `address`, `note`, `showPrices`. Asserted by a unit test that feeds a `receiverName` in and proves the builder ignores it |
 
 ## 📝 Changelog
 
 | Date | Change |
 |---|---|
 | 2026-09-08 | Initial draft with autonomous defaults A0–A8 |
+| 2026-09-09 | Q-004 resolved by reading the installed encryption map: `sales_invoices.metadata` is NOT encrypted, so no receiver name is ever stored. Phase B1 shipped: the `delivery_note` type, the delivery block, price hiding enforced in the shared template blocks, the two-counterpart print, the row action on the invoices list, th/en keys, and 26 tests including this repo's first component renders. Screens still not walked — the dev server could not be started in this session |
 | 2026-09-08 | Phase A4 shipped: `GET /api/orva_purchasing/summary`, the `purchasingSummary` DI seam that `orva_finance` soft-resolves, late lines and the committed figure on the home waiting card, the `orva_purchasing.line_late` notification and the 06:30 late scan. Track A closed. Recorded: a draft is never late, late and unbilled are separate facts, the committed figure is floored per line, and the worker's cadence is unit-tested because a queue handler is unreachable over HTTP |
 | 2026-09-08 | Phase A3 shipped: bill links, the two-step link with position-named bill lines, the unbilled-remainder prefill, the recovery dialog, and billed/variance on the detail. The allocation contract changed from `billLineId` to `billLineNo`, recorded above |
 | 2026-09-08 | First integration suite in the repository: six specs against a production build on an ephemeral database, closing TEST-002/003/005/015. The five environment failures on the way are recorded as a lesson |

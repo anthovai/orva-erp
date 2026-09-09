@@ -6,6 +6,7 @@ import { BrandTemplate } from './brand'
 import {
   AmountInWords,
   CopyRoleLabel,
+  DeliveryFactsBlock,
   LineItemsTable,
   PartyBlock,
   PaymentDetailsBlock,
@@ -41,7 +42,7 @@ function DocumentHeader({ doc, t }: TemplateProps) {
       <div className="text-right">
         <div className="text-xl font-bold">{doc.headingTh}</div>
         <div className="text-xs uppercase tracking-wide text-muted-foreground">{doc.headingEn}</div>
-        {doc.isTaxDocument ? (
+        {doc.isTaxDocument || doc.isDeliveryNote ? (
           <div className="mt-1 text-xs font-medium"><CopyRoleLabel doc={doc} t={t} /></div>
         ) : null}
       </div>
@@ -88,7 +89,8 @@ function ClassicTemplate({ doc, t }: TemplateProps) {
         <PartyBlock title={t(doc.partyTitles.issuerKey, doc.partyTitles.issuerTh)} party={doc.seller} showTaxIdentity={doc.isTaxDocument} t={t} />
         <PartyBlock title={t(doc.partyTitles.counterpartyKey, doc.partyTitles.counterpartyTh)} party={doc.buyer} showTaxIdentity={doc.isTaxDocument && !doc.isAbbreviated} t={t} />
       </div>
-      <LineItemsTable lines={doc.lines} t={t} />
+      <DeliveryFactsBlock doc={doc} t={t} />
+      <LineItemsTable doc={doc} t={t} />
       <div className="grid grid-cols-2 items-start gap-6">
         <AmountInWords doc={doc} t={t} />
         <TotalsBlock doc={doc} t={t} />
@@ -97,7 +99,7 @@ function ClassicTemplate({ doc, t }: TemplateProps) {
       {doc.note ? <p className="text-xs leading-5 text-muted-foreground">{doc.note}</p> : null}
       <ReferenceBlock doc={doc} t={t} />
       <TermsBlock doc={doc} t={t} />
-      <SignatureRow t={t} />
+      <SignatureRow doc={doc} t={t} />
     </div>
   )
 }
@@ -121,7 +123,8 @@ function ModernTemplate({ doc, t }: TemplateProps) {
         <PartyBlock title={t(doc.partyTitles.issuerKey, doc.partyTitles.issuerTh)} party={doc.seller} showTaxIdentity={doc.isTaxDocument} t={t} />
         <PartyBlock title={t(doc.partyTitles.counterpartyKey, doc.partyTitles.counterpartyTh)} party={doc.buyer} showTaxIdentity={doc.isTaxDocument && !doc.isAbbreviated} t={t} />
       </div>
-      <LineItemsTable lines={doc.lines} t={t} />
+      <DeliveryFactsBlock doc={doc} t={t} />
+      <LineItemsTable doc={doc} t={t} />
       <div className="flex justify-end">
         <div className="w-72">
           <TotalsBlock doc={doc} t={t} />
@@ -132,7 +135,7 @@ function ModernTemplate({ doc, t }: TemplateProps) {
       {doc.note ? <p className="text-xs leading-5 text-muted-foreground">{doc.note}</p> : null}
       <ReferenceBlock doc={doc} t={t} />
       <TermsBlock doc={doc} t={t} />
-      <SignatureRow t={t} />
+      <SignatureRow doc={doc} t={t} />
     </div>
   )
 }
@@ -155,7 +158,8 @@ function CompactTemplate({ doc, t }: TemplateProps) {
         <span className="font-medium">{doc.buyer.name}</span>
         {doc.isTaxDocument && !doc.isAbbreviated ? <TaxIdentityLine taxId={doc.buyer.taxId} branch={doc.buyer.branch} t={t} /> : null}
       </div>
-      <LineItemsTable lines={doc.lines} t={t} />
+      <DeliveryFactsBlock doc={doc} t={t} />
+      <LineItemsTable doc={doc} t={t} />
       <TotalsBlock doc={doc} t={t} />
       <AmountInWords doc={doc} t={t} />
     </div>
@@ -173,8 +177,17 @@ export const DOCUMENT_TEMPLATES: Record<TemplateId, { labelKey: string; fallback
  * The sheet component for a document: a payslip has its own layout regardless
  * of the tenant's template choice (that choice only supplies the accent), every
  * other type uses the selected template.
+ *
+ * A ใบส่งของ is the second exception, and it is a safety one. `brand` draws
+ * the tenant's own tax-invoice form with its own money table — outside the
+ * shared blocks that honour `showPrices` — and `compact` has no signature
+ * block. `templateFor` already refuses both, but the preview lets the operator
+ * pick a template by hand, so the guard belongs here too: whichever way the
+ * choice arrives, a delivery note cannot render a sheet that leaks its prices
+ * or cannot be signed.
  */
-export function templateComponentFor(doc: { template: TemplateId; isPayslip?: boolean }) {
+export function templateComponentFor(doc: { template: TemplateId; isPayslip?: boolean; isDeliveryNote?: boolean }) {
   if (doc.isPayslip) return PayslipTemplate
+  if (doc.isDeliveryNote && doc.template !== 'modern') return ClassicTemplate
   return DOCUMENT_TEMPLATES[doc.template].Component
 }

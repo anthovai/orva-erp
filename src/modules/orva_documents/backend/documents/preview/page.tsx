@@ -33,6 +33,7 @@ const TYPE_LABELS: Record<DocumentType, { key: string; fallback: string }> = {
   statement: { key: 'orva_documents.type.statement', fallback: 'ใบแจ้งยอด' },
   payslip: { key: 'orva_documents.type.payslip', fallback: 'สลิปเงินเดือน' },
   purchase_order: { key: 'orva_documents.type.purchase_order', fallback: 'ใบสั่งซื้อ' },
+  delivery_note: { key: 'orva_documents.type.delivery_note', fallback: 'ใบส่งของ' },
 }
 
 const SAMPLE_VALUE = '__sample__'
@@ -368,10 +369,12 @@ export default function DocumentPreviewPage() {
               >
                 <Template doc={doc} t={t} />
               </div>
-              {doc.isTaxDocument ? (
+              {doc.isTaxDocument || doc.isDeliveryNote ? (
                 // Thai practice prints tax documents in duplicate: ต้นฉบับ for
                 // the customer, สำเนา kept by the company — the second sheet
-                // starts a new page in print/PDF.
+                // starts a new page in print/PDF. A ใบส่งของ needs two for a
+                // different reason: one is left with the goods and one comes
+                // back signed.
                 <div
                   className="w-[794px] max-w-full break-before-page bg-card p-10 shadow-sm print:w-full print:p-0 print:shadow-none"
                 >

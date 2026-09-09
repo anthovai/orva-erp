@@ -124,6 +124,14 @@ export default function OrvaInvoicesPage() {
                   href: `/backend/documents/preview?type=receipt&documentId=${row.id}`,
                 },
                 {
+                  // ใบส่งของ sits next to the receipt because the two travel
+                  // together: the driver carries the delivery note, the office
+                  // keeps the tax invoice.
+                  id: 'delivery-note',
+                  label: t('orva_documents.rowAction.deliveryNote', 'ใบส่งของ'),
+                  href: `/backend/documents/preview?type=delivery_note&documentId=${row.id}`,
+                },
+                {
                   id: 'billing-note',
                   label: t('orva_documents.rowAction.billingNote', 'ใบวางบิล'),
                   href: `/backend/documents/preview?type=billing_note&documentId=${row.id}`,

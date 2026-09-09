@@ -11,7 +11,7 @@
  */
 import { bahtText } from './bahtText'
 
-export const DOCUMENT_TYPES = ['quotation', 'invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'credit_note', 'debit_note', 'billing_note', 'statement', 'payslip', 'purchase_order'] as const
+export const DOCUMENT_TYPES = ['quotation', 'invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'credit_note', 'debit_note', 'billing_note', 'statement', 'payslip', 'purchase_order', 'delivery_note'] as const
 export type DocumentType = (typeof DOCUMENT_TYPES)[number]
 
 export const TEMPLATE_IDS = ['classic', 'modern', 'compact', 'brand'] as const
@@ -23,7 +23,7 @@ export const TEMPLATE_IDS = ['classic', 'modern', 'compact', 'brand'] as const
  */
 export function typesForSourceKind(sourceKind: string | undefined): readonly DocumentType[] {
   if (sourceKind === 'quote') return ['quotation']
-  if (sourceKind === 'invoice') return ['invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'billing_note', 'statement']
+  if (sourceKind === 'invoice') return ['invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'billing_note', 'statement', 'delivery_note']
   if (sourceKind === 'credit_memo') return ['credit_note', 'debit_note']
   if (sourceKind === 'payroll_line') return ['payslip']
   if (sourceKind === 'purchase_order') return ['purchase_order']
@@ -65,6 +65,10 @@ const HEADINGS: Record<DocumentType, { th: string; en: string }> = {
   // issue it, the vendor receives it. Not a tax document — no VAT is
   // claimed by ordering something.
   purchase_order: { th: 'ใบสั่งซื้อ', en: 'Purchase Order' },
+  // Not a tax document and not a demand for money: it proves that the goods
+  // left here and arrived there. For goods, the delivery date it carries is
+  // the VAT point, which is why the date prints even when nothing else does.
+  delivery_note: { th: 'ใบส่งของ', en: 'Delivery Note' },
 }
 
 /** Types that are statutory tax documents and must carry the SELLER's taxpayer id. */
@@ -120,6 +124,24 @@ export type DocumentReference = {
   reason: string
 }
 
+/**
+ * What the ใบส่งของ states about the delivery itself.
+ *
+ * No receiver name: `sales_invoices.metadata` is NOT in sales' encryption map
+ * (Q-004, resolved 2026-09-09), so a third party's name would sit in
+ * plaintext at rest. The sheet prints a blank signature line instead and the
+ * paper carries the name — which is how a signed delivery note works anyway.
+ */
+export type DeliveryBlock = {
+  /** The VAT point for goods. Null prints a blank line to be dated by hand. */
+  deliveredOn: string | null
+  carrier?: string | null
+  trackingNumbers?: string[]
+  /** Where the goods went. The fallback chain lives in `source.ts`. */
+  address?: string | null
+  note?: string | null
+}
+
 export type PrintableDocument = {
   type: DocumentType
   template: TemplateId
@@ -167,6 +189,17 @@ export type PrintableDocument = {
   isAbbreviated: boolean
   /** Payslip: lines are earnings and deductions (deductions negative), grandTotal is net pay. */
   isPayslip: boolean
+  /** ใบส่งของ: carries the delivery block and prints two counterparts. */
+  isDeliveryNote: boolean
+  /**
+   * Whether money may be printed at all. False on a delivery note whose
+   * recipient must not see what the goods cost — a driver hands the sheet to a
+   * warehouse, not to the buyer's accounts department. Every other type is
+   * always true: an invoice without prices is not an invoice.
+   */
+  showPrices: boolean
+  /** Delivery facts for a ใบส่งของ; null on every other type. */
+  delivery: DeliveryBlock | null
   /**
    * What to call the two party blocks. Every sales document is issued by the
    * seller to a customer; a ใบสั่งซื้อ is issued by the buyer to a vendor, so
@@ -194,6 +227,8 @@ function secondaryDateLabel(type: DocumentType): string | null {
       return 'orva_documents.field.paidDate'
     case 'payslip':
       return 'orva_documents.field.payPeriod'
+    case 'delivery_note':
+      return 'orva_documents.field.deliveredOn'
     default:
       return null
   }
@@ -217,6 +252,16 @@ export type PartyTitles = {
 }
 
 export function partyTitlesFor(type: DocumentType): PartyTitles {
+  if (type === 'delivery_note') {
+    // The sheet is about custody of goods, not about a sale: who handed them
+    // over and who took them.
+    return {
+      issuerKey: 'orva_documents.field.consignor',
+      issuerTh: 'ผู้ส่งสินค้า',
+      counterpartyKey: 'orva_documents.field.consignee',
+      counterpartyTh: 'ผู้รับสินค้า',
+    }
+  }
   if (type === 'purchase_order') {
     return {
       issuerKey: 'orva_documents.field.purchaser',
@@ -244,12 +289,23 @@ export function buildPrintableDocument(input: {
   logoHeader?: string | null
   logoFooter?: string | null
   terms?: string | null
+  /** Delivery facts; ignored unless the type is `delivery_note`. */
+  delivery?: DeliveryBlock | null
+  /** Opt in to printing money on a delivery note. Ignored elsewhere. */
+  showPrices?: boolean
 }): PrintableDocument {
   const { type, template, seller, buyer, source } = input
   const heading = HEADINGS[type]
   const isTaxDocument = TAX_DOCUMENT_TYPES.has(type)
   const isAbbreviated = type === 'abbreviated_tax_invoice'
   const isPayslip = type === 'payslip'
+  const isDeliveryNote = type === 'delivery_note'
+  // The flag can only ever hide money on the one type that has a reason to,
+  // so no caller can accidentally print a priceless invoice.
+  const showPrices = isDeliveryNote ? input.showPrices === true : true
+  // Always present on a ใบส่งของ, so the sheet prints the block (with blank
+  // lines to fill in by hand) before any facts have been recorded.
+  const delivery: DeliveryBlock | null = isDeliveryNote ? (input.delivery ?? { deliveredOn: null }) : null
 
   const warnings: DocumentWarning[] = []
   if (isTaxDocument) {
@@ -278,7 +334,8 @@ export function buildPrintableDocument(input: {
     number: source.number,
     issueDate: source.issueDate,
     secondaryDateLabelKey: secondaryDateLabel(type),
-    secondaryDate: source.secondaryDate ?? null,
+    // A delivery note's second date IS the delivery date, wherever it came from.
+    secondaryDate: isDeliveryNote ? (delivery?.deliveredOn ?? source.secondaryDate ?? null) : (source.secondaryDate ?? null),
     seller,
     // a retail slip may go to an anonymous walk-in customer
     buyer: isAbbreviated && !buyer.name?.trim() ? { ...buyer, name: 'ลูกค้าทั่วไป' } : buyer,
@@ -292,10 +349,12 @@ export function buildPrintableDocument(input: {
     // bahtText spells บาท/สตางค์. On a foreign-currency document that would
     // state an amount in words contradicting the figures next to it — a USD
     // total read aloud as baht. Better to print no words than wrong ones.
-    amountInWords: source.currencyCode === 'THB' ? bahtText(source.grandTotal) : null,
+    amountInWords: showPrices && source.currencyCode === 'THB' ? bahtText(source.grandTotal) : null,
     note: source.note ?? null,
     paymentMethod: type === 'receipt' ? (source.paymentMethod ?? null) : null,
-    paymentDetails: input.paymentDetails ?? null,
+    // A ใบส่งของ demands no money, so it carries no bank block — printing
+    // "การชำระเงิน" on a sheet with no prices reads as a bill nobody can total.
+    paymentDetails: isDeliveryNote ? null : (input.paymentDetails ?? null),
     logoHeader: input.logoHeader ?? null,
     logoFooter: input.logoFooter ?? null,
     copyRole: 'original',
@@ -303,6 +362,9 @@ export function buildPrintableDocument(input: {
     isTaxDocument,
     isAbbreviated,
     isPayslip,
+    isDeliveryNote,
+    showPrices,
+    delivery,
     partyTitles: partyTitlesFor(type),
     reference: source.reference ?? null,
     warnings,
@@ -370,6 +432,48 @@ export function samplePayslipSource(): DocumentSource {
     taxRate: null,
     taxAmount: 0,
     grandTotal: salary - sso - wht,
+  }
+}
+
+/**
+ * Sample ใบส่งของ: goods, not services.
+ *
+ * The generic sample is an ERP installation quotation. Printed as a delivery
+ * note it would show somebody delivering "ค่าอบรมผู้ใช้งาน" by van, which
+ * teaches the operator the wrong thing about the document — the same reason
+ * the payslip has its own sample.
+ */
+export function sampleDeliverySource(): DocumentSource {
+  const lines: DocumentLine[] = [
+    { description: 'Marventine Body Lotion 200 มล. (ลัง/24 ขวด)', quantity: 10, unitPrice: 2400, amount: 24000 },
+    { description: 'Marventine Hand Cream 50 มล. (ลัง/48 หลอด)', quantity: 4, unitPrice: 3600, amount: 14400 },
+    { description: 'กล่องบรรจุพร้อมสติกเกอร์ล็อต', quantity: 14, unitPrice: 25, amount: 350 },
+  ]
+  const subtotal = lines.reduce((sum, line) => sum + line.amount, 0)
+  const taxAmount = Math.round(subtotal * 0.07 * 100) / 100
+  return {
+    number: 'DN-INV-202609-0007',
+    issueDate: '2026-09-09',
+    secondaryDate: '2026-09-09',
+    currencyCode: 'THB',
+    lines,
+    subtotal,
+    discount: 0,
+    taxRate: 7,
+    taxAmount,
+    grandTotal: subtotal + taxAmount,
+    note: 'กรุณาตรวจนับสินค้าก่อนลงนามรับ',
+  }
+}
+
+/** Sample delivery facts for the ใบส่งของ preview. */
+export function sampleDelivery(): DeliveryBlock {
+  return {
+    deliveredOn: '2026-09-09',
+    carrier: 'รถบริษัท (ทะเบียน 1กก-1234)',
+    trackingNumbers: [],
+    address: '99/9 ถนนสุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110 (คลังสินค้า ประตู 3)',
+    note: 'ส่งช่วงเช้า ก่อน 11:00 น.',
   }
 }
 

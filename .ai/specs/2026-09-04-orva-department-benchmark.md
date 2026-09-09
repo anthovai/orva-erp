@@ -18,7 +18,7 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 | Tax invoice / receipt / abbreviated tax invoice, e-Tax by Email (PDF/A-3) | FlowAccount/PEAK | ✅ | — |
 | **ใบลดหนี้ / ใบเพิ่มหนี้** (credit / debit note) with RD reason codes, referencing the original tax invoice, posting to GL + ภ.พ.30 | FlowAccount/PEAK (statutory) | ❌ | **Gap #1 — this phase** |
 | **ใบวางบิล** (billing note) listing open invoices per customer | FlowAccount/PEAK | ❌ | Gap #2 — this phase (per customer) |
-| ใบส่งของ / delivery note | all | ⏸ (sales_shipments upstream) | spec `2026-09-08-orva-purchasing-and-delivery-note.md` Track B: `delivery_note` document type from the invoice (shipments need a sales order, which this profile hides) |
+| ใบส่งของ / delivery note | all | ✅ 2026-09-09 (B1) | `delivery_note` document type printed from the invoice (upstream shipments need a sales order, which this profile hides). Prices hidden by default, delivery block, two dated signature lines, two counterparts. B2 (recording the delivery facts from the invoices list) still open; no screen walked yet |
 | Customer statement (ใบแจ้งยอด) | Odoo/ERPNext | ❌ | Gap #3 — from AR open items |
 | Recurring invoices (annual maintenance) | Odoo/ERPNext | ❌ | phase F: recurring งวด from quote |
 | PromptPay QR on invoice | FlowAccount/PEAK | 🚫 | built then declined by owner 2026-09-04 ("ไม่เอา QR") — reverted in d430d3c; do NOT rebuild |
