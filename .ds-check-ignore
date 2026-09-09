@@ -2220,6 +2220,30 @@
       "rule": "inline-style",
       "match": "style=",
       "reason": "Marketing surface: /start and /about are single-look brand pages rendered pre-login, outside the backoffice design-system theme. They paint the Orva palette directly per docs/BRAND.md."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/label.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Lot label sheet: physical print geometry (A4, 70 x 37 mm labels, barcode module widths) is stated in millimetres inline, as a paper artefact must be; every colour and type token still comes from the design system."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/label.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Lot label sheet: physical print geometry (A4, 70 x 37 mm labels, barcode module widths) is stated in millimetres inline, as a paper artefact must be; every colour and type token still comes from the design system."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/label.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Lot label sheet: physical print geometry (A4, 70 x 37 mm labels, barcode module widths) is stated in millimetres inline, as a paper artefact must be; every colour and type token still comes from the design system."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/label.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Lot label sheet: physical print geometry (A4, 70 x 37 mm labels, barcode module widths) is stated in millimetres inline, as a paper artefact must be; every colour and type token still comes from the design system."
     }
   ]
 }

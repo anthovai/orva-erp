@@ -118,11 +118,12 @@ export default function StockValuationPage() {
                     <th className="px-3 py-2 text-right">{t('orva_stock.col.onHand', 'คงเหลือ')}</th>
                     <th className="px-3 py-2 text-right">{t('orva_stock.col.unitCost', 'ต้นทุน/หน่วย')}</th>
                     <th className="px-3 py-2 text-right">{t('orva_stock.col.value', 'มูลค่า')}</th>
+                    <th className="px-3 py-2 text-right"><span className="sr-only">{t('orva_stock.valuation.printLabels', 'พิมพ์ฉลาก')}</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {valuation.data.lines.length === 0 ? (
-                    <tr><td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">{t('orva_stock.valuation.empty', 'ยังไม่มีสินค้าในคลัง — รับล็อตแรกเข้าจากบิล OEM ได้ที่ "รับสินค้าเข้าคลัง"')}</td></tr>
+                    <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">{t('orva_stock.valuation.empty', 'ยังไม่มีสินค้าในคลัง — รับล็อตแรกเข้าจากบิล OEM ได้ที่ "รับสินค้าเข้าคลัง"')}</td></tr>
                   ) : valuation.data.lines.map((l) => (
                     <tr key={l.lotId} className="border-b last:border-b-0">
                       <td className="px-3 py-2">{l.variantName ?? l.sku ?? l.variantId}{l.sku ? <span className="ml-1 text-xs text-muted-foreground">{l.sku}</span> : null}</td>
@@ -133,6 +134,14 @@ export default function StockValuationPage() {
                       <td className="px-3 py-2 text-right tabular-nums">{qty(l.onHand)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{l.unitCost == null ? <span className="text-status-warning-text">{t('orva_stock.valuation.noCost', 'ไม่มีต้นทุน')}</span> : fmt(l.unitCost)}</td>
                       <td className="px-3 py-2 text-right tabular-nums">{fmt(l.value)}</td>
+                      <td className="px-3 py-2 text-right">
+                        {l.lotNumber ? (
+                          // The label prints on the documents rails; the lot id is the document id.
+                          <Link className="text-xs text-primary hover:underline" href={`/backend/documents/preview?type=lot_label&documentId=${l.lotId}`}>
+                            {t('orva_stock.valuation.printLabels', 'พิมพ์ฉลาก')}
+                          </Link>
+                        ) : null}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

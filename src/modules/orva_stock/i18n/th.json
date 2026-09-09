@@ -75,6 +75,7 @@
   "orva_stock.valuation.noCost": "ไม่มีต้นทุน",
   "orva_stock.valuation.page.description": "ล็อตที่มีในคลัง มูลค่าตามต้นทุนที่ซื้อมา วันหมดอายุ และการลงบัญชีต้นทุนขายรายเดือน",
   "orva_stock.valuation.page.title": "สินค้าคงเหลือและต้นทุน",
+  "orva_stock.valuation.printLabels": "พิมพ์ฉลาก",
   "orva_stock.valuation.totalOnHand": "จำนวนคงเหลือ (ชิ้น)",
   "orva_stock.valuation.totalValue": "มูลค่าสินค้าคงเหลือ",
   "orva_stock.valuation.unpostedCogs": "ต้นทุนขายรอลงบัญชี",

@@ -11,13 +11,15 @@ import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
 import { previewQuerySchema } from '../../data/validators'
 import { buildPrintableDocument, type TemplateId } from '../../lib/document'
+import { resolveStockLabelSource } from '../../lib/stockBridge'
 import { resolvePurchasingDocumentSource } from '../../lib/purchasingBridge'
 import {
-  documentFromQuote,
+  documentFromLot,
   documentFromPayroll,
-  findPayrollLineById,
+  documentFromQuote,
   findCreditMemoById,
   findInvoiceById,
+  findPayrollLineById,
   findQuoteById,
   listInvoiceSources,
   listQuoteSources,
@@ -64,7 +66,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const parsed = previewQuerySchema.safeParse(Object.fromEntries(url.searchParams))
   if (!parsed.success) return Response.json({ error: 'Invalid query' }, { status: 400 })
-  const { type, documentId, brand, asOf } = parsed.data
+  const { type, documentId, brand, asOf, copies } = parsed.data
   const template = parsed.data.template as TemplateId | undefined
 
   const container = await createRequestContainer()
@@ -86,6 +88,24 @@ export async function GET(req: Request) {
     // are about which sales record prints as which sales document. Without the
     // purchasing module registered the type reports itself unavailable rather
     // than failing the whole screen.
+    // The lot label: the lot lives in WMS and its cost in orva_stock, which
+    // this module must not import, so it arrives through stock's optional DI
+    // reader — the same seam as the purchase order. Without a documentId the
+    // sample sheet renders below like any other type.
+    if (type === 'lot_label' && documentId) {
+      const stock = resolveStockLabelSource(container)
+      if (!stock) {
+        return Response.json({ error: 'โมดูลคลังสินค้าไม่พร้อมใช้งาน' }, { status: 400 })
+      }
+      const lotDocument = await withTenantRls(em, tenantId, async (tem) => {
+        const data = await stock.findLot(tem, { tenantId, organizationId }, documentId)
+        if (!data) return null
+        const settings = await loadSettings(tem, { tenantId, organizationId })
+        return documentFromLot(tem, { data, settings, copies, template })
+      })
+      if (!lotDocument) return Response.json({ error: 'ไม่พบล็อตนี้' }, { status: 404 })
+      return Response.json({ document: lotDocument, usedSample: false, sourceKind: 'lot', sources: [] })
+    }
     if (type === 'purchase_order' && documentId) {
       const purchasing = resolvePurchasingDocumentSource(container)
       if (!purchasing) {
@@ -170,7 +190,7 @@ export async function GET(req: Request) {
           ? await documentFromPayroll(tem, { row, template, settings })
           : row
           ? await documentFromQuote(tem, { row, type, template, settings, brand, asOf })
-          : await sampleDocumentForBrand(tem, { type, template, settings, brand }),
+          : await sampleDocumentForBrand(tem, { type, template, settings, brand, copies }),
       }
     })
 

@@ -402,6 +402,16 @@ test.describe('ใบส่งของ', () => {
     expect(whole).toMatch(/ต้นฉบับ|Original \(customer/)
     expect(whole, 'the copy that comes back signed').toMatch(/สำเนา|Copy \(company/)
 
+    // A hand-picked template on the URL cannot turn the note into the brand
+    // form: the page chooses the sheet from the document, not from the id.
+    await page.goto(`/backend/documents/preview?type=delivery_note&documentId=${invoice.id}&template=brand`)
+    const forced = page.locator('[data-document-sheet="true"]').first()
+    await expect(forced).toBeVisible({ timeout: 30_000 })
+    const forcedText = (await forced.innerText()).replace(/\s+/g, ' ')
+    expect(forcedText).not.toContain('2,400')
+    expect(forcedText).not.toContain('จำนวนเงินสุทธิที่ต้องชำระ')
+    expect(forcedText).toMatch(/ผู้ส่งสินค้า|Delivered by|Consignor/i)
+
     // The invoices list offers both halves of the job.
     await page.goto('/backend/sales/invoices')
     await expect(page.getByText(invoice.number).first()).toBeVisible({ timeout: 30_000 })

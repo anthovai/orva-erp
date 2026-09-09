@@ -9,7 +9,7 @@ import { withTenantRls } from '@/lib/rls'
 import { LotCost } from '../../data/entities'
 import { receiveSchema } from '../../data/validators'
 import { callInternal, resolveStockSite } from '../../lib/internal'
-import { unitCostFromBillLine } from '../../lib/valuation'
+import { expiryFromShelfLife, shelfLifeMonthsFor, unitCostFromBillLine } from '../../lib/valuation'
 
 export const metadata = {
   POST: { requireAuth: true, requireFeatures: ['orva_stock.manage', 'wms.receive_inventory'] },
@@ -21,6 +21,8 @@ const resultSchema = z.object({
   lotId: z.string().nullable(),
   unitCost: z.string(),
   quantity: z.string(),
+  /** The expiry the lot now carries — given, or derived from the product's shelf life. */
+  expiresOn: z.string().nullable(),
 })
 
 /**
@@ -46,6 +48,16 @@ export async function POST(req: Request) {
     const result = await withTenantRls(em, scope.tenantId, async (tem) => {
       const site = await resolveStockSite(tem, scope)
 
+      // A7 (G3): a lot with no expiry silently switches off the home screen's
+      // expiry warning for it. When the receiver gives none, the product's
+      // shelf life sets it — from the manufacturing date if known, else from
+      // the receipt date. An explicit expiresOn always wins.
+      let expiresOn: string | null = input.expiresOn ?? null
+      if (!expiresOn) {
+        const months = await shelfLifeMonthsFor(tem, scope, input.catalogVariantId)
+        if (months) expiresOn = expiryFromShelfLife(input.manufacturedOn ?? input.receivedOn, months)
+      }
+
       let unitCost = input.unitCost
       if (unitCost == null) {
         if (!input.billLineId) throw Object.assign(new Error('ระบุต้นทุนต่อหน่วย หรือเลือกบรรทัดบิลที่ซื้อมา'), { status: 400 })
@@ -59,6 +71,13 @@ export async function POST(req: Request) {
       }
 
       const received = await callInternal<{ ok: true; movementId: string }>(req, '/api/wms/inventory/receive', {
+        // WMS parses its `scopedSchema` off the raw body — tenant and
+        // organization are REQUIRED fields there, not injected from the
+        // session. Without them every receive answered "Validation failed";
+        // the Marventine rehearsal (G3) was the first caller to reach this
+        // line with real goods.
+        tenantId: scope.tenantId,
+        organizationId,
         warehouseId: site.warehouseId,
         locationId: site.locationId,
         catalogVariantId: input.catalogVariantId,
@@ -86,11 +105,11 @@ export async function POST(req: Request) {
         [received.movementId, scope.tenantId],
       )) as Array<{ lot_id: string | null }>
       const lotId = movement[0]?.lot_id ?? null
-      if (lotId && (input.expiresOn || input.manufacturedOn)) {
+      if (lotId && (expiresOn || input.manufacturedOn)) {
         await tem.execute(
           `update wms_inventory_lots set expires_at = coalesce(?::date, expires_at), manufactured_at = coalesce(?::date, manufactured_at), updated_at = now()
            where id = ?::uuid and tenant_id = ?::uuid`,
-          [input.expiresOn ?? null, input.manufacturedOn ?? null, lotId, scope.tenantId],
+          [expiresOn, input.manufacturedOn ?? null, lotId, scope.tenantId],
         )
       }
       if (!lotId) throw Object.assign(new Error('WMS did not return a lot for this receipt'), { status: 502 })
@@ -103,7 +122,15 @@ export async function POST(req: Request) {
         receivedOn: input.receivedOn, createdBy: userId, createdAt: now, updatedAt: now,
       }))
       await tem.flush()
-      return { ok: true as const, movementId: received.movementId, lotId, unitCost: unitCost.toFixed(4), quantity: input.quantity.toFixed(4) }
+      return {
+        ok: true as const,
+        movementId: received.movementId,
+        lotId,
+        unitCost: unitCost.toFixed(4),
+        quantity: input.quantity.toFixed(4),
+        // What the lot now carries, so a caller sees the derived date.
+        expiresOn,
+      }
     })
     return Response.json(result)
   } catch (error: unknown) {

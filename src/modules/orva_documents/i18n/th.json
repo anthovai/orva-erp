@@ -130,6 +130,10 @@
   "orva_documents.issue.percentLabel": "เปอร์เซ็นต์ของยอดก่อนภาษี",
   "orva_documents.issue.submit": "ออกใบแจ้งหนี้",
   "orva_documents.issue.title": "ออกใบแจ้งหนี้งวด",
+  "orva_documents.label.exp": "EXP",
+  "orva_documents.label.fda": "อย.",
+  "orva_documents.label.lot": "LOT",
+  "orva_documents.label.mfg": "MFG",
   "orva_documents.note.addLine": "+ เพิ่มบรรทัด",
   "orva_documents.note.cancel": "ยกเลิก",
   "orva_documents.note.existing": "ใบที่ออกไปแล้ว",
@@ -286,6 +290,7 @@
   "orva_documents.type.debit_note": "ใบเพิ่มหนี้",
   "orva_documents.type.delivery_note": "ใบส่งของ",
   "orva_documents.type.invoice": "ใบแจ้งหนี้",
+  "orva_documents.type.lot_label": "ฉลากล็อต",
   "orva_documents.type.payslip": "สลิปเงินเดือน",
   "orva_documents.type.purchase_order": "ใบสั่งซื้อ",
   "orva_documents.type.quotation": "ใบเสนอราคา",
@@ -293,6 +298,7 @@
   "orva_documents.type.statement": "ใบแจ้งยอด",
   "orva_documents.type.tax_invoice": "ใบกำกับภาษี / ใบแจ้งหนี้",
   "orva_documents.warning.buyerTaxId": "ลูกค้ารายนี้ยังไม่มีเลขประจำตัวผู้เสียภาษีในระบบ",
+  "orva_documents.warning.fda_missing": "สินค้านี้ยังไม่มีเลขที่ใบรับจดแจ้ง (อย.) — ฉลากจะพิมพ์ช่องว่าง กรอกในสินค้าก่อนพิมพ์จริง",
   "orva_documents.warning.sellerTaxId": "ยังไม่ได้ตั้งเลขประจำตัวผู้เสียภาษีของกิจการ — ตั้งค่าที่หน้าตั้งค่าเอกสาร",
   "orva_documents.warning.title": "เอกสารนี้ยังไม่สมบูรณ์ตามข้อกำหนด"
 }

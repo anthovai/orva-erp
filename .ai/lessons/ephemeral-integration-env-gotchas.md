@@ -49,6 +49,12 @@ Get-CimInstance Win32_Process -Filter "name='node.exe'" |
   ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 ```
 
+5. **`💥 Failed: Command failed: yarn run build (exit 1)` with nothing above it** is
+   the runner swallowing the build's output. Run `yarn build` yourself: if it passes
+   on the same tree (it did, 2026-09-09, after a `Reset Next build output directory`
+   line), the runner's build was environmental — rerun rather than hunt in the code.
+   If it fails, the real error is in that output.
+
 **Rule**: before `yarn test:integration:ephemeral`, stop the dev server and
 kill leftover `next start` / `queue worker` / `mercato server start` processes
 for this repo — before *every* run, not just the first. In specs,

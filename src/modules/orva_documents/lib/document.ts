@@ -10,8 +10,9 @@
  * re-deriving it here would let a document disagree with the ledger.
  */
 import { bahtText } from './bahtText'
+import type { Encoded } from './barcode'
 
-export const DOCUMENT_TYPES = ['quotation', 'invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'credit_note', 'debit_note', 'billing_note', 'statement', 'payslip', 'purchase_order', 'delivery_note'] as const
+export const DOCUMENT_TYPES = ['quotation', 'invoice', 'tax_invoice', 'receipt', 'abbreviated_tax_invoice', 'credit_note', 'debit_note', 'billing_note', 'statement', 'payslip', 'purchase_order', 'delivery_note', 'lot_label'] as const
 export type DocumentType = (typeof DOCUMENT_TYPES)[number]
 
 export const TEMPLATE_IDS = ['classic', 'modern', 'compact', 'brand'] as const
@@ -42,6 +43,7 @@ export function typesForSourceKind(sourceKind: string | undefined): readonly Doc
   if (sourceKind === 'credit_memo') return ['credit_note', 'debit_note']
   if (sourceKind === 'payroll_line') return ['payslip']
   if (sourceKind === 'purchase_order') return ['purchase_order']
+  if (sourceKind === 'lot') return ['lot_label']
   return DOCUMENT_TYPES
 }
 export type TemplateId = (typeof TEMPLATE_IDS)[number]
@@ -84,6 +86,10 @@ const HEADINGS: Record<DocumentType, { th: string; en: string }> = {
   // left here and arrived there. For goods, the delivery date it carries is
   // the VAT point, which is why the date prints even when nothing else does.
   delivery_note: { th: 'ใบส่งของ', en: 'Delivery Note' },
+  // Not a document between parties at all: a sheet of identical labels for
+  // one lot — brand, product, อย. number, lot, MFG/EXP, barcode. It prints on
+  // the same rails so the brand mark and the PDF printer come for free.
+  lot_label: { th: 'ฉลากล็อต', en: 'Lot Labels' },
 }
 
 /** Types that are statutory tax documents and must carry the SELLER's taxpayer id. */
@@ -157,6 +163,32 @@ export type DeliveryBlock = {
   note?: string | null
 }
 
+/** One label. The sheet repeats it. */
+export type LabelData = {
+  brandName: string | null
+  productTitle: string
+  /** e.g. "200 มล." */
+  packSize: string | null
+  /** เลขที่ใบรับจดแจ้ง (อย.). Null prints as a gap and raises `fda_missing`. */
+  fdaNotification: string | null
+  lotNumber: string | null
+  manufacturedOn: string | null
+  expiresOn: string | null
+  barcode: Encoded | null
+}
+
+/** A4 grid of identical labels; more than `columns × rows` starts a new page. */
+export type LabelSheet = {
+  labels: LabelData[]
+  columns: number
+  rows: number
+}
+
+export const LABEL_SHEET_COLUMNS = 3
+export const LABEL_SHEET_ROWS = 8
+export const LABEL_COPIES_DEFAULT = LABEL_SHEET_COLUMNS * LABEL_SHEET_ROWS
+export const LABEL_COPIES_MAX = LABEL_COPIES_DEFAULT * 4
+
 export type PrintableDocument = {
   type: DocumentType
   template: TemplateId
@@ -215,6 +247,9 @@ export type PrintableDocument = {
   showPrices: boolean
   /** Delivery facts for a ใบส่งของ; null on every other type. */
   delivery: DeliveryBlock | null
+  /** ฉลากล็อต: the party blocks, lines and totals are empty and no template reads them. */
+  isLabelSheet: boolean
+  labelSheet: LabelSheet | null
   /**
    * What to call the two party blocks. Every sales document is issued by the
    * seller to a customer; a ใบสั่งซื้อ is issued by the buyer to a vendor, so
@@ -230,7 +265,7 @@ export type PrintableDocument = {
   warnings: DocumentWarning[]
 }
 
-export type DocumentWarning = 'seller_tax_id_missing' | 'buyer_tax_id_missing'
+export type DocumentWarning = 'seller_tax_id_missing' | 'buyer_tax_id_missing' | 'fda_missing'
 
 function secondaryDateLabel(type: DocumentType): string | null {
   switch (type) {
@@ -308,6 +343,8 @@ export function buildPrintableDocument(input: {
   delivery?: DeliveryBlock | null
   /** Opt in to printing money on a delivery note. Ignored elsewhere. */
   showPrices?: boolean
+  /** The labels; ignored unless the type is `lot_label`. */
+  labelSheet?: LabelSheet | null
 }): PrintableDocument {
   const { type, template, seller, buyer, source } = input
   const heading = HEADINGS[type]
@@ -315,6 +352,10 @@ export function buildPrintableDocument(input: {
   const isAbbreviated = type === 'abbreviated_tax_invoice'
   const isPayslip = type === 'payslip'
   const isDeliveryNote = type === 'delivery_note'
+  const isLabelSheet = type === 'lot_label'
+  const labelSheet: LabelSheet | null = isLabelSheet
+    ? (input.labelSheet ?? { labels: [], columns: LABEL_SHEET_COLUMNS, rows: LABEL_SHEET_ROWS })
+    : null
   // The flag can only ever hide money on the one type that has a reason to,
   // so no caller can accidentally print a priceless invoice.
   const showPrices = isDeliveryNote ? input.showPrices === true : true
@@ -323,6 +364,9 @@ export function buildPrintableDocument(input: {
   const delivery: DeliveryBlock | null = isDeliveryNote ? (input.delivery ?? { deliveredOn: null }) : null
 
   const warnings: DocumentWarning[] = []
+  // A cosmetics label without its อย. number is not a legal label; the
+  // preview says so rather than printing a sheet with a gap on it.
+  if (isLabelSheet && labelSheet && labelSheet.labels.some((label) => !label.fdaNotification)) warnings.push('fda_missing')
   if (isTaxDocument) {
     // A Thai tax invoice without the issuer's taxpayer id cannot be used by
     // the buyer to claim input VAT — surfacing this beats printing it.
@@ -380,6 +424,8 @@ export function buildPrintableDocument(input: {
     isDeliveryNote,
     showPrices,
     delivery,
+    isLabelSheet,
+    labelSheet,
     partyTitles: partyTitlesFor(type),
     reference: source.reference ?? null,
     warnings,
@@ -490,6 +536,24 @@ export function sampleDelivery(): DeliveryBlock {
     address: '99/9 ถนนสุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110 (คลังสินค้า ประตู 3)',
     note: 'ส่งช่วงเช้า ก่อน 11:00 น.',
   }
+}
+
+/**
+ * Sample label sheet: a Marventine lot with a well-formed (not real) อย.
+ * number and EAN-13, so the sheet can be checked before the first real SKU.
+ */
+export function sampleLabelSheet(copies: number = LABEL_COPIES_DEFAULT): LabelSheet {
+  const label: LabelData = {
+    brandName: 'Marventine',
+    productTitle: 'Marventine Body Lotion',
+    packSize: '200 มล.',
+    fdaNotification: '1012345678',
+    lotNumber: 'MV2609A',
+    manufacturedOn: '2026-09-01',
+    expiresOn: '2028-09-01',
+    barcode: null,
+  }
+  return { labels: Array.from({ length: copies }, () => label), columns: LABEL_SHEET_COLUMNS, rows: LABEL_SHEET_ROWS }
 }
 
 /** Sample employee for the payslip preview. */

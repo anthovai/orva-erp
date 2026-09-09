@@ -31,3 +31,21 @@ server keeps serving its cached list until the TTL lapses.
 After editing ce.ts: `yarn generate`, then `yarn mercato entities install`,
 then wait out (or restart the dev server past) the 5-minute definitions
 cache before judging whether the field rendered.
+
+**Addendum 2026-09-09 — reading values back server-side.** `loadCustomFieldValues`
+(`@open-mercato/shared/lib/crud/custom-fields`) returns
+`{ [recordId]: { cf_<key>: value } }` — the keys are **prefixed**, exactly as CRUD
+list rows carry them. `values[id].shelf_life_months` is silently `undefined`;
+`values[id].cf_shelf_life_months` is the value. Two G3 readers were written
+against the bare key and both returned null until the rehearsal's lot came back
+with no expiry.
+
+**Addendum 2026-09-09 (2) — reading inside the app.** In the G3 rehearsal the
+values were written (rows in `custom_field_values`, verified by direct query)
+while `loadCustomFieldValues` and the CRUD list decorator both returned null
+for them inside the running app — for a product and for a deal, through every
+write shape — although the same loader returned them from the CLI against the
+dev database. Until that is located, server-side Orva code that must not miss a
+stored value reads `custom_field_values` as columns (`value_int`/`value_text`,
+`entity_id`, `field_key`, `record_id`, `tenant_id`, `deleted_at is null`) — the
+reportQueries precedent — and the harness asserts writes against the table.

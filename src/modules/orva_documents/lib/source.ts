@@ -4,9 +4,16 @@ import { parseDecryptedFieldValue } from '@open-mercato/shared/lib/encryption/te
 import { SalesCreditMemo, SalesCreditMemoLine, SalesInvoice, SalesInvoiceLine, SalesQuote, SalesQuoteLine } from '@open-mercato/core/modules/sales/data/entities'
 import { DocumentSettings } from '../data/entities'
 import { brandForNumber, loadBrands, settingsWithBrand } from './brands'
+import { barcodeFor } from './barcode'
+import type { LotLabelData } from './stockBridge'
 import {
   buildPrintableDocument,
+  LABEL_COPIES_DEFAULT,
+  LABEL_COPIES_MAX,
+  LABEL_SHEET_COLUMNS,
+  LABEL_SHEET_ROWS,
   sampleBuyer,
+  sampleLabelSheet,
   sampleDelivery,
   sampleDeliverySource,
   sampleEmployee,
@@ -78,6 +85,8 @@ export function templateFor(type: DocumentType, settings: DocumentSettings | nul
     purchase_order: settings.templateQuotation,
     // the delivery note follows the invoice, within the limits below
     delivery_note: settings.templateInvoice,
+    // a label sheet has its own layout; the choice only reaches the brand mark
+    lot_label: settings.templateInvoice,
   }
   const chosen = byType[type]
   // A ใบส่งของ has to be signable and must not demand payment. The brand form
@@ -552,19 +561,70 @@ function headerLogoFor(type: DocumentType, settings: DocumentSettings | null): s
 /** Sample sheet, optionally dressed in a brand so a new brand can be checked. */
 export async function sampleDocumentForBrand(
   tem: EntityManager,
-  args: { type: DocumentType; template?: TemplateId; settings: DocumentSettings | null; brand?: string | null },
+  args: { type: DocumentType; template?: TemplateId; settings: DocumentSettings | null; brand?: string | null; copies?: number },
 ): Promise<PrintableDocument> {
   const settings = await brandedSettings(tem, args.settings, null, args.brand)
   return sampleDocument({ ...args, settings })
+}
+
+/** Clamp the requested copies to whole sheets' worth, never zero, never a ream. */
+export function labelCopies(requested: unknown): number {
+  const n = Number(requested)
+  if (!Number.isInteger(n) || n < 1) return LABEL_COPIES_DEFAULT
+  return Math.min(n, LABEL_COPIES_MAX)
+}
+
+/**
+ * The label sheet for one lot, from what stock reads. The brand mark and name
+ * come from the document brand the product names (e.g. MRV), through the same
+ * `brandedSettings` every branded sheet uses.
+ */
+export async function documentFromLot(
+  tem: EntityManager,
+  args: { data: LotLabelData; settings: DocumentSettings | null; copies?: number; template?: TemplateId },
+): Promise<PrintableDocument> {
+  const settings = await brandedSettings(tem, args.settings, null, args.data.product.brandCode)
+  const label = {
+    brandName: args.data.product.brandCode
+      ? (settings?.sellerName && settings.sellerName !== args.settings?.sellerName ? settings.sellerName : args.data.product.brandCode)
+      : null,
+    productTitle: args.data.product.title,
+    packSize: args.data.product.packSize,
+    fdaNotification: args.data.product.fdaNotification,
+    lotNumber: args.data.lot.lotNumber,
+    manufacturedOn: args.data.lot.manufacturedOn,
+    expiresOn: args.data.lot.expiresOn,
+    barcode: barcodeFor(args.data.variant),
+  }
+  const copies = labelCopies(args.copies)
+  return buildPrintableDocument({
+    type: 'lot_label',
+    template: args.template ?? templateFor('lot_label', settings),
+    seller: sellerFrom(settings),
+    buyer: { name: '' },
+    source: {
+      number: args.data.lot.lotNumber ?? args.data.lot.id,
+      issueDate: args.data.lot.manufacturedOn ?? '',
+      currencyCode: 'THB',
+      lines: [],
+      subtotal: 0,
+      taxAmount: 0,
+      grandTotal: 0,
+    },
+    logoHeader: settings?.logoHeader ?? null,
+    labelSheet: { labels: Array.from({ length: copies }, () => label), columns: LABEL_SHEET_COLUMNS, rows: LABEL_SHEET_ROWS },
+  })
 }
 
 export function sampleDocument(args: {
   type: DocumentType
   template?: TemplateId
   settings: DocumentSettings | null
+  copies?: number
 }): PrintableDocument {
   const payslip = args.type === 'payslip'
   const deliveryNote = args.type === 'delivery_note'
+  const labelSheet = args.type === 'lot_label'
   return buildPrintableDocument({
     type: args.type,
     template: args.template ?? templateFor(args.type, args.settings),
@@ -572,6 +632,7 @@ export function sampleDocument(args: {
     buyer: payslip ? sampleEmployee() : sampleBuyer(),
     source: payslip ? samplePayslipSource() : deliveryNote ? sampleDeliverySource() : sampleSource(),
     delivery: deliveryNote ? sampleDelivery() : null,
+    labelSheet: labelSheet ? sampleLabelSheet(labelCopies(args.copies)) : null,
     accentColor: args.settings?.brandColor ?? null,
     paymentDetails: args.settings?.paymentDetails ?? null,
     logoHeader: headerLogoFor(args.type, args.settings),

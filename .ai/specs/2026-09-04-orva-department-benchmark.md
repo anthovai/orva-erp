@@ -58,7 +58,7 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 | Cost per lot, valuation, COGS posting | Odoo | ✅ (orva_stock) | — |
 | **Purchase order to OEM → bill → receive** | Odoo Purchase | ✅ 2026-09-08 (A1–A4) | `orva_purchasing`: order → receive through orva_stock → link the bill finance raised. Three-way match complete (ordered / received / billed), over-receipt refused, over-billing warned. What is late and what is committed-but-unbilled now reach the home screen and a daily 06:30 notification without opening the module. Every screen and dialog walked by browser specs 2026-09-09 (TEST-010, 11 specs), which found and fixed empty dropdowns on the create form |
 | Reorder point / low-stock alert | Odoo | 🟡 | expiry alerts (≤90 วัน + expired) on the home waiting card; no reorder point — no code |
-| Barcode / lot label printing (with FDA no.) | Odoo | ❌ | **G3** — no label surface exists; the only "label" hits in `orva_stock` are form labels |
+| Barcode / lot label printing (with FDA no.) | Odoo | ✅ 2026-09-09 | `lot_label` document: A4 3 × 8, อย. no., LOT, MFG/EXP, EAN-13 (Code 39 fallback), brand mark; "พิมพ์ฉลาก" on every lot; physical print test is the owner's |
 | Marketplace order import (Shopee/Lazada/TikTok) | Odoo connectors | ❌ | the retail sale can *record* a marketplace as its payment channel; nothing imports orders |
 | Shipping labels (Flash/Kerry) | — | ⏸ shipping_carriers | phase G |
 

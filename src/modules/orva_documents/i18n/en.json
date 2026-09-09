@@ -130,6 +130,10 @@
   "orva_documents.issue.percentLabel": "Percent of pre-VAT subtotal",
   "orva_documents.issue.submit": "Issue invoice",
   "orva_documents.issue.title": "Issue installment invoice",
+  "orva_documents.label.exp": "EXP",
+  "orva_documents.label.fda": "FDA",
+  "orva_documents.label.lot": "LOT",
+  "orva_documents.label.mfg": "MFG",
   "orva_documents.note.addLine": "+ Add line",
   "orva_documents.note.cancel": "Cancel",
   "orva_documents.note.existing": "Already issued",
@@ -286,6 +290,7 @@
   "orva_documents.type.debit_note": "Debit note",
   "orva_documents.type.delivery_note": "Delivery Note",
   "orva_documents.type.invoice": "Invoice",
+  "orva_documents.type.lot_label": "Lot labels",
   "orva_documents.type.payslip": "Payslip",
   "orva_documents.type.purchase_order": "Purchase Order",
   "orva_documents.type.quotation": "Quotation",
@@ -293,6 +298,7 @@
   "orva_documents.type.statement": "Statement of Account",
   "orva_documents.type.tax_invoice": "Tax invoice / Invoice",
   "orva_documents.warning.buyerTaxId": "This customer has no taxpayer ID on record.",
+  "orva_documents.warning.fda_missing": "This product has no FDA notification number — the label prints a gap; enter it on the product before printing for real",
   "orva_documents.warning.sellerTaxId": "Your taxpayer ID is not set — add it in document settings.",
   "orva_documents.warning.title": "This document is not yet compliant"
 }

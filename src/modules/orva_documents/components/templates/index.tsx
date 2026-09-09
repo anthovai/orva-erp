@@ -3,6 +3,7 @@ import * as React from 'react'
 import type { TemplateId } from '../../lib/document'
 import { PayslipTemplate } from './payslip'
 import { BrandTemplate } from './brand'
+import { LabelSheetTemplate } from './label'
 import {
   AmountInWords,
   CopyRoleLabel,
@@ -186,8 +187,10 @@ export const DOCUMENT_TEMPLATES: Record<TemplateId, { labelKey: string; fallback
  * choice arrives, a delivery note cannot render a sheet that leaks its prices
  * or cannot be signed.
  */
-export function templateComponentFor(doc: { template: TemplateId; isPayslip?: boolean; isDeliveryNote?: boolean }) {
+export function templateComponentFor(doc: { template: TemplateId; isPayslip?: boolean; isDeliveryNote?: boolean; isLabelSheet?: boolean }) {
   if (doc.isPayslip) return PayslipTemplate
+  // A label sheet has its own layout too; the template choice only supplied the brand mark.
+  if (doc.isLabelSheet) return LabelSheetTemplate
   if (doc.isDeliveryNote && doc.template !== 'modern') return ClassicTemplate
   return DOCUMENT_TEMPLATES[doc.template].Component
 }

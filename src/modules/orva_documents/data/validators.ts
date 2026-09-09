@@ -67,6 +67,8 @@ export const previewQuerySchema = z.object({
    * Absent means the whole account to date.
    */
   asOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  /** ฉลากล็อต only: how many labels to print (default one sheet of 24, max four sheets). */
+  copies: z.coerce.number().int().min(1).max(96).optional(),
 })
 
 /**

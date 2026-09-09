@@ -34,6 +34,7 @@ const TYPE_LABELS: Record<DocumentType, { key: string; fallback: string }> = {
   payslip: { key: 'orva_documents.type.payslip', fallback: 'สลิปเงินเดือน' },
   purchase_order: { key: 'orva_documents.type.purchase_order', fallback: 'ใบสั่งซื้อ' },
   delivery_note: { key: 'orva_documents.type.delivery_note', fallback: 'ใบส่งของ' },
+  lot_label: { key: 'orva_documents.type.lot_label', fallback: 'ฉลากล็อต' },
 }
 
 const SAMPLE_VALUE = '__sample__'
@@ -221,7 +222,10 @@ export default function DocumentPreviewPage() {
   // with no explicit choice the server already applied the configured
   // template — render whichever the document says it is
   // '' must fall through too, hence || rather than ??
-  const Template = templateComponentFor({ template: (doc?.template || template || 'classic') as TemplateId, isPayslip: doc?.isPayslip })
+  // The whole document decides the sheet: a payslip, a label sheet and a
+  // delivery note each override the template id, and passing only `isPayslip`
+  // here silently rendered the label sheet as a blank invoice (G3, 2026-09-09).
+  const Template = templateComponentFor(doc ?? { template: (template || 'classic') as TemplateId })
 
   return (
     <Page>

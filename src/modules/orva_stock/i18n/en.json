@@ -75,6 +75,7 @@
   "orva_stock.valuation.noCost": "No cost",
   "orva_stock.valuation.page.description": "Lots on hand valued at purchase cost, expiry, and the monthly COGS posting",
   "orva_stock.valuation.page.title": "Stock and costs",
+  "orva_stock.valuation.printLabels": "Print labels",
   "orva_stock.valuation.totalOnHand": "Units on hand",
   "orva_stock.valuation.totalValue": "Stock value",
   "orva_stock.valuation.unpostedCogs": "COGS not yet posted",

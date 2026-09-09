@@ -364,7 +364,7 @@ inside `withTenantRls`. No `makeCrudRoute` needed — nothing here is a new CRUD
 | **G0 — Make it real** ✅ 2026-09-05 | clean tenant, grants, launch.json, upstream write-ups | done | remaining: Railway env + filing the issues | met: `verify-rls` 7/7, 0 demo rows, grants already in place |
 | **G1 — Cash cycle** 🟡 slice 1 ✅ 2026-09-05 | send log + chase state on every overdue invoice; accepted→งวด row (derived, no event exists); 2 pre-existing bugs fixed. Statement + scan deferred with reasons | done so far | none | met: all three cadence states + acceptance row verified live |
 | **G2 — The owner's inbox** 🟡 tools ✅ 2026-09-05 | assistant tools across Support/Projects shipped; email→ticket blocked on Gmail OAuth; brief blocked on `RESEND_API_KEY` (its value is push, not another screen) | tools done | owner: connect Gmail + set the Resend key | tools: registered + SQL verified; J-003/J-004 still pending |
-| **G3 — Marventine launch readiness** (gated A2) | expected receipt, lot label, full dry-run | 4 days | first OEM batch ordered | dry-run checklist all green on a real SKU |
+| **G3 — Marventine launch readiness** ✅ code 2026-09-09 (owner: real SKU + print) | expected receipt (via purchasing A2), lot label, full dry-run as an integration spec | done | first OEM batch ordered | dry-run green on a rehearsal SKU (child spec); real SKU is G3.4 |
 | **G4 — Leads** ✅ 2026-09-05 | public form → deal on the pipeline with its channel, honeypot + 24h dedupe | done | none | met: verified end to end without a login (public page) |
 | **G5 — deferred by assumption** | recurring invoices (A1), broadcast (A7), purchase module (A6) | — | flip the assumption | child spec |
 
@@ -595,7 +595,7 @@ What is proven: registration (generated registry), both tools' SQL run against t
 schema with fixtures inside a rolled-back transaction (closed tickets excluded, urgent
 first, project joined, lapsed renewals first), and the derived arithmetic by unit test.
 
-### Phase G3 — Marventine launch readiness (REQ-008) — gated on A2; child spec `orva-marventine-launch.md`
+### Phase G3 — Marventine launch readiness (REQ-008) — in implementation 2026-09-09; child spec `2026-09-09-orva-marventine-launch.md`
 
 1. **Dry-run checklist** (write first, run before any code): create the real SKU with
    `th_fda_notification`, `shelf_life_months`, `product_brand = Marventine`; vendor bill

@@ -1,3 +1,5 @@
+import type { EntityManager } from '@mikro-orm/postgresql'
+
 /**
  * Pure stock math. Each lot carries the unit cost it was received at (from
  * the OEM bill), so valuation is lot-specific: on-hand × that lot's cost.
@@ -60,6 +62,41 @@ export function buildValuation(asOf: string, lots: LotOnHand[], soonDays = 90): 
 export function unitCostFromBillLine(lineAmount: number, quantity: number): number {
   if (!(quantity > 0)) throw new Error('quantity must be positive')
   return Math.round((lineAmount / quantity) * 10000) / 10000
+}
+
+/**
+ * The product's `shelf_life_months` (a custom field on `catalog:catalog_product`,
+ * declared in `orva/ce.ts`) for a variant, or null when the product has none.
+ *
+ * Read by SQL on `custom_field_values`, the precedent `orva_finance/lib/
+ * reportQueries.ts` set for `th_tax_id`. The framework's `loadCustomFieldValues`
+ * returned nothing for rows that demonstrably exist when called inside the
+ * running app (the G3 rehearsal proved the rows with a direct query while the
+ * loader and the products list both showed null); the plain column read is
+ * what Orva can stand behind.
+ */
+export async function shelfLifeMonthsFor(
+  tem: EntityManager,
+  scope: { tenantId: string; organizationId: string },
+  catalogVariantId: string,
+): Promise<number | null> {
+  const rows = (await tem.execute(
+    `select v.value_int, v.value_text
+       from catalog_product_variants pv
+       join custom_field_values v
+         on v.record_id = pv.product_id::text
+        and v.entity_id = 'catalog:catalog_product'
+        and v.field_key = 'shelf_life_months'
+        and v.deleted_at is null
+        and v.tenant_id = ?::uuid
+      where pv.id = ?::uuid and pv.tenant_id = ?::uuid and pv.deleted_at is null
+      order by v.created_at desc
+      limit 1`,
+    [scope.tenantId, catalogVariantId, scope.tenantId],
+  )) as Array<{ value_int: number | string | null; value_text: string | null }>
+  const raw = rows[0]?.value_int ?? rows[0]?.value_text ?? null
+  const months = raw == null ? NaN : Number(raw)
+  return Number.isInteger(months) && months > 0 ? months : null
 }
 
 /** Expiry date from a receipt date and the product's shelf life in months. */

@@ -113,6 +113,8 @@ export async function POST(req: Request) {
       const now = new Date()
       for (const { line, lot } of plan.picked) {
         const adjusted = await callInternal<{ ok: true; movementId?: string }>(req, '/api/wms/inventory/adjust', {
+          // WMS requires tenant and organization in the body (see receive).
+          tenantId: scope.tenantId, organizationId,
           warehouseId: plan.site.warehouseId, locationId: plan.site.locationId,
           catalogVariantId: line.catalogVariantId, lotId: line.lotId,
           delta: -line.quantity, reason: `ขายปลีก ${minted.number}`, reasonCode: 'sale',
