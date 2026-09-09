@@ -17,6 +17,21 @@ export type DocumentType = (typeof DOCUMENT_TYPES)[number]
 export const TEMPLATE_IDS = ['classic', 'modern', 'compact', 'brand'] as const
 
 /**
+ * Types that may be handed out by a public link of their own.
+ *
+ * A quotation travels on the sales module's acceptance token and is not in
+ * this list. A ใบส่งของ is: it proves custody of goods and states no tax, so a
+ * customer's warehouse may hold the link. No statutory tax document is ever
+ * served off a link a driver can forward — adding one here is a decision, not
+ * a convenience.
+ */
+export const SHAREABLE_TYPES = ['delivery_note'] as const satisfies readonly DocumentType[]
+
+export function isShareable(type: DocumentType): boolean {
+  return (SHAREABLE_TYPES as readonly string[]).includes(type)
+}
+
+/**
  * Which document types a record kind may print. One bill, two record types:
  * the quotation prints from the quote; every billing document prints from
  * the invoice that was issued as a งวด of it. Sample data may show anything.

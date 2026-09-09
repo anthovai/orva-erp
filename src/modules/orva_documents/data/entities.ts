@@ -234,3 +234,55 @@ export class DocumentSend {
   @Index()
   sentAt: Date = new Date()
 }
+
+/**
+ * A public link for a document that is not a quotation — today the ใบส่งของ.
+ *
+ * Only the token's hash is stored, as sales stores its acceptance tokens, so
+ * the plaintext of a link cannot be recovered from the table. A row is live
+ * until it expires or is revoked; minting a new link for the same record and
+ * type revokes the earlier ones, so pressing the button again is how a link
+ * that went to the wrong person is cut off.
+ */
+@Entity({ tableName: 'orva_documents_share_links' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+@Index({ properties: ['sourceKind', 'sourceId'] })
+export class DocumentShareLink {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  /** The record the link points at: 'invoice' today. */
+  @Property({ name: 'source_kind', type: 'text' })
+  sourceKind!: string
+
+  @Property({ name: 'source_id', type: 'uuid' })
+  sourceId!: string
+
+  /** One of SHAREABLE_TYPES — which sheet the link prints. */
+  @Property({ name: 'document_type', type: 'text' })
+  documentType!: string
+
+  @Property({ name: 'token_hash', type: 'text', unique: true })
+  tokenHash!: string
+
+  @Property({ name: 'expires_at', type: Date, nullable: true })
+  expiresAt?: Date | null
+
+  @Property({ name: 'revoked_at', type: Date, nullable: true })
+  revokedAt?: Date | null
+
+  @Property({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+}

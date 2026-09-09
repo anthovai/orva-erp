@@ -8,7 +8,9 @@ import { isForeignTenantActor } from '@open-mercato/core/modules/sales/lib/publi
 import { hashAuthToken } from '@open-mercato/core/modules/auth/lib/tokenHash'
 import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
-import { documentFromQuote, findQuoteByHashedToken, loadSettings } from '../../../lib/source'
+import type { DocumentType } from '../../../lib/document'
+import { findShareLinkByHashedToken, shareLinkIsLive } from '../../../lib/shareLinks'
+import { documentFromQuote, findInvoiceById, findQuoteByHashedToken, loadSettings } from '../../../lib/source'
 
 const logger = createLogger('orva_documents').child({ component: 'public' })
 
@@ -22,6 +24,8 @@ const responseSchema = z.object({
   document: z.record(z.string(), z.unknown()),
   labels: z.record(z.string(), z.string()),
   isExpired: z.boolean(),
+  /** Which door the token came through. Absent on responses from before share links existed. */
+  kind: z.enum(['quote', 'share_link']).optional(),
 })
 
 /**
@@ -49,9 +53,15 @@ async function documentLabels(): Promise<Record<string, string>> {
  * the sales public route's guards: hashed-token lookup, and a signed-in actor
  * from another tenant is treated as if the link did not exist.
  *
- * Only ใบเสนอราคา is served here. The token authorises a quotation; issuing a
- * ใบกำกับภาษี off the same link would be putting a statutory tax document in
- * a customer's hands for a sale that has not happened.
+ * Only ใบเสนอราคา is served off that token. It authorises a quotation; issuing
+ * a ใบกำกับภาษี off the same link would be putting a statutory tax document
+ * in a customer's hands for a sale that has not happened.
+ *
+ * The second door is `orva_documents_share_links`: a token minted by the
+ * share-document route for a record that has no token of its own — an invoice
+ * printed as a ใบส่งของ. What may pass that door is `SHAREABLE_TYPES`, never a
+ * tax document, and a link that is expired or revoked is a 404 like a token
+ * that never existed.
  */
 export async function GET(req: Request, ctx: { params: Promise<{ token: string }> | { token: string } }) {
   const parsed = paramsSchema.safeParse(await ctx.params)
@@ -64,8 +74,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
     // No tenant is known until the token resolves, so this first read runs on
     // the framework path where the RLS policies are fail-open; every read
     // after it is pinned to the quote's own tenant.
-    const row = await findQuoteByHashedToken(em, hashAuthToken(parsed.data.token))
-    if (!row) return Response.json({ error: 'Not found' }, { status: 404 })
+    const tokenHash = hashAuthToken(parsed.data.token)
+    const row = await findQuoteByHashedToken(em, tokenHash)
+    if (!row) return serveShareLink(req, em, tokenHash)
 
     const auth = await getAuthFromRequest(req)
     if (isForeignTenantActor(auth, row.tenant_id)) {
@@ -83,9 +94,45 @@ export async function GET(req: Request, ctx: { params: Promise<{ token: string }
     const validUntil = document.secondaryDate ? new Date(`${document.secondaryDate}T23:59:59Z`) : null
     const isExpired = !!validUntil && validUntil.getTime() < Date.now()
 
-    return Response.json({ document, labels: await documentLabels(), isExpired })
+    return Response.json({ document, labels: await documentLabels(), isExpired, kind: 'quote' })
   } catch (error) {
     logger.error('Public document build failed', {
+      err: error instanceof Error ? error.message : String(error),
+    })
+    return Response.json({ error: 'Could not build the document' }, { status: 400 })
+  }
+}
+
+/**
+ * The document behind a share link — the second door.
+ *
+ * Same guards as the quote door: the lookup runs before any tenant is known,
+ * every read after it is pinned to the link's tenant, and a signed-in actor
+ * from another tenant sees nothing. A dead link (expired or revoked) is not
+ * distinguished from an unknown one — the page's "ลิงก์อาจหมดอายุหรือถูก
+ * ยกเลิกแล้ว" already says both.
+ */
+async function serveShareLink(req: Request, em: EntityManager, tokenHash: string): Promise<Response> {
+  const link = await findShareLinkByHashedToken(em, tokenHash)
+  if (!link || !shareLinkIsLive(link)) return Response.json({ error: 'Not found' }, { status: 404 })
+
+  const auth = await getAuthFromRequest(req)
+  if (isForeignTenantActor(auth, link.tenantId)) {
+    return Response.json({ error: 'Not found' }, { status: 404 })
+  }
+
+  try {
+    const document = await withTenantRls(em, link.tenantId, async (tem) => {
+      const settings = await loadSettings(tem, { tenantId: link.tenantId, organizationId: link.organizationId })
+      if (link.sourceKind !== 'invoice') return null
+      const invoice = await findInvoiceById(tem, { invoiceId: link.sourceId, tenantId: link.tenantId })
+      if (!invoice) return null
+      return documentFromQuote(tem, { row: invoice, type: link.documentType as DocumentType, settings })
+    })
+    if (!document) return Response.json({ error: 'Not found' }, { status: 404 })
+    return Response.json({ document, labels: await documentLabels(), isExpired: false, kind: 'share_link' })
+  } catch (error) {
+    logger.error('Public share-link document build failed', {
       err: error instanceof Error ? error.message : String(error),
     })
     return Response.json({ error: 'Could not build the document' }, { status: 400 })
@@ -98,9 +145,9 @@ export const openApi: OpenApiRouteDoc = {
   pathParams: paramsSchema,
   methods: {
     GET: {
-      summary: 'Render the quotation behind a customer acceptance token',
+      summary: 'Render the document behind a customer link',
       description:
-        'Public, authenticated by the acceptance token alone. Serves ใบเสนอราคา only; a session from another tenant is answered with 404, matching the sales public quote route.',
+        'Public, authenticated by the token alone. A sales acceptance token serves the ใบเสนอราคา; a share-link token (see share-document) serves the shareable document it was minted for — today the ใบส่งของ. Expired or revoked links, and sessions from another tenant, are answered with 404.',
       tags: ['Orva Documents'],
       responses: [{ status: 200, description: 'The printable document.', schema: responseSchema }],
       errors: [{ status: 404, description: 'Unknown or revoked token', schema: z.object({ error: z.string() }) }],

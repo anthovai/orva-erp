@@ -262,6 +262,93 @@ test.describe('ใบส่งของ', () => {
     expect(JSON.stringify(doc)).not.toContain('สมชาย')
   })
 
+  test('a delivery note can be handed out by public link; a tax document cannot', async ({ playwright, baseURL }) => {
+    const invoice = await createInvoice(request)
+    const facts = await readJson(await request.get(`/api/orva_documents/delivery-facts?invoiceId=${invoice.id}`))
+    await request.post('/api/orva_documents/delivery-facts', {
+      data: { invoiceId: invoice.id, updatedAt: String(facts.updatedAt), deliveredOn: '2026-09-09', carrier: 'รถบริษัท' },
+    })
+
+    // Mint the link. The type is restricted at the schema: a ใบกำกับภาษี is
+    // refused before anything is read.
+    const refused = await request.post('/api/orva_documents/share-document', {
+      data: { documentId: invoice.id, type: 'tax_invoice' },
+    })
+    expect(refused.status(), await refused.text()).toBe(400)
+
+    const minted = await request.post('/api/orva_documents/share-document', {
+      data: { documentId: invoice.id, type: 'delivery_note' },
+    })
+    expect(minted.status(), await minted.text()).toBe(200)
+    const first = await readJson(minted)
+    const token = String(first.url).split('/documents/')[1]
+    expect(token, `the url must end in a token: ${first.url}`).toMatch(/^[0-9a-f-]{36}$/)
+    expect(first.validUntil).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+
+    // The public endpoint needs no session at all: an anonymous context reads it.
+    const anonymous = await playwright.request.newContext({ baseURL })
+    const opened = await anonymous.get(`/api/orva_documents/public/${token}`)
+    expect(opened.status(), await opened.text()).toBe(200)
+    const body = await readJson(opened)
+    const doc = body.document as Json
+    expect(body.kind).toBe('share_link')
+    expect(doc.headingTh).toBe('ใบส่งของ')
+    expect(doc.number).toBe(`DN-${invoice.number}`)
+    // What the customer's warehouse holds: the goods and the delivery, no money.
+    expect(doc.showPrices).toBe(false)
+    expect(doc.amountInWords).toBeNull()
+    expect((doc.delivery as Json).carrier).toBe('รถบริษัท')
+    // The labels travel with the sheet, pinned to Thai, whatever the visitor's browser asks for.
+    expect((body.labels as Json)['orva_documents.type.delivery_note']).toBe('ใบส่งของ')
+
+    // Minting again rotates: the earlier link dies, the new one lives.
+    const second = await readJson(await request.post('/api/orva_documents/share-document', {
+      data: { documentId: invoice.id, type: 'delivery_note' },
+    }))
+    const secondToken = String(second.url).split('/documents/')[1]
+    expect(secondToken).not.toBe(token)
+    expect((await anonymous.get(`/api/orva_documents/public/${token}`)).status()).toBe(404)
+    expect((await anonymous.get(`/api/orva_documents/public/${secondToken}`)).status()).toBe(200)
+
+    // A token nobody minted is a 404, not an error page.
+    expect((await anonymous.get('/api/orva_documents/public/00000000-0000-4000-8000-000000000000')).status()).toBe(404)
+    await anonymous.dispose()
+  })
+
+  test('the public page opens the delivery note for a visitor with no session', async ({ browser, baseURL }) => {
+    const invoice = await createInvoice(request)
+    const minted = await readJson(await request.post('/api/orva_documents/share-document', {
+      data: { documentId: invoice.id, type: 'delivery_note' },
+    }))
+    const token = String(minted.url).split('/documents/')[1]
+
+    // Deliberately no cookies: this is the customer's warehouse opening a link.
+    const context = await browser.newContext({ baseURL })
+    const page = await context.newPage()
+    const errors: string[] = []
+    page.on('pageerror', (error) => errors.push(error.message))
+
+    await page.goto(`/documents/${token}`)
+    const sheet = page.locator('[data-document-sheet="true"]').first()
+    await expect(sheet).toBeVisible({ timeout: 30_000 })
+    const printed = (await sheet.innerText()).replace(/\s+/g, ' ')
+    expect(printed).toContain('ใบส่งของ')
+    expect(printed).toContain(`DN-${invoice.number}`)
+    expect(printed).toContain('Marventine Body Lotion 200 มล. (ลัง/24 ขวด)')
+    expect(printed, 'no unit price on a link a driver can forward').not.toContain('2,400')
+    expect(printed, 'no line amount either').not.toContain('24,000')
+    // The visitor gets print and PDF, and no button that belongs to a quotation.
+    await expect(page.getByRole('link', { name: /PDF/ })).toBeVisible()
+    expect(errors, `client errors: ${errors.join(' | ')}`).toEqual([])
+
+    // The PDF endpoint answers for this token too. Chromium may be absent on
+    // the ephemeral host, which the route reports as 503 rather than a crash.
+    const pdf = await page.request.get(`/api/orva_documents/public/${token}/pdf`)
+    expect([200, 503]).toContain(pdf.status())
+    if (pdf.status() === 200) expect(pdf.headers()['content-type']).toContain('application/pdf')
+    await context.close()
+  })
+
   test('TEST-010: the sheet renders in the browser, and the row actions are there', async ({ browser, baseURL }) => {
     const invoice = await createInvoice(request)
     const saved = await request.post('/api/orva_documents/delivery-facts', {

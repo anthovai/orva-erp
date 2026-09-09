@@ -1,4 +1,6 @@
 import type { ModuleSetupConfig } from '@open-mercato/shared/modules/setup'
+import type { EntityManager } from '@mikro-orm/postgresql'
+import { resolveScheduleId, stableScheduleId } from '@/lib/scheduleId'
 import { createLogger } from '@open-mercato/shared/lib/logger'
 
 const logger = createLogger('orva_finance').child({ component: 'setup' })
@@ -8,11 +10,22 @@ type SchedulerServiceLike = {
 }
 
 /** Stable per organization, so re-running setup updates rather than duplicates. */
-export const overdueScanScheduleId = (organizationId: string) =>
-  `orva_finance.overdue_reminder_scan:${organizationId}`
+export const OVERDUE_SCAN_QUEUE = 'orva_finance.overdue_reminder_scan'
+export const DAILY_BRIEF_QUEUE = 'orva_finance.daily_brief'
 
-export const dailyBriefScheduleId = (organizationId: string) =>
-  `orva_finance.daily_brief:${organizationId}`
+/** The readable keys; `scheduled_jobs.id` is a uuid, so the ids derive from them. */
+export const overdueScanScheduleKey = (organizationId: string) => `${OVERDUE_SCAN_QUEUE}:${organizationId}`
+export const dailyBriefScheduleKey = (organizationId: string) => `${DAILY_BRIEF_QUEUE}:${organizationId}`
+
+/**
+ * Stable ids for the two schedules. Derived uuids — the readable key was
+ * rejected by Postgres on re-registration (`invalid input syntax for type
+ * uuid`), which purchasing's identical setup surfaced on 2026-09-09. The rows
+ * this tenant already has carry random ids, so `seedDefaults` resolves the
+ * existing row for the queue first and only falls back to these.
+ */
+export const overdueScanScheduleId = (organizationId: string) => stableScheduleId(overdueScanScheduleKey(organizationId))
+export const dailyBriefScheduleId = (organizationId: string) => stableScheduleId(dailyBriefScheduleKey(organizationId))
 
 export const setup: ModuleSetupConfig = {
   defaultRoleFeatures: {
@@ -37,9 +50,14 @@ export const setup: ModuleSetupConfig = {
     const cradle = container as { hasRegistration?: (name: string) => boolean }
     if (typeof cradle.hasRegistration !== 'function' || !cradle.hasRegistration('schedulerService')) return
     const scheduler = container.resolve('schedulerService') as SchedulerServiceLike
+    const em = container.resolve<EntityManager>('em')
     try {
       await scheduler.register({
-        id: overdueScanScheduleId(organizationId),
+        id: await resolveScheduleId(em, {
+          key: overdueScanScheduleKey(organizationId),
+          targetQueue: OVERDUE_SCAN_QUEUE,
+          organizationId,
+        }),
         name: 'Orva — overdue invoice reminder scan',
         description: 'Raises a notification for each overdue invoice that is due another nudge. Sends nothing.',
         scopeType: 'organization',
@@ -50,7 +68,7 @@ export const setup: ModuleSetupConfig = {
         scheduleValue: '0 7 * * *',
         timezone: 'Asia/Bangkok',
         targetType: 'queue',
-        targetQueue: 'orva_finance.overdue_reminder_scan',
+        targetQueue: OVERDUE_SCAN_QUEUE,
         targetPayload: { scope: { tenantId, organizationId } },
         sourceType: 'module',
         sourceModule: 'orva_finance',
@@ -64,7 +82,11 @@ export const setup: ModuleSetupConfig = {
 
     try {
       await scheduler.register({
-        id: dailyBriefScheduleId(organizationId),
+        id: await resolveScheduleId(em, {
+          key: dailyBriefScheduleKey(organizationId),
+          targetQueue: DAILY_BRIEF_QUEUE,
+          organizationId,
+        }),
         name: 'Orva — weekday morning brief',
         description: 'One notification covering filings, tickets, renewals, expiring quotes and unbilled accepted work.',
         scopeType: 'organization',
@@ -75,7 +97,7 @@ export const setup: ModuleSetupConfig = {
         scheduleValue: '30 7 * * 1-5',
         timezone: 'Asia/Bangkok',
         targetType: 'queue',
-        targetQueue: 'orva_finance.daily_brief',
+        targetQueue: DAILY_BRIEF_QUEUE,
         targetPayload: { scope: { tenantId, organizationId } },
         sourceType: 'module',
         sourceModule: 'orva_finance',

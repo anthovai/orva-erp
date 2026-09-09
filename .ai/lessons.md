@@ -1,6 +1,6 @@
 # Lessons
 
-This catalog indexes 11 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
+This catalog indexes 12 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
 
 ## How to use this catalog
 
@@ -37,6 +37,7 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 - [A new entity class needs the dev server restarted, not just `yarn generate`](lessons/new-entity-needs-dev-restart.md) — area:module-data,debugging; module:platform,orva_documents,orva_support; topic:mikro-orm,entity-discovery,generated-bundle,dev-server
 - [Raw SQL on an encrypted column returns ciphertext, and `??` fallbacks then prefer it](lessons/raw-sql-on-encrypted-columns-leaks-ciphertext.md) — area:debugging,module-data; module:orva_finance,orva,customers; topic:encryption,raw-sql,customer-entities,coalesce,dedupe
 - [An updated_at optimistic lock read as .MS and written with now() lets the FIRST write through and 409s every one after](lessons/updated-at-lock-truncates-to-milliseconds.md) — area:module-data,debugging,testing; module:orva_documents,platform; topic:optimistic-locking,postgres,timestamptz,raw-sql,integration-tests
+- [schedulerService.register upserts by a uuid id — a readable key is rejected by Postgres and the schedule silently never exists](lessons/schedule-register-needs-a-uuid-id.md) — area:module-data,debugging; module:orva_purchasing,orva_finance,scheduler; topic:scheduler,seed-defaults,uuid,setup,idempotency,real-tenant
 
 ### backend-ui
 

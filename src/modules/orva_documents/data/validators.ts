@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { DOCUMENT_TYPES, TEMPLATE_IDS } from '../lib/document'
+import { DOCUMENT_TYPES, SHAREABLE_TYPES, TEMPLATE_IDS } from '../lib/document'
 
 const templateSchema = z.enum(TEMPLATE_IDS)
 
@@ -132,6 +132,18 @@ export const deliveryFactsSchema = z.object({
 /** Minting a customer link for a quotation (rotates the acceptance token). */
 export const shareSchema = z.object({
   quoteId: z.string().uuid(),
+})
+
+/**
+ * Minting a public link for a document that is not a quotation. The type is
+ * restricted to SHAREABLE_TYPES at the schema, so a tax document is refused
+ * before anything is read.
+ */
+export const shareDocumentSchema = z.object({
+  documentId: z.string().uuid(),
+  type: z.enum(SHAREABLE_TYPES),
+  /** How long the link lives; the link dies at the end of the last day. */
+  expiresInDays: z.coerce.number().int().min(1).max(365).optional(),
 })
 
 /** Emailing a document: the recipient plus the same selector the preview uses. */

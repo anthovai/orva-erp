@@ -150,15 +150,24 @@ export default function DocumentPreviewPage() {
   // Customer link: minted server-side (rotates the acceptance token), copied
   // to the clipboard here. Rotation means an earlier link stops working — the
   // flash says so instead of leaving the operator to find out from a customer.
+  // A ใบส่งของ printed from an invoice gets its own link (share-document), since
+  // an invoice carries no acceptance token; the button and the rotation
+  // warning are the same, so the operator learns one gesture.
+  const canShareDocument = data?.sourceKind === 'invoice' && type === 'delivery_note'
+  const canShare = sourceId !== SAMPLE_VALUE && (data?.sourceKind === 'quote' || canShareDocument)
+
   const copyCustomerLink = async () => {
-    if (busy || sourceId === SAMPLE_VALUE) return
+    if (busy || !canShare) return
     setBusy(true)
     try {
-      const call = await apiCall<{ url: string; validUntil: string | null }>('/api/orva_documents/share', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ quoteId: sourceId }),
-      })
+      const call = await apiCall<{ url: string; validUntil: string | null }>(
+        canShareDocument ? '/api/orva_documents/share-document' : '/api/orva_documents/share',
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(canShareDocument ? { documentId: sourceId, type } : { quoteId: sourceId }),
+        },
+      )
       if (!call.ok || !call.result) {
         flash(t('orva_documents.share.failed', 'สร้างลิงก์ลูกค้าไม่สำเร็จ'), 'error')
         return
@@ -167,7 +176,9 @@ export default function DocumentPreviewPage() {
         window.prompt(t('orva_documents.share.copyManually', 'คัดลอกลิงก์นี้'), call.result!.url)
       })
       flash(
-        t('orva_documents.share.copied', 'คัดลอกลิงก์แล้ว — ลิงก์เดิมที่เคยส่งจะใช้ไม่ได้อีก'),
+        canShareDocument
+          ? t('orva_documents.share.copiedDocument', 'คัดลอกลิงก์แล้ว — ลิงก์เดิมของเอกสารนี้จะใช้ไม่ได้อีก')
+          : t('orva_documents.share.copied', 'คัดลอกลิงก์แล้ว — ลิงก์เดิมที่เคยส่งจะใช้ไม่ได้อีก'),
         'success',
       )
     } finally {
@@ -302,8 +313,14 @@ export default function DocumentPreviewPage() {
                 {t('orva_documents.etax.downloadPdfA3', 'ดาวน์โหลด PDF/A-3 (e-Tax)')}
               </Button>
             ) : null}
-            {data?.sourceKind === 'quote' && sourceId !== SAMPLE_VALUE ? (
-              <Button type="button" variant="outline" onClick={copyCustomerLink} disabled={busy}>
+            {canShare ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={copyCustomerLink}
+                disabled={busy}
+                title={canShareDocument ? t('orva_documents.share.deliveryNoteHint', 'ลิงก์ใบส่งของเปิดดูได้โดยไม่ต้องเข้าระบบ ไม่แสดงราคา และหมดอายุใน 30 วัน') : undefined}
+              >
                 {t('orva_documents.share.copyLink', 'คัดลอกลิงก์ลูกค้า')}
               </Button>
             ) : null}
