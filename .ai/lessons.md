@@ -1,6 +1,6 @@
 # Lessons
 
-This catalog indexes 10 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
+This catalog indexes 11 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
 
 ## How to use this catalog
 
@@ -41,6 +41,7 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 ### backend-ui
 
 - [t() fallbacks hide missing catalog keys — audit i18n/{th,en}.json whenever strings are added](lessons/i18n-fallbacks-hide-missing-catalog-keys.md) — area:backend-ui; module:orva_documents,orva,orva_party; topic:i18n,translations,catalogs
+- [A picker asking for pageSize above the list contract's max renders an empty select, not a capped one](lessons/picker-pagesize-over-contract-empties-the-select.md) — area:backend-ui,debugging,testing; module:orva_purchasing,orva_party,orva_finance; topic:crud-list,pagesize,zod-validation,react-query,quality-states,browser-tests
 
 ### testing
 

@@ -72,8 +72,8 @@ const money = (value: number) => value.toLocaleString('th-TH', { minimumFraction
 export function PurchaseOrderForm({ initial }: { initial?: PurchaseOrderFormInitial }) {
   const t = useT()
   const router = useRouter()
-  const { vendors, isLoading: vendorsLoading } = useVendors()
-  const { accounts } = useAccounts()
+  const { vendors, isLoading: vendorsLoading, failed: vendorsFailed } = useVendors()
+  const { accounts, failed: accountsFailed } = useAccounts()
   const nextKey = React.useRef(1)
 
   const [settings, setSettings] = React.useState<Settings | null>(null)
@@ -246,7 +246,13 @@ export function PurchaseOrderForm({ initial }: { initial?: PurchaseOrderFormInit
               </option>
             ))}
           </select>
-          {!vendorsLoading && vendors.length === 0 ? (
+          {vendorsFailed ? (
+            // Never advise fixing data when the lookup itself failed: this
+            // screen shipped telling operators to add a vendor role they had.
+            <span role="alert" className="text-xs text-destructive">
+              {t('orva_purchasing.field.vendorsFailed', 'โหลดรายชื่อผู้ขายไม่สำเร็จ — รีเฟรชหน้านี้อีกครั้ง')}
+            </span>
+          ) : !vendorsLoading && vendors.length === 0 ? (
             <span className="text-xs text-muted-foreground">
               {t('orva_purchasing.field.noVendors', 'ยังไม่มีคู่ค้าที่เป็นผู้ขาย — เพิ่มบทบาท "ผู้ขาย" ในทะเบียนคู่ค้าก่อน')}
             </span>
@@ -368,6 +374,11 @@ export function PurchaseOrderForm({ initial }: { initial?: PurchaseOrderFormInit
                 accounts={accounts}
                 placeholder={t('orva_purchasing.field.accountPick', 'เลือกบัญชี')}
               />
+              {accountsFailed ? (
+                <span role="alert" className="mt-1 block text-xs text-destructive">
+                  {t('orva_purchasing.field.accountsFailed', 'โหลดผังบัญชีไม่สำเร็จ — รีเฟรชหน้านี้อีกครั้ง')}
+                </span>
+              ) : null}
             </div>
             <div className="flex items-end justify-between gap-2 md:col-span-1">
               <span className="text-sm tabular-nums">{money(measured[index].net)}</span>

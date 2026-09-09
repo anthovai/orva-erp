@@ -11,7 +11,19 @@ import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/u
  * selection over display names — a uuid is never typed or read on this screen.
  * Every option source belongs to the module that owns the record: parties from
  * orva_party, accounts from orva_finance, variants from the installed catalog.
+ *
+ * `PAGE_SIZE` is the ceiling those list contracts allow (`pageSize.max(100)`
+ * in orva_party's and orva_finance's validators, as every finance picker
+ * already respects). Asking for more is not merely capped — the query fails
+ * validation with a 400, the react-query call throws, and the select renders
+ * with nothing in it but its placeholder. That is how this screen shipped:
+ * both dropdowns were empty on every tenant, and the form even advised the
+ * operator to go and add a vendor role they already had.
+ *
+ * A tenant that passes 100 vendors or 100 active accounts needs a
+ * search-as-you-type picker like `VariantSearch` below, not a bigger page.
  */
+const PAGE_SIZE = 100
 export const selectClass =
   'h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring'
 
@@ -25,7 +37,7 @@ export function useVendors() {
   const scopeVersion = useOrganizationScopeVersion()
   const roles = useQuery({
     queryKey: ['orva_party.vendor-roles', scopeVersion],
-    queryFn: async () => fetchCrudList<PartyRoleRow>('orva_party/party-roles', { page: 1, pageSize: 200, role: 'vendor' }),
+    queryFn: async () => fetchCrudList<PartyRoleRow>('orva_party/party-roles', { page: 1, pageSize: PAGE_SIZE, role: 'vendor' }),
   })
   const ids = React.useMemo(
     () => Array.from(new Set((roles.data?.items ?? []).map((row) => row.party_id))),
@@ -33,12 +45,15 @@ export function useVendors() {
   )
   const parties = useQuery({
     queryKey: ['orva_party.vendors', ids.join(','), scopeVersion],
-    queryFn: async () => fetchCrudList<PartyRow>('orva_party/parties', { ids: ids.join(','), pageSize: 200 }),
+    queryFn: async () => fetchCrudList<PartyRow>('orva_party/parties', { ids: ids.join(','), pageSize: PAGE_SIZE }),
     enabled: ids.length > 0,
   })
   return {
     vendors: parties.data?.items ?? [],
     isLoading: roles.isLoading || (ids.length > 0 && parties.isLoading),
+    // Reported separately from emptiness on purpose: a failed lookup rendered
+    // as "you have no vendors" sends the operator to fix data that is fine.
+    failed: roles.isError || parties.isError,
   }
 }
 
@@ -50,13 +65,13 @@ export function useAccounts() {
     queryFn: async () =>
       fetchCrudList<AccountRow>('orva_finance/gl/accounts', {
         page: 1,
-        pageSize: 200,
+        pageSize: PAGE_SIZE,
         sortField: 'code',
         sortDir: 'asc',
         isActive: true,
       }),
   })
-  return { accounts: query.data?.items ?? [], isLoading: query.isLoading }
+  return { accounts: query.data?.items ?? [], isLoading: query.isLoading, failed: query.isError }
 }
 
 export function AccountSelect({

@@ -37,8 +37,21 @@ different kind of disaster on the way.
    list. Fixtures create what they need through the API instead of assuming a
    seed.
 
+The same lock also reports itself as **`Application did not become ready
+within 90 seconds. Last probe: GET /login failed: fetch failed`** — every
+probe failing with `fetch failed` and no application output at all. One
+surviving `mercato` process is enough, and it survives even when the run that
+spawned it was killed, so check for leftovers again between consecutive runs:
+
+```powershell
+Get-CimInstance Win32_Process -Filter "name='node.exe'" |
+  Where-Object { $_.CommandLine -match 'next|mercato' } |
+  ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+```
+
 **Rule**: before `yarn test:integration:ephemeral`, stop the dev server and
-kill leftover `next start` / `queue worker` processes for this repo. In specs,
+kill leftover `next start` / `queue worker` / `mercato server start` processes
+for this repo — before *every* run, not just the first. In specs,
 authenticate by capturing `set-cookie` from `POST /api/auth/login` (form body,
 never JSON) and passing it as a header, and create every fixture record
 through the API. When a run reports `exited before readiness check (exit 1)`

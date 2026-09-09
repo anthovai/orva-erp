@@ -1,4 +1,5 @@
-import { expect, test, type APIRequestContext, type PlaywrightWorkerArgs } from '@playwright/test'
+import { expect, test, type APIRequestContext } from '@playwright/test'
+import { authedContext, createVendor, ensureAccountId, ensurePeriodId, readJson, type Json } from './fixtures'
 
 /**
  * The purchasing lifecycle, exercised through the real HTTP routes against the
@@ -10,111 +11,10 @@ import { expect, test, type APIRequestContext, type PlaywrightWorkerArgs } from 
  * these as TEST-002 (lifecycle and freeze), TEST-003 (over-receipt),
  * TEST-005 (scope) and TEST-015 (short close).
  *
- * Credentials are the harness's own documented fixtures in an ephemeral
- * database (see om-prepare-test-env), never a real tenant's.
+ * The screens are walked separately, in `purchasing-screens.spec.ts`
+ * (TEST-010). Fixtures and the signed-in contexts both files need live in
+ * `fixtures.ts`.
  */
-const CREDENTIALS = { email: 'admin@acme.com', password: 'secret' }
-
-type Json = Record<string, unknown>
-
-/**
- * Signs in and returns a context that actually carries the session.
- *
- * The ephemeral app is a production build, so `auth_token` and
- * `session_token` are set with `Secure` — and a client will not send a Secure
- * cookie back over plain http, which is what the ephemeral base URL is. The
- * cookie jar therefore silently sends nothing and every authenticated call
- * answers 401. Reading the `set-cookie` values off the login response and
- * putting them on the request context as a header sidesteps the rule the way
- * an API client would, without weakening anything in the app.
- */
-async function authedContext(
-  playwright: PlaywrightWorkerArgs['playwright'],
-  baseURL: string | undefined,
-): Promise<APIRequestContext> {
-  const anonymous = await playwright.request.newContext({ baseURL })
-  const response = await anonymous.post('/api/auth/login', { form: CREDENTIALS })
-  expect(response.status(), await response.text()).toBe(200)
-  const cookie = response
-    .headersArray()
-    .filter((header) => header.name.toLowerCase() === 'set-cookie')
-    .map((header) => header.value.split(';')[0])
-    .join('; ')
-  expect(cookie, 'login must set a session cookie').not.toBe('')
-  await anonymous.dispose()
-  return playwright.request.newContext({ baseURL, extraHTTPHeaders: { cookie } })
-}
-
-async function readJson(response: { json: () => Promise<unknown>; text: () => Promise<string> }): Promise<Json> {
-  const body = await response.text()
-  try {
-    return JSON.parse(body) as Json
-  } catch {
-    throw new Error(`expected JSON, got: ${body.slice(0, 400)}`)
-  }
-}
-
-/** A party holding the vendor role — purchasing refuses anything else. */
-async function createVendor(request: APIRequestContext, name: string): Promise<string> {
-  const created = await request.post('/api/orva_party/parties', {
-    data: { kind: 'company', displayName: name, taxId: '0105500000001' },
-  })
-  expect(created.status(), await created.text()).toBeLessThan(300)
-  const party = await readJson(created)
-  const partyId = String(party.id ?? (party as { item?: { id?: string } }).item?.id ?? '')
-  expect(partyId, 'party create must return an id').not.toBe('')
-
-  const role = await request.post('/api/orva_party/party-roles', {
-    data: { partyId, role: 'vendor' },
-  })
-  expect(role.status(), await role.text()).toBeLessThan(300)
-  return partyId
-}
-
-/**
- * A GL account for the line to post to.
- *
- * The ephemeral tenant ships no chart of accounts — a real tenant builds one,
- * and `seedExamples` is off for finance — so the fixture creates the one
- * account it needs rather than assuming a seed that does not exist. Reused
- * across the specs in this file: purchasing only stores the id.
- */
-async function ensureAccountId(request: APIRequestContext): Promise<string> {
-  const existing = await request.get('/api/orva_finance/gl/accounts?page=1&pageSize=1&isActive=true')
-  expect(existing.status(), await existing.text()).toBe(200)
-  const items = ((await readJson(existing)).items ?? []) as Array<{ id?: string }>
-  if (items.length > 0) return String(items[0].id)
-
-  const created = await request.post('/api/orva_finance/gl/accounts', {
-    data: { code: '5900', name: 'ค่าใช้จ่ายอื่น (integration fixture)', accountType: 'expense', isActive: true },
-  })
-  expect(created.status(), await created.text()).toBeLessThan(300)
-  const accountId = String((await readJson(created)).id ?? '')
-  expect(accountId, 'account create must return an id').not.toBe('')
-  return accountId
-}
-
-
-/**
- * An open fiscal period for the bill to land in. The ephemeral tenant has no
- * chart of accounts and no periods, so the fixture creates what it needs
- * rather than assuming a seed (.ai/lessons.md).
- */
-async function ensurePeriodId(request: APIRequestContext): Promise<string> {
-  const existing = await request.get('/api/orva_finance/gl/periods?page=1&pageSize=1&status=open')
-  expect(existing.status(), await existing.text()).toBe(200)
-  const items = ((await readJson(existing)).items ?? []) as Array<{ id?: string }>
-  if (items.length > 0) return String(items[0].id)
-
-  const created = await request.post('/api/orva_finance/gl/periods', {
-    // The create contract takes the dates only; a period opens open.
-    data: { code: '2026-09', startsOn: '2026-09-01', endsOn: '2026-09-30' },
-  })
-  expect(created.status(), await created.text()).toBeLessThan(300)
-  const periodId = String((await readJson(created)).id ?? '')
-  expect(periodId, 'period create must return an id').not.toBe('')
-  return periodId
-}
 
 test.describe('purchase orders', () => {
   let request: APIRequestContext

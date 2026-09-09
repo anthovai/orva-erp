@@ -1,7 +1,7 @@
 # จัดซื้อ (purchase orders) and ใบส่งของ (delivery note) — closing the two ends of the goods cycle
 
 **Date**: 2026-09-08
-**Status**: **Complete — Track A (A1–A4) 2026-09-08, Track B (B1–B2) 2026-09-09.** The three-way match reads from facts (ordered, received, billed) and the owner sees what is late and what is committed without opening the module. Track B prints ใบส่งของ from any invoice and records what happened to the delivery. Migrations applied; the whole spec's integration coverage runs against a production build on an ephemeral database. Standing gap: TEST-010 is covered for the delivery-note preview and the invoices list (a browser spec walks them) but **not** for any purchasing screen — those have only API-level coverage.
+**Status**: **Complete — Track A (A1–A4) 2026-09-08, Track B (B1–B2) 2026-09-09.** The three-way match reads from facts (ordered, received, billed) and the owner sees what is late and what is committed without opening the module. Track B prints ใบส่งของ from any invoice and records what happened to the delivery. Migrations applied; the whole spec's integration coverage runs against a production build on an ephemeral database. TEST-010 is now covered by browser walks of both tracks' screens — 33 integration specs, all green. The walk of the purchasing screens found and fixed the defect recorded under TEST-010 below: the create form's dropdowns were empty on every tenant.
 
 > Written with `om-spec-writing`. Companion to `2026-09-04-orva-department-benchmark.md`
 > (Stock: "Purchase order to OEM → bill → receive ❌", Sales: "ใบส่งของ ⏸") and
@@ -407,7 +407,7 @@ Cache: the home overview already caches per org; purchasing summary invalidates 
 | TEST-007 | integration | purchasing DI present / absent | preview `type=purchase_order` | sheet with heading ใบสั่งซื้อ; 400 `type_unavailable` when absent | REQ-001 |
 | TEST-008 | unit | invoice source + delivery facts | `buildPrintableDocument('delivery_note')` | number `DN-…`, no prices when `showPrices=false`, delivery block present, not a tax document (no buyer tax id required) | REQ-006 |
 | TEST-009 | integration | invoice | POST `delivery-facts` with the read version; then the same stale version; then a payload with `receiverName` | 200, preview reflects the facts and dates the sheet by them; 409 and the first write stands; 400 and nothing written; `quoteId` and every other metadata key preserved | REQ-007 |
-| TEST-010 | UI | an invoice with delivery facts (**done**, browser spec); 3 POs incl. one late, one frozen (**open**) | delivery note preview + invoices list load with a real session, sheet text read, no client error (done); PO list filters, detail action gating, receive dialog keyboard (⌘⏎/Esc), 375px, dark (open) | printed sheet states the goods and no prices; no page error. Purchasing screens still unproven | REQ-002, 004, 006, 007 |
+| TEST-010 | UI (browser) | an invoice with delivery facts; a draft and a sent-overdue PO | **ใบส่งของ:** preview + invoices list with a real session. **จัดซื้อ** (`purchasing-screens.spec.ts`, 7 specs): list late count + committed figure + late filter; action gating on draft vs sent; receive dialog over-receipt refused in place, Esc, then a real receipt; create form empty-submit complaint, then vendor → service line → account → save; settings next-number preview; 375px and dark | every label read in Thai (`locale=th`); no unit price on the delivery note; no horizontal page scroll at 375px; a painted background in dark mode; **zero client-side errors** — every spec fails on a `pageerror` or a console error | REQ-002, 004, 006, 007 |
 | TEST-011 | unit | i18n (Track A) | th/en key parity for `orva_purchasing.*` and the `purchase_order` heading | equal key sets | localization |
 | TEST-012 | integration | sent PO; stock receive succeeds, purchasing flush forced to throw | receive → error; run `reconcile` twice | WMS movement exists with `reference_id=po`; after reconcile exactly one receipt row; second run inserts nothing; status `partially_received` | REQ-004 |
 | TEST-013 | integration | sent PO; bill created via finance route, link call not made | `unlinked-bills` → `bill` twice with same allocations; then link the same bill line to another PO | bill listed; one link set; second call 200 idempotent; other PO → 409 `already_linked` | REQ-003 |
@@ -581,6 +581,37 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 - **Validation:** as A1 plus `yarn test -- orva_finance` and `yarn test:integration:ephemeral`.
 - **Exit gate:** met at the API level — a bill created through the finance route links to the order, the order reports billed 44,300 against 44,000 ordered with +300 on the freight line, a second prefill offers nothing, and re-sending the same allocation writes nothing while a second order is refused the same charge. The screens themselves have still not been walked by a human.
 
+### TEST-010 — the screens, walked (2026-09-09)
+
+The walk found one defect, and it was total: **the create form's dropdowns
+were both empty on every tenant.** `components/pickers.tsx` fetched its
+options with `pageSize: 200`, while `orva_party`'s and `orva_finance`'s list
+schemas cap `pageSize` at 100 — every other picker in the app already uses
+100. Over the cap the request does not clamp, it answers 400; react-query
+holds the error and `data?.items ?? []` renders as "no options". So no vendor
+and no account could be chosen, and the form's own empty-state hint then told
+the operator to add a vendor role they already had. Four phases of green
+gates — types, lint, ds:check, 434 unit tests, 26 API-level integration specs
+— all passed with the screen unusable, because the API specs post
+`vendorPartyId` and `accountId` directly. Fixed to 100, and the hooks now
+report a failed lookup so the surface can say "could not load the vendor
+list" instead of "you have none". Recorded as a lesson.
+
+Two smaller observations, left as they are:
+
+- **The last line cannot be removed** — the form re-seeds a blank goods row
+  whenever the editor is left empty, so `lines.empty` ("ยังไม่มีรายการ") is
+  unreachable on the create screen. Sensible as a default; noted so the next
+  reader does not hunt for the state.
+- **A draft's detail page *is* the edit form**, so its line descriptions are
+  input values rather than page text. Correct by design (a draft is the one
+  status whose lines are editable in place) and worth knowing before writing
+  another assertion against that screen.
+
+Still not walked: the "ผูกบิลที่มีอยู่" dialog, the adjust-quantity dialog,
+the close/cancel confirmations, and the ใบสั่งซื้อ sheet in the browser (its
+API render is covered).
+
 ### Phase A4 — The owner sees it without opening the module (REQ-005) — ✅ SHIPPED 2026-09-08
 
 - **Depends on:** A2 and A3 exit gates (the committed figure subtracts bill links)
@@ -589,7 +620,7 @@ Track A phases A1→A4 are dependency-ordered; Track B phases B1→B2 are indepe
 - **Deliverables:** `api/summary/route.ts`, `di.ts` `purchasingSummary`, `orva_finance/api/home/overview` soft resolve + two fields, `FourQuestions.tsx` rows, `workers/late-scan.ts`, `notifications.ts`, scheduler registration.
 - **Independent slices / estimated commits:** (1) summary + DI + home; (2) worker + notification. ~2 commits.
 - **Requirements closed:** REQ-005
-- **Tests:** TEST-006 (shipped as two integration specs), plus 6 unit tests of the notification cadence. TEST-010 remains **unwritten** — no purchasing screen has been walked by a human or a browser yet, in A4 or in any earlier phase.
+- **Tests:** TEST-006 (shipped as two integration specs), plus 6 unit tests of the notification cadence. TEST-010 was written afterwards, on 2026-09-09, and walks the purchasing screens in a browser — see the TEST-010 row and the changelog.
 - **Validation:** `yarn typecheck`, `yarn lint`, `yarn ds:check`, `yarn test` (401 tests / 44 suites), `yarn test:integration:ephemeral` (19 specs against a production build on a throwaway database).
 - **Exit gate:** met at the API level. A backdated `expected_on` on a **sent** order appears in `GET /api/orva_purchasing/summary` with `daysLate` and a remaining quantity, and the same line reaches `GET /api/orva_finance/home/overview` as `waiting.latePurchaseLines` through the optional DI seam — the owner sees it without opening purchasing. Linking a bill drops `committedNotBilled` by the billed amount while the line **stays** late; receiving it in full clears the lateness however overdue the date; `close` removes it from both.
 
@@ -720,6 +751,7 @@ Verdict: **Ready for implementation.** The owner confirmed A3 and A8 on 2026-09-
 | Date | Change |
 |---|---|
 | 2026-09-08 | Initial draft with autonomous defaults A0–A8 |
+| 2026-09-09 | TEST-010 closed for the purchasing screens: 7 browser specs (`purchasing-screens.spec.ts`) walk the list, the detail's action gating, the receive dialog, the create form, the settings page, 375px and dark mode, all in Thai and all failing on any client-side error. The walk found the create form unusable — `pickers.tsx` asked for `pageSize: 200` against list contracts that cap at 100, so both dropdowns rendered empty and the form advised adding a vendor role the tenant already had. Fixed, and the pickers now report a failed lookup instead of showing it as emptiness. Shared spec fixtures moved to `__integration__/fixtures.ts` |
 | 2026-09-09 | Bug found by B2's save-twice integration spec and fixed in two routes: an `updated_at` optimistic lock read with `to_char(… .MS …)` but written with `now()` lets the first write through and 409s every one after, because the read truncates to milliseconds and `now()` carries microseconds. `delivery-facts` and the pre-existing `record-payment` (where a second payment on one invoice could never be recorded) now truncate both sides. Recorded as a lesson |
 | 2026-09-09 | Phase B2 shipped: `lib/deliveryFacts.ts`, the `delivery-facts` route (GET context + POST merge, `updated_at` lock, 409, and a 400 for `receiverName`), `DeliveryFactsDialog`, the row action. Track B closed. The planned installed `PUT /api/sales/invoices` was replaced by an app-owned scoped UPDATE for the reason `record-payment` already documented; recorded under the API tables. TEST-010 now has real browser coverage for the preview and the invoices list |
 | 2026-09-09 | Q-004 resolved by reading the installed encryption map: `sales_invoices.metadata` is NOT encrypted, so no receiver name is ever stored. Phase B1 shipped: the `delivery_note` type, the delivery block, price hiding enforced in the shared template blocks, the two-counterpart print, the row action on the invoices list, th/en keys, and 26 tests including this repo's first component renders. Screens still not walked — the dev server could not be started in this session |
