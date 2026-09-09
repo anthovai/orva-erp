@@ -1,5 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
-import { createVendor, ensureAccountId, login, readJson, signedInBrowser, type Json } from './fixtures'
+import { createVendor, ensureAccountId, ensurePeriodId, login, readJson, signedInBrowser, type Json } from './fixtures'
 
 /**
  * TEST-010 — the purchasing screens, walked in a browser.
@@ -15,7 +15,49 @@ import { createVendor, ensureAccountId, login, readJson, signedInBrowser, type J
  * renders while throwing in the console is not working.
  */
 
-type Fixture = { draftId: string; sentId: string; sentNumber: string; vendorName: string }
+type Fixture = {
+  vendorPartyId: string
+  vendorName: string
+  accountId: string
+  draftId: string
+  sentId: string
+  sentNumber: string
+}
+
+/** An order of one service line, sent, so it has a number and is frozen. */
+async function sentOrder(
+  request: APIRequestContext,
+  args: { vendorPartyId: string; accountId: string; description: string; quantity: number; unitPrice: number; expectedOn?: string },
+): Promise<{ id: string; number: string }> {
+  const created = await request.post('/api/orva_purchasing/orders', {
+    data: {
+      vendorPartyId: args.vendorPartyId,
+      orderDate: '2026-09-01',
+      ...(args.expectedOn ? { expectedOn: args.expectedOn } : {}),
+      lines: [
+        {
+          kind: 'service',
+          description: args.description,
+          quantity: args.quantity,
+          unitPrice: args.unitPrice,
+          vatMode: 'none',
+          accountId: args.accountId,
+          ...(args.expectedOn ? { expectedOn: args.expectedOn } : {}),
+        },
+      ],
+    },
+  })
+  expect(created.status(), await created.text()).toBeLessThan(300)
+  const id = String((await readJson(created)).id)
+  const detail = await readJson(await request.get(`/api/orva_purchasing/orders/${id}`))
+  const sending = await request.post(`/api/orva_purchasing/orders/${id}/send`, {
+    data: { updatedAt: (detail.order as Json).updatedAt },
+  })
+  expect(sending.status(), await sending.text()).toBe(200)
+  const number = String((await readJson(sending)).poNumber ?? '')
+  expect(number, 'sending must claim a PO number').not.toBe('')
+  return { id, number }
+}
 
 /** A draft and a sent-but-overdue order, so the list has something to say. */
 async function seed(request: APIRequestContext): Promise<Fixture> {
@@ -35,28 +77,12 @@ async function seed(request: APIRequestContext): Promise<Fixture> {
   expect(draft.status(), await draft.text()).toBeLessThan(300)
   const draftId = String((await readJson(draft)).id)
 
-  const sent = await request.post('/api/orva_purchasing/orders', {
-    data: {
-      vendorPartyId,
-      orderDate: '2026-09-01',
-      expectedOn: overdue,
-      lines: [
-        { kind: 'service', description: 'ค่าขนส่งล็อตกันยายน', quantity: 10, unitPrice: 700, vatMode: 'none', accountId, expectedOn: overdue },
-      ],
-    },
+  // Sent and nine days overdue, so the list has something to call late.
+  const sent = await sentOrder(request, {
+    vendorPartyId, accountId, description: 'ค่าขนส่งล็อตกันยายน', quantity: 10, unitPrice: 700, expectedOn: overdue,
   })
-  expect(sent.status(), await sent.text()).toBeLessThan(300)
-  const sentId = String((await readJson(sent)).id)
-  const detail = await readJson(await request.get(`/api/orva_purchasing/orders/${sentId}`))
-  const sending = await request.post(`/api/orva_purchasing/orders/${sentId}/send`, {
-    data: { updatedAt: (detail.order as Json).updatedAt },
-  })
-  expect(sending.status(), await sending.text()).toBe(200)
-  // Sending claims the number, which is what the list shows for this row.
-  const sentNumber = String((await readJson(sending)).poNumber ?? '')
-  expect(sentNumber, 'sending must claim a PO number').not.toBe('')
 
-  return { draftId, sentId, sentNumber, vendorName }
+  return { vendorPartyId, vendorName, accountId, draftId, sentId: sent.id, sentNumber: sent.number }
 }
 
 /** Collects anything the page throws or logs as an error while we walk it. */
@@ -284,6 +310,177 @@ test.describe('purchasing screens (TEST-010)', () => {
     await expect(page.getByText(/ใบถัดไปจะได้เลขที่/)).toBeVisible()
     // The preview is a real number from the same formatter the send route uses.
     expect((await page.locator('body').innerText())).toMatch(/PO-\d{6}-\d{4}/)
+
+    expect(problems, problems.join(' | ')).toEqual([])
+    await context.close()
+  })
+
+  test('raising a quantity is allowed; lowering one is refused before any request', async ({ browser, baseURL }) => {
+    const context = await signedInBrowser(browser, baseURL, cookie)
+    const page = await context.newPage()
+    const problems = watch(page)
+
+    await page.goto(`/backend/purchasing/orders/${fixture.sentId}`)
+    await page.getByRole('button', { name: 'เพิ่มจำนวน' }).first().click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible({ timeout: 15_000 })
+    await expect(dialog.getByText('เพิ่มจำนวนที่สั่ง')).toBeVisible()
+    // The dialog states what it is for: more arrived than was ordered. Less
+    // is a short close, not an edit, and the hint says so.
+    await expect(dialog.getByText(/เพิ่มได้เท่านั้น/)).toBeVisible()
+
+    const quantity = dialog.locator('input[type="number"]')
+    const reason = dialog.locator('input:not([type="number"])').last()
+    await reason.fill('ผู้ขายส่งมาเกิน')
+    // 10 were ordered. 8 is a reduction and the button will not have it.
+    await quantity.fill('8')
+    await expect(dialog.getByRole('button', { name: 'เพิ่มจำนวน' })).toBeDisabled()
+    // The same number is not an increase either.
+    await quantity.fill('10')
+    await expect(dialog.getByRole('button', { name: 'เพิ่มจำนวน' })).toBeDisabled()
+    await quantity.fill('12')
+    await expect(dialog.getByRole('button', { name: 'เพิ่มจำนวน' })).toBeEnabled()
+    await dialog.getByRole('button', { name: 'เพิ่มจำนวน' }).click()
+    await expect(dialog).toBeHidden({ timeout: 15_000 })
+
+    const after = await readJson(await request.get(`/api/orva_purchasing/orders/${fixture.sentId}`))
+    expect(Number((after.lines as Array<Json>)[0].quantity)).toBe(12)
+
+    expect(problems, problems.join(' | ')).toEqual([])
+    await context.close()
+  })
+
+  test("the link-bill dialog offers the vendor's unlinked bill, and the detail shows what was billed", async ({ browser, baseURL }) => {
+    test.setTimeout(60_000)
+    // A fresh order and a bill finance raised for the same vendor and amount.
+    const order = await sentOrder(request, {
+      vendorPartyId: fixture.vendorPartyId, accountId: fixture.accountId, description: 'ค่าพิมพ์ฉลากล็อต 9', quantity: 10, unitPrice: 700,
+    })
+    const periodId = await ensurePeriodId(request)
+    const bill = await request.post('/api/orva_finance/ap/bills', {
+      data: {
+        vendorPartyId: fixture.vendorPartyId,
+        periodId,
+        billDate: '2026-09-25',
+        currencyCode: 'THB',
+        lines: [{ expenseAccountId: fixture.accountId, amount: 7000, description: 'ค่าพิมพ์ฉลากล็อต 9' }],
+      },
+    })
+    expect(bill.status(), await bill.text()).toBeLessThan(300)
+
+    const context = await signedInBrowser(browser, baseURL, cookie)
+    const page = await context.newPage()
+    const problems = watch(page)
+
+    await page.goto(`/backend/purchasing/orders/${order.id}`)
+    await page.getByRole('button', { name: 'ผูกบิลที่มีอยู่' }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible({ timeout: 15_000 })
+    await expect(dialog.getByText('ผูกบิลที่มีอยู่').first()).toBeVisible()
+
+    // The bill picker lists only this vendor's unlinked bills. Choosing one
+    // reveals its lines, each with a "which order line is this" select.
+    const billPick = dialog.locator('select').filter({ hasText: 'เลือกบิล' })
+    await expect(billPick.locator('option')).not.toHaveCount(1, { timeout: 15_000 })
+    await billPick.selectOption({ index: 1 })
+    const orderLinePick = dialog.getByLabel('ตรงกับรายการที่สั่ง').first()
+    await expect(orderLinePick).toBeVisible({ timeout: 15_000 })
+    // The dialog proposes a match: the order line posting to the same account
+    // as the bill line. So the button is ready at once…
+    await expect(orderLinePick).not.toHaveValue('')
+    await expect(dialog.getByRole('button', { name: 'ผูกบิล' })).toBeEnabled()
+    // …and waits again the moment the operator declines the match.
+    await orderLinePick.selectOption({ index: 0 })
+    await expect(dialog.getByRole('button', { name: 'ผูกบิล' })).toBeDisabled()
+    await orderLinePick.selectOption({ index: 1 })
+    await expect(dialog.getByRole('button', { name: 'ผูกบิล' })).toBeEnabled()
+    await dialog.getByRole('button', { name: 'ผูกบิล' }).click()
+    await expect(dialog).toBeHidden({ timeout: 20_000 })
+
+    // The third number of the match is now on the screen and in the record.
+    await expect(page.getByText('7,000.00').first()).toBeVisible({ timeout: 20_000 })
+    const after = await readJson(await request.get(`/api/orva_purchasing/orders/${order.id}`))
+    expect(Number((after.lines as Array<Json>)[0].billedAmount)).toBe(7000)
+
+    expect(problems, problems.join(' | ')).toEqual([])
+    await context.close()
+  })
+
+  test('closing and cancelling each ask for a reason, and then the order offers no more moves', async ({ browser, baseURL }) => {
+    test.setTimeout(60_000)
+    const toClose = await sentOrder(request, {
+      vendorPartyId: fixture.vendorPartyId, accountId: fixture.accountId, description: 'ค่าเช่าเครื่องบรรจุ', quantity: 3, unitPrice: 4000,
+    })
+    const toCancel = await sentOrder(request, {
+      vendorPartyId: fixture.vendorPartyId, accountId: fixture.accountId, description: 'ค่าออกแบบที่ไม่เกิดขึ้น', quantity: 1, unitPrice: 9000,
+    })
+
+    const context = await signedInBrowser(browser, baseURL, cookie)
+    const page = await context.newPage()
+    const problems = watch(page)
+
+    // Close: the reason is required, and the hint says what closing records.
+    await page.goto(`/backend/purchasing/orders/${toClose.id}`)
+    await page.getByRole('button', { name: 'ปิดใบสั่งซื้อ' }).click()
+    let dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible({ timeout: 15_000 })
+    await expect(dialog.getByText(/ส่วนที่ขาด/)).toBeVisible()
+    await expect(dialog.getByRole('button', { name: 'ปิดใบสั่งซื้อ' })).toBeDisabled()
+    await dialog.locator('input').fill('ผู้ขายส่งไม่ครบ ตกลงยุติ')
+    await dialog.getByRole('button', { name: 'ปิดใบสั่งซื้อ' }).click()
+    await expect(dialog).toBeHidden({ timeout: 15_000 })
+    await expect(page.getByText('ปิดแล้ว').first()).toBeVisible({ timeout: 15_000 })
+    // A closed order is settled: nothing can arrive, nothing can be closed twice.
+    await expect(page.getByRole('button', { name: 'รับของ' })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'ปิดใบสั่งซื้อ' })).toHaveCount(0)
+    let after = await readJson(await request.get(`/api/orva_purchasing/orders/${toClose.id}`))
+    expect((after.order as Json).status).toBe('closed')
+
+    // Cancel: for an order that never happened at all.
+    await page.goto(`/backend/purchasing/orders/${toCancel.id}`)
+    await page.getByRole('button', { name: 'ยกเลิกใบสั่งซื้อ' }).click()
+    dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible({ timeout: 15_000 })
+    await expect(dialog.getByText(/ไม่เกิดขึ้นเลย/)).toBeVisible()
+    await dialog.locator('input').fill('ผู้ขายไม่รับงาน')
+    await dialog.getByRole('button', { name: 'ยกเลิกใบสั่งซื้อ' }).click()
+    await expect(dialog).toBeHidden({ timeout: 15_000 })
+    await expect(page.getByText('ยกเลิกแล้ว').first()).toBeVisible({ timeout: 15_000 })
+    after = await readJson(await request.get(`/api/orva_purchasing/orders/${toCancel.id}`))
+    expect((after.order as Json).status).toBe('cancelled')
+
+    // …and an order that has goods against it cannot be cancelled at all:
+    // the fixture's order was partially received earlier in this file.
+    await page.goto(`/backend/purchasing/orders/${fixture.sentId}`)
+    await expect(page.getByRole('button', { name: 'รับของ' })).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByRole('button', { name: 'ยกเลิกใบสั่งซื้อ' })).toHaveCount(0)
+
+    expect(problems, problems.join(' | ')).toEqual([])
+    await context.close()
+  })
+
+  test('the ใบสั่งซื้อ sheet prints in the browser with the parties the right way round', async ({ browser, baseURL }) => {
+    const context = await signedInBrowser(browser, baseURL, cookie)
+    const page = await context.newPage()
+    const problems = watch(page)
+
+    await page.goto(`/backend/documents/preview?type=purchase_order&documentId=${fixture.sentId}`)
+    const sheet = page.locator('[data-document-sheet="true"]').first()
+    await expect(sheet).toBeVisible({ timeout: 30_000 })
+    const printed = (await sheet.innerText()).replace(/\s+/g, ' ')
+
+    expect(printed).toContain('ใบสั่งซื้อ')
+    expect(printed).toContain(fixture.sentNumber)
+    // We issue it, the vendor receives it: the blocks are titled by role, not
+    // by the sales default of ผู้ขาย / ลูกค้า.
+    expect(printed).toContain('ผู้ซื้อ')
+    expect(printed).toContain('ผู้ขาย')
+    expect(printed).toContain(fixture.vendorName)
+    expect(printed).toContain('ค่าขนส่งล็อตกันยายน')
+    // A purchase order states its money, unlike a delivery note.
+    expect(printed).toContain('700.00')
+    // Not a tax document: one sheet, no taxpayer-id block demanded.
+    expect(printed).not.toContain('สำเนา')
 
     expect(problems, problems.join(' | ')).toEqual([])
     await context.close()

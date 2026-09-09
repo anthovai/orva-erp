@@ -407,7 +407,7 @@ Cache: the home overview already caches per org; purchasing summary invalidates 
 | TEST-007 | integration | purchasing DI present / absent | preview `type=purchase_order` | sheet with heading ใบสั่งซื้อ; 400 `type_unavailable` when absent | REQ-001 |
 | TEST-008 | unit | invoice source + delivery facts | `buildPrintableDocument('delivery_note')` | number `DN-…`, no prices when `showPrices=false`, delivery block present, not a tax document (no buyer tax id required) | REQ-006 |
 | TEST-009 | integration | invoice | POST `delivery-facts` with the read version; then the same stale version; then a payload with `receiverName` | 200, preview reflects the facts and dates the sheet by them; 409 and the first write stands; 400 and nothing written; `quoteId` and every other metadata key preserved | REQ-007 |
-| TEST-010 | UI (browser) | an invoice with delivery facts; a draft and a sent-overdue PO | **ใบส่งของ:** preview + invoices list with a real session. **จัดซื้อ** (`purchasing-screens.spec.ts`, 7 specs): list late count + committed figure + late filter; action gating on draft vs sent; receive dialog over-receipt refused in place, Esc, then a real receipt; create form empty-submit complaint, then vendor → service line → account → save; settings next-number preview; 375px and dark | every label read in Thai (`locale=th`); no unit price on the delivery note; no horizontal page scroll at 375px; a painted background in dark mode; **zero client-side errors** — every spec fails on a `pageerror` or a console error | REQ-002, 004, 006, 007 |
+| TEST-010 | UI (browser) | an invoice with delivery facts; a draft and a sent-overdue PO | **ใบส่งของ:** preview + invoices list with a real session. **จัดซื้อ** (`purchasing-screens.spec.ts`, 11 specs): list late count + committed figure + late filter; action gating on draft vs sent; receive dialog over-receipt refused in place, Esc, then a real receipt; create form empty-submit complaint, then vendor → service line → account → save; adjust-quantity (reduction refused, raise saved); link-bill (pre-match, decline, link, billed shown); close and cancel confirmations and the settled state; the ใบสั่งซื้อ sheet; settings next-number preview; 375px and dark | every label read in Thai (`locale=th`); no unit price on the delivery note; no horizontal page scroll at 375px; a painted background in dark mode; **zero client-side errors** — every spec fails on a `pageerror` or a console error | REQ-002, 004, 006, 007 |
 | TEST-011 | unit | i18n (Track A) | th/en key parity for `orva_purchasing.*` and the `purchase_order` heading | equal key sets | localization |
 | TEST-012 | integration | sent PO; stock receive succeeds, purchasing flush forced to throw | receive → error; run `reconcile` twice | WMS movement exists with `reference_id=po`; after reconcile exactly one receipt row; second run inserts nothing; status `partially_received` | REQ-004 |
 | TEST-013 | integration | sent PO; bill created via finance route, link call not made | `unlinked-bills` → `bill` twice with same allocations; then link the same bill line to another PO | bill listed; one link set; second call 200 idempotent; other PO → 409 `already_linked` | REQ-003 |
@@ -608,9 +608,15 @@ Two smaller observations, left as they are:
   status whose lines are editable in place) and worth knowing before writing
   another assertion against that screen.
 
-Still not walked: the "ผูกบิลที่มีอยู่" dialog, the adjust-quantity dialog,
-the close/cancel confirmations, and the ใบสั่งซื้อ sheet in the browser (its
-API render is covered).
+Walked in a second pass the same day, all green first time: the
+adjust-quantity dialog (a reduction and an unchanged number both leave the
+button disabled; 12 saves), the link-bill dialog (it pre-matches the bill line
+to the order line posting to the same account, the button goes quiet when the
+operator declines the match, and 7,000.00 lands on the detail), the close and
+cancel confirmations (reason required; a closed order offers no more moves; an
+order with goods against it offers no cancel at all), and the ใบสั่งซื้อ sheet
+(ผู้ซื้อ / ผู้ขาย the right way round, money stated, one counterpart). Every
+purchasing screen and dialog is now covered — 11 browser specs.
 
 ### Phase A4 — The owner sees it without opening the module (REQ-005) — ✅ SHIPPED 2026-09-08
 
@@ -751,6 +757,7 @@ Verdict: **Ready for implementation.** The owner confirmed A3 and A8 on 2026-09-
 | Date | Change |
 |---|---|
 | 2026-09-08 | Initial draft with autonomous defaults A0–A8 |
+| 2026-09-09 | TEST-010 completed: the adjust-quantity, link-bill, close and cancel dialogs and the ใบสั่งซื้อ sheet walked in the browser (4 more specs, 37 integration specs in all). No defect found in this pass; the link dialog's account pre-match is recorded as intended behaviour |
 | 2026-09-09 | TEST-010 closed for the purchasing screens: 7 browser specs (`purchasing-screens.spec.ts`) walk the list, the detail's action gating, the receive dialog, the create form, the settings page, 375px and dark mode, all in Thai and all failing on any client-side error. The walk found the create form unusable — `pickers.tsx` asked for `pageSize: 200` against list contracts that cap at 100, so both dropdowns rendered empty and the form advised adding a vendor role the tenant already had. Fixed, and the pickers now report a failed lookup instead of showing it as emptiness. Shared spec fixtures moved to `__integration__/fixtures.ts` |
 | 2026-09-09 | Bug found by B2's save-twice integration spec and fixed in two routes: an `updated_at` optimistic lock read with `to_char(… .MS …)` but written with `now()` lets the first write through and 409s every one after, because the read truncates to milliseconds and `now()` carries microseconds. `delivery-facts` and the pre-existing `record-payment` (where a second payment on one invoice could never be recorded) now truncate both sides. Recorded as a lesson |
 | 2026-09-09 | Phase B2 shipped: `lib/deliveryFacts.ts`, the `delivery-facts` route (GET context + POST merge, `updated_at` lock, 409, and a 400 for `receiverName`), `DeliveryFactsDialog`, the row action. Track B closed. The planned installed `PUT /api/sales/invoices` was replaced by an app-owned scoped UPDATE for the reason `record-payment` already documented; recorded under the API tables. TEST-010 now has real browser coverage for the preview and the invoices list |
