@@ -22,6 +22,10 @@ const settingsResponseSchema = z.object({
   ssoPayableAccountId: z.string().uuid().nullable(),
   taxPayableAccountId: z.string().uuid().nullable(),
   netPayableAccountId: z.string().uuid().nullable(),
+  ssoEmployerNo: z.string().nullable(),
+  ssoBranchCode: z.string().nullable(),
+  filerName: z.string().nullable(),
+  filerPosition: z.string().nullable(),
 })
 
 export async function GET(req: Request) {
@@ -38,6 +42,10 @@ export async function GET(req: Request) {
     ssoPayableAccountId: settings?.ssoPayableAccountId ?? null,
     taxPayableAccountId: settings?.taxPayableAccountId ?? null,
     netPayableAccountId: settings?.netPayableAccountId ?? null,
+    ssoEmployerNo: settings?.ssoEmployerNo ?? null,
+    ssoBranchCode: settings?.ssoBranchCode ?? null,
+    filerName: settings?.filerName ?? null,
+    filerPosition: settings?.filerPosition ?? null,
   })
 }
 

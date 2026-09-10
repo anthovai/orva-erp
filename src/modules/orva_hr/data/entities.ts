@@ -65,6 +65,45 @@ export class HrEmployee {
   @Property({ name: 'wht_rate', type: 'numeric', precision: 5, scale: 2, default: '0' })
   whtRate: string = '0'
 
+  /**
+   * Statutory identity, the part Thai filing needs and a display name cannot
+   * carry. ภ.ง.ด.1 wants the prefix and the given/family name in separate
+   * columns; สปส.1-10 wants the social-security number; 50 ทวิ prints the
+   * address. `nationalId`, `ssoNumber`, `address` and `bankAccountNo` are
+   * ENCRYPTED at rest (see encryption.ts) — read them through
+   * findWithDecryption, never through raw SQL or the query index.
+   */
+  @Property({ name: 'title_th', type: 'text', nullable: true })
+  titleTh?: string | null
+
+  @Property({ name: 'first_name_th', type: 'text', nullable: true })
+  firstNameTh?: string | null
+
+  @Property({ name: 'last_name_th', type: 'text', nullable: true })
+  lastNameTh?: string | null
+
+  /** 13 digits, checksum-validated on write. */
+  @Property({ name: 'national_id', type: 'text', nullable: true })
+  nationalId?: string | null
+
+  /** เลขที่บัตรประกันสังคม — usually the national id, but not always. */
+  @Property({ name: 'sso_number', type: 'text', nullable: true })
+  ssoNumber?: string | null
+
+  /** Registered address as printed on the withholding certificate. */
+  @Property({ type: 'text', nullable: true })
+  address?: string | null
+
+  @Property({ name: 'bank_name', type: 'text', nullable: true })
+  bankName?: string | null
+
+  @Property({ name: 'bank_account_no', type: 'text', nullable: true })
+  bankAccountNo?: string | null
+
+  /** Last day of employment; a leaver still appears in the months they were paid. */
+  @Property({ name: 'termination_date', type: 'date', nullable: true })
+  terminationDate?: string | null
+
   /** 'active' | 'inactive' */
   @Property({ type: 'text', default: 'active' })
   status: string = 'active'
@@ -243,6 +282,26 @@ export class HrSettings {
 
   @Property({ name: 'net_payable_account_id', type: 'uuid' })
   netPayableAccountId!: string
+
+  /**
+   * Filing registration. The taxpayer id, branch and address on the returns
+   * are the ones already printed on the tenant's tax invoices
+   * (orva_documents_settings) — one place to spell the company. What lives
+   * here is what only a payroll filing needs.
+   */
+  @Property({ name: 'sso_employer_no', type: 'text', nullable: true })
+  ssoEmployerNo?: string | null
+
+  /** สาขาที่ขึ้นทะเบียนกับสำนักงานประกันสังคม, e.g. 000000. */
+  @Property({ name: 'sso_branch_code', type: 'text', nullable: true })
+  ssoBranchCode?: string | null
+
+  /** Who signs the return, and in what capacity. */
+  @Property({ name: 'filer_name', type: 'text', nullable: true })
+  filerName?: string | null
+
+  @Property({ name: 'filer_position', type: 'text', nullable: true })
+  filerPosition?: string | null
 
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()

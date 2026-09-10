@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { CrudForm, type CrudField, type CrudFormGroup } from '@open-mercato/ui/backend/CrudForm'
 import { ErrorMessage, RecordNotFoundState } from '@open-mercato/ui/backend/detail'
 import { createCrud, fetchCrudList, updateCrud } from '@open-mercato/ui/backend/utils/crud'
+import { apiCall } from '@open-mercato/ui/backend/utils/apiCall'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 
 const LIST_HREF = '/backend/hr/employees'
@@ -25,6 +26,56 @@ function useStaffMembers() {
   return data?.items ?? []
 }
 
+type EmployeeDetail = {
+  id: string
+  staffMemberId: string | null
+  position: string | null
+  hireDate: string | null
+  monthlySalary: number
+  status: string
+  titleTh: string | null
+  firstNameTh: string | null
+  lastNameTh: string | null
+  nationalId: string | null
+  ssoNumber: string | null
+  address: string | null
+  bankName: string | null
+  bankAccountNo: string | null
+  terminationDate: string | null
+  updatedAt: string | null
+}
+
+type Translate = (key: string, fallback: string) => string
+
+/**
+ * The identity the Thai payroll filings need. Kept in one place so the create
+ * and the edit form cannot drift, and grouped apart from employment so the
+ * screen reads as "who they are" beside "what we pay them".
+ */
+function statutoryFields(t: Translate): CrudField[] {
+  return [
+    { id: 'titleTh', label: t('orva_hr.employees.form.titleTh', 'คำนำหน้า'), type: 'text' },
+    { id: 'firstNameTh', label: t('orva_hr.employees.form.firstNameTh', 'ชื่อ (ไทย)'), type: 'text' },
+    { id: 'lastNameTh', label: t('orva_hr.employees.form.lastNameTh', 'นามสกุล (ไทย)'), type: 'text' },
+    { id: 'nationalId', label: t('orva_hr.employees.form.nationalId', 'เลขประจำตัวประชาชน (13 หลัก)'), type: 'text' },
+    { id: 'ssoNumber', label: t('orva_hr.employees.form.ssoNumber', 'เลขประกันสังคม (เว้นว่าง = ใช้เลขบัตรประชาชน)'), type: 'text' },
+    { id: 'address', label: t('orva_hr.employees.form.address', 'ที่อยู่ (พิมพ์บนหนังสือรับรองหัก ณ ที่จ่าย)'), type: 'textarea' },
+    { id: 'bankName', label: t('orva_hr.employees.form.bankName', 'ธนาคาร'), type: 'text' },
+    { id: 'bankAccountNo', label: t('orva_hr.employees.form.bankAccountNo', 'เลขที่บัญชีรับเงินเดือน'), type: 'text' },
+  ]
+}
+
+function statutoryGroups(t: Translate): CrudFormGroup[] {
+  return [
+    {
+      id: 'statutory',
+      title: t('orva_hr.employees.form.statutoryGroup', 'ข้อมูลสำหรับยื่นราชการ'),
+      column: 1,
+      fields: ['titleTh', 'firstNameTh', 'lastNameTh', 'nationalId', 'ssoNumber', 'address'],
+    },
+  ]
+}
+
 export function EmployeeCreateForm() {
   const t = useT()
   const members = useStaffMembers()
@@ -39,10 +90,12 @@ export function EmployeeCreateForm() {
     { id: 'position', label: t('orva_hr.employees.column.position', 'Position'), type: 'text' },
     { id: 'hireDate', label: t('orva_hr.employees.form.hireDate', 'Hire date'), type: 'date' },
     { id: 'monthlySalary', label: t('orva_hr.employees.form.salary', 'Monthly salary (THB)'), type: 'number', required: true },
+    ...statutoryFields(t),
   ], [t, members])
   const groups = React.useMemo<CrudFormGroup[]>(() => [
     { id: 'employment', title: t('orva_hr.employees.form.group', 'Employment'), column: 1, fields: ['staffMemberId', 'position', 'hireDate'] },
-    { id: 'compensation', title: t('orva_hr.employees.form.compGroup', 'Compensation'), column: 2, fields: ['monthlySalary'] },
+    { id: 'compensation', title: t('orva_hr.employees.form.compGroup', 'Compensation'), column: 2, fields: ['monthlySalary', 'bankName', 'bankAccountNo'] },
+    ...statutoryGroups(t),
   ], [t])
   return (
     <CrudForm
@@ -86,28 +139,42 @@ export function EmployeeEditForm({ id }: { id: string }) {
         { value: 'inactive', label: t('orva_hr.employeeStatus.inactive', 'Inactive') },
       ],
     },
+    { id: 'terminationDate', label: t('orva_hr.employees.form.terminationDate', 'วันสิ้นสุดการจ้าง'), type: 'date' },
+    ...statutoryFields(t),
   ], [t, members])
   const groups = React.useMemo<CrudFormGroup[]>(() => [
-    { id: 'employment', title: t('orva_hr.employees.form.group', 'Employment'), column: 1, fields: ['staffMemberId', 'position', 'hireDate', 'status'] },
-    { id: 'compensation', title: t('orva_hr.employees.form.compGroup', 'Compensation'), column: 2, fields: ['monthlySalary'] },
+    { id: 'employment', title: t('orva_hr.employees.form.group', 'Employment'), column: 1, fields: ['staffMemberId', 'position', 'hireDate', 'status', 'terminationDate'] },
+    { id: 'compensation', title: t('orva_hr.employees.form.compGroup', 'Compensation'), column: 2, fields: ['monthlySalary', 'bankName', 'bankAccountNo'] },
+    ...statutoryGroups(t),
   ], [t])
 
   React.useEffect(() => {
     let cancelled = false
     async function load() {
       try {
-        const data = await fetchCrudList<Record<string, unknown>>('orva_hr/employees', { ids: String(id), pageSize: 1 })
-        const item = data?.items?.[0]
-        if (!item) { if (!cancelled) setIsNotFound(true); return }
+        // The detail route, not the list: four statutory columns are encrypted
+        // at rest, so the query index holds ciphertext for them.
+        const call = await apiCall<EmployeeDetail>(`/api/orva_hr/employees/detail?id=${encodeURIComponent(String(id))}`)
+        if (!call.ok || !call.result) { if (!cancelled) setIsNotFound(true); return }
+        const item = call.result
         if (!cancelled) {
           setInitial({
             id: item.id,
-            staffMemberId: item.staff_member_id ?? '',
+            staffMemberId: item.staffMemberId ?? '',
             position: item.position ?? '',
-            hireDate: item.hire_date ?? '',
-            monthlySalary: Number(item.monthly_salary ?? 0),
+            hireDate: item.hireDate ?? '',
+            monthlySalary: item.monthlySalary,
             status: item.status,
-            updatedAt: item.updated_at ?? null,
+            titleTh: item.titleTh ?? '',
+            firstNameTh: item.firstNameTh ?? '',
+            lastNameTh: item.lastNameTh ?? '',
+            nationalId: item.nationalId ?? '',
+            ssoNumber: item.ssoNumber ?? '',
+            address: item.address ?? '',
+            bankName: item.bankName ?? '',
+            bankAccountNo: item.bankAccountNo ?? '',
+            terminationDate: item.terminationDate ?? '',
+            updatedAt: item.updatedAt ?? null,
           })
         }
       } catch (error: unknown) {

@@ -44,6 +44,28 @@ async function resolveStaffMember(
   })
 }
 
+/**
+ * The statutory identity fields, kept together so create and update cannot
+ * drift. Four of them are encrypted at rest by the module's encryption map;
+ * writing them through the entity is all that is needed, the platform
+ * encrypts on flush.
+ */
+const STATUTORY_KEYS = ['titleTh', 'firstNameTh', 'lastNameTh', 'nationalId', 'ssoNumber', 'address', 'bankName', 'bankAccountNo', 'terminationDate'] as const
+type StatutoryKey = (typeof STATUTORY_KEYS)[number]
+type StatutoryInput = Partial<Record<StatutoryKey, string | null | undefined>>
+
+function statutoryToEntity(input: StatutoryInput): Partial<Record<StatutoryKey, string | null>> {
+  const out: Partial<Record<StatutoryKey, string | null>> = {}
+  for (const key of STATUTORY_KEYS) out[key] = input[key] ?? null
+  return out
+}
+
+function applyStatutory(entity: HrEmployee, input: StatutoryInput): void {
+  for (const key of STATUTORY_KEYS) {
+    if (input[key] !== undefined) (entity as unknown as Record<string, unknown>)[key] = input[key]
+  }
+}
+
 type EmployeeListQuery = z.infer<typeof employeeListSchema>
 
 const employeeListItemSchema = z
@@ -105,6 +127,7 @@ export const { metadata, GET, POST, PUT, DELETE } = makeCrudRoute({
       monthlySalary: Number(input.monthlySalary).toFixed(4),
       status: 'active',
       createdBy: ctx.auth?.sub ?? null,
+      ...statutoryToEntity(input),
     }),
     response: (entity) => ({ id: String(entity.id) }),
   },
@@ -121,6 +144,7 @@ export const { metadata, GET, POST, PUT, DELETE } = makeCrudRoute({
       if (input.hireDate !== undefined) entity.hireDate = input.hireDate
       if (input.monthlySalary !== undefined) entity.monthlySalary = Number(input.monthlySalary).toFixed(4)
       if (input.status !== undefined) entity.status = input.status
+      applyStatutory(entity, input)
     },
     response: () => ({ ok: true }),
   },

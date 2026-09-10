@@ -555,6 +555,7 @@
   "orva_finance.whtCert.no": "เลขที่",
   "orva_finance.whtCert.page.title": "หนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ)",
   "orva_finance.whtCert.pick": "เปิดจากรายการจ่ายเงินที่มีการหักภาษี ณ ที่จ่าย",
+  "orva_finance.whtCert.ref": "อ้างอิงรายการจ่าย",
   "orva_finance.widget.overview.income": "รายได้",
   "orva_finance.widget.overview.netProfit": "กำไรสุทธิ",
   "orva_finance.widget.overview.overdueHint": "รวมยอดเกินกำหนดเกิน 90 วัน {amount}",

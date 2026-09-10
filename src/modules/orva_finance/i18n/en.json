@@ -555,6 +555,7 @@
   "orva_finance.whtCert.no": "No.",
   "orva_finance.whtCert.page.title": "Withholding tax certificate (50 Tawi)",
   "orva_finance.whtCert.pick": "Open from a posted payment that withheld tax",
+  "orva_finance.whtCert.ref": "Payment reference",
   "orva_finance.widget.overview.income": "Revenue",
   "orva_finance.widget.overview.netProfit": "Net profit",
   "orva_finance.widget.overview.overdueHint": "Includes {amount} more than 90 days overdue",
