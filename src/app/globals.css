@@ -840,6 +840,14 @@ table, [data-slot="table"], .tabular-nums {
   color: var(--muted-foreground);
 }
 
+/* The installed AI launcher pill leaves the header: the assistant is opened
+   from src/components/orva/AiFloatingLauncher.tsx (bottom-right icon) and
+   Cmd/Ctrl+L, both of which the launcher itself still serves. */
+header [data-ai-launcher-trigger],
+header [data-ai-launcher-trigger-mobile] {
+  display: none;
+}
+
 /* Printable sheets speak Sarabun — the same face as the paper they mimic */
 [data-document-sheet="true"] {
   font-family: var(--font-document);

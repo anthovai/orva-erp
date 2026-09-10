@@ -3,6 +3,7 @@
   "appShell.productName": "Orva",
   "auth.login.brandName": "Orva",
   "auth.login.logoAlt": "Orva logo",
+  "orva.ai.launcher": "Open the AI assistant (Ctrl+L)",
   "orva.home.create.bill": "Record vendor bill",
   "orva.home.create.customer": "Add customer",
   "orva.home.create.quote": "Create sales document",

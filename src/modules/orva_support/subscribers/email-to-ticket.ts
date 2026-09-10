@@ -5,7 +5,7 @@ import { CustomerEntity } from '@open-mercato/core/modules/customers/data/entiti
 import { withTenantRls } from '@/lib/rls'
 import { SupportTicket } from '../data/entities'
 import { guessKind, matchCustomer, inferProject, type Contact, type ProjectRef } from '../lib/emailTriage'
-import { ticketNumber } from '../lib/tickets'
+import { ticketNoFromSubject, ticketNumber } from '../lib/tickets'
 
 /**
  * A client email becomes a support ticket, already attached to the customer
@@ -79,25 +79,29 @@ export default async function handle(payload: unknown, ctx: ResolverContext): Pr
 
       // A reply on a thread we already track belongs on that ticket, as the
       // customer's own words — not as a second ticket about the same problem.
+      // Two ways to recognise the thread: the ticket number our own emailed
+      // reply put in the subject (the answer to a Resend-sent mail carries an
+      // In-Reply-To we never saw), then the mail headers.
       const threadId = email.in_reply_to ?? email.message_id ?? null
-      if (threadId) {
-        const existing = await tem.findOne(SupportTicket, { tenantId, organizationId, threadId, deletedAt: null })
-        if (existing) {
-          await tem.execute(
-            `insert into orva_support_replies
-               (tenant_id, organization_id, ticket_id, author, body, minutes_spent, created_at, updated_at)
-             values (?::uuid, ?::uuid, ?::uuid, 'customer', ?, 0, now(), now())`,
-            [tenantId, organizationId, existing.id, email.body ?? '(ไม่มีเนื้อหา)'],
-          )
-          // The customer has answered, so it is our move again.
-          if (existing.status === 'waiting_customer') {
-            existing.status = 'open'
-            existing.updatedAt = new Date()
-            await tem.flush()
-          }
-          logger.info('Appended an email reply to an existing ticket', { ticketNo: existing.ticketNo, emailId })
-          return
+      const referencedNo = ticketNoFromSubject(email.subject)
+      const existing =
+        (referencedNo ? await tem.findOne(SupportTicket, { tenantId, organizationId, ticketNo: referencedNo, deletedAt: null }) : null)
+        ?? (threadId ? await tem.findOne(SupportTicket, { tenantId, organizationId, threadId, deletedAt: null }) : null)
+      if (existing) {
+        await tem.execute(
+          `insert into orva_support_replies
+             (tenant_id, organization_id, ticket_id, author, body, minutes_spent, created_at, updated_at)
+           values (?::uuid, ?::uuid, ?::uuid, 'customer', ?, 0, now(), now())`,
+          [tenantId, organizationId, existing.id, email.body ?? '(ไม่มีเนื้อหา)'],
+        )
+        // The customer has answered, so it is our move again.
+        if (existing.status === 'waiting_customer') {
+          existing.status = 'open'
+          existing.updatedAt = new Date()
+          await tem.flush()
         }
+        logger.info('Appended an email reply to an existing ticket', { ticketNo: existing.ticketNo, emailId, matchedBy: referencedNo ? 'subject' : 'headers' })
+        return
       }
 
       // Contacts and projects, both read through the decrypting finder —

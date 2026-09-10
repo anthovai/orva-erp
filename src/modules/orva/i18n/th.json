@@ -8906,6 +8906,7 @@
   "orderApproval.requestApproval": "ขอการอนุมัติ",
   "orderApproval.startError": "ไม่สามารถเริ่มเวิร์กโฟลว์การอนุมัติได้",
   "orderApproval.submitDecision": "ส่งการตัดสินใจ",
+  "orva.ai.launcher": "เปิดผู้ช่วย AI (Ctrl+L)",
   "orva.home.create.bill": "บันทึกบิลผู้ขาย",
   "orva.home.create.customer": "เพิ่มลูกค้า",
   "orva.home.create.quote": "สร้างเอกสารการขาย",

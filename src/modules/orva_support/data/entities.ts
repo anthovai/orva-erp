@@ -129,6 +129,17 @@ export class SupportReply {
   @Property({ name: 'minutes_spent', type: 'int' })
   minutesSpent: number = 0
 
+  /** The `messages` record that carried this reply to the client by email, when one did. */
+  @Property({ name: 'email_message_id', type: 'uuid', nullable: true })
+  emailMessageId?: string | null
+
+  /** null = not emailed · 'sent' · 'failed' (see emailError) */
+  @Property({ name: 'email_status', type: 'text', nullable: true })
+  emailStatus?: string | null
+
+  @Property({ name: 'email_error', type: 'text', nullable: true })
+  emailError?: string | null
+
   @Property({ name: 'created_by', type: 'uuid', nullable: true })
   createdBy?: string | null
 

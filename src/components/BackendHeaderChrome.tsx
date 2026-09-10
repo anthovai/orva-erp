@@ -13,12 +13,8 @@ import { ProfileDropdown } from '@open-mercato/ui/backend/ProfileDropdown'
 import { SettingsButton } from '@open-mercato/ui/backend/SettingsButton'
 import { useBackendChrome } from '@open-mercato/ui/backend/BackendChromeProvider'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
-import { AiAssistantShellIntegration } from '@/components/AiAssistantShellIntegration'
+import { AiFloatingLauncher } from '@/components/orva/AiFloatingLauncher'
 
-const LazyAiChatHeaderButton = dynamic(
-  () => import('@open-mercato/ai-assistant/frontend').then((module) => module.AiChatHeaderButton),
-  { ssr: false, loading: () => null },
-)
 const LazyTopbarSearchInline = dynamic(
   () => import('@open-mercato/search/modules/search/frontend').then((module) => module.TopbarSearchInline),
   { ssr: false, loading: () => null },
@@ -107,8 +103,6 @@ export function BackendHeaderChrome({
   userId,
   embeddingConfigured,
   missingConfigMessage,
-  tenantId,
-  organizationId,
 }: BackendHeaderChromeProps) {
   const t = useT()
   const { payload, isReady } = useBackendChrome()
@@ -116,10 +110,6 @@ export function BackendHeaderChrome({
   const showIntegrationsButton = React.useMemo(
     () => hasVisibleRoute(payload?.groups, '/backend/integrations'),
     [payload?.groups],
-  )
-  const showAiAssistant = React.useMemo(
-    () => hasFeature(grantedFeatures, 'ai_assistant.view'),
-    [grantedFeatures],
   )
   const showSearch = React.useMemo(
     () => hasFeature(grantedFeatures, 'search.global'),
@@ -164,11 +154,11 @@ export function BackendHeaderChrome({
   return (
     <>
       <AuthSessionGuard serverUserId={userId} />
-      {isReady && showAiAssistant ? (
-        <AiAssistantShellIntegration tenantId={tenantId} organizationId={organizationId}>
-          <LazyAiChatHeaderButton />
-        </AiAssistantShellIntegration>
-      ) : null}
+      {/* The assistant is reached from a small icon at the bottom-right, not
+          from the header (owner's ask, 2026-09-10); the installed launcher's
+          own pill is hidden in globals.css, and the icon shows itself only
+          when that launcher decided the assistant is available. */}
+      {isReady ? <AiFloatingLauncher /> : null}
       {isReady && showSearch ? (
         <LazyTopbarSearchInline
           embeddingConfigured={embeddingConfigured}

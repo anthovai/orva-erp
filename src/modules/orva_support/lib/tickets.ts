@@ -28,6 +28,23 @@ export function stampsFor(to: TicketStatus, now: Date): { resolvedAt?: Date | nu
 
 export const ticketNumber = (sequence: number) => `TCK-${String(sequence).padStart(6, '0')}`
 
+/**
+ * The ticket a customer's email is about, read off its subject.
+ *
+ * Our outbound reply is sent through Resend, so the `Message-ID` the client
+ * answers to is one we never see; `In-Reply-To` cannot find the ticket. The
+ * subject can: every reply we send is titled `Re: [TCK-000123] …`, and mail
+ * clients keep that when the client answers. First match wins.
+ */
+export function ticketNoFromSubject(subject: string | null | undefined): string | null {
+  const match = /\bTCK-(\d{6})\b/.exec(subject ?? '')
+  return match ? `TCK-${match[1]}` : null
+}
+
+/** The subject an emailed reply carries — the ticket number the inbox matches on, then the ticket's own title. */
+export const replySubject = (ticketNo: string, subject: string) =>
+  `Re: [${ticketNo}] ${subject.replace(/^\s*(re|fw|fwd)\s*:\s*/i, '').trim()}`.slice(0, 500)
+
 const HOURS = 36e5
 
 /** How long the ticket has been waiting, and whether it is past its due date. */

@@ -112,9 +112,27 @@ async function seed(request: APIRequestContext): Promise<Fixture> {
   return { cashName: 'ธนาคารกสิกรไทย', expenseName: 'ค่าเดินทางและพาหนะ', month }
 }
 
+/**
+ * Picks an account in the Radix select. The list animates open, and under
+ * load a refetch can re-render it while the option is settling, so the click
+ * is retried from the trigger rather than trusted first time.
+ */
 async function pickCategory(page: Page, name: string) {
-  await page.getByRole('combobox').filter({ hasText: /เลือกหมวดค่าใช้จ่าย|\d{4}/ }).first().click()
-  await page.getByRole('option', { name: new RegExp(name) }).click()
+  const trigger = page.getByRole('combobox').filter({ hasText: /เลือกหมวดค่าใช้จ่าย|\d{4}/ }).first()
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const option = page.getByRole('option', { name: new RegExp(name) })
+    if (!(await option.isVisible().catch(() => false))) await trigger.click()
+    try {
+      await option.waitFor({ state: 'visible', timeout: 5_000 })
+      await page.waitForTimeout(250)
+      await option.click({ timeout: 5_000 })
+      await expect(trigger).toContainText(name, { timeout: 5_000 })
+      return
+    } catch {
+      await page.keyboard.press('Escape').catch(() => undefined)
+    }
+  }
+  throw new Error(`could not pick the category ${name}`)
 }
 
 const money = (row: Json) => ({ net: Number(row.net), vat: Number(row.vat), wht: Number(row.wht), paid: Number(row.paid) })

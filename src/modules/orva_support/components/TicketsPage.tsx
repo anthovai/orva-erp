@@ -10,15 +10,17 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useProjectOptions } from '@/modules/orva_documents/components/queries'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { SwitchField } from '@open-mercato/ui/primitives/switch-field'
+import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 
 type Ticket = {
   id: string; ticketNo: string; subject: string; description?: string | null; kind: string; priority: string; status: string
   customerEntityId: string | null; customerName: string | null; contactEmail: string | null; quoteId?: string | null
-  dueOn: string | null; minutesSpent: number; ageHours: number; responseHours: number | null
+  dueOn: string | null; minutesSpent: number; source?: 'manual' | 'email'; threadId?: string | null; ageHours: number; responseHours: number | null
   awaitingFirstResponse: boolean; daysOverdue: number; createdAt: string; updatedAt: string
 }
 type TicketsResponse = { items: Ticket[]; total: number; counts: { open: number; waiting: number; overdue: number; unanswered: number; minutesOpen: number } }
-type Reply = { id: string; author: string; body: string; minutesSpent: number; createdAt: string }
+type Reply = { id: string; author: string; body: string; minutesSpent: number; createdAt: string; emailStatus?: 'sent' | 'failed' | null; emailError?: string | null }
 type Company = { id: string; entity_id?: string | null; display_name?: string | null; legal_name?: string | null }
 type Project = { quoteId: string; quoteNumber: string; customerName: string | null }
 
@@ -44,8 +46,10 @@ export default function TicketsPage() {
   const [selected, setSelected] = React.useState<Ticket | null>(null)
   const [creating, setCreating] = React.useState(false)
   const [draft, setDraft] = React.useState({ subject: '', description: '', kind: 'bug', priority: 'normal', customerEntityId: '', contactEmail: '', dueOn: '', quoteId: '' })
-  const [reply, setReply] = React.useState({ body: '', minutes: 0, author: 'staff' as 'staff' | 'customer' | 'note', status: '' })
+  const [reply, setReply] = React.useState({ body: '', minutes: 0, author: 'staff' as 'staff' | 'customer' | 'note', status: '', sendEmail: false })
+  const [mergeTarget, setMergeTarget] = React.useState('')
   const [busy, setBusy] = React.useState(false)
+  const { confirm, ConfirmDialogElement } = useConfirmDialog()
 
   const list = useQuery({
     queryKey: ['orva_support.tickets', bucket, search, quoteFilter, scopeVersion],
@@ -89,17 +93,34 @@ export default function TicketsPage() {
     } catch (e) { flash(e instanceof Error ? e.message : String(e), 'error') } finally { setBusy(false) }
   }
 
+  // A reply on a ticket that came by email goes back by email unless the
+  // owner switches it off; a ticket typed by hand needs the switch turned on.
+  React.useEffect(() => {
+    setReply((current) => ({ ...current, sendEmail: Boolean(selected?.contactEmail) && selected?.source === 'email' }))
+    setMergeTarget('')
+  }, [selected?.id, selected?.contactEmail, selected?.source])
+
+  const canEmail = Boolean(selected?.contactEmail) && reply.author === 'staff'
+
   const send = async () => {
     if (!selected || !reply.body.trim()) return
     setBusy(true)
     try {
-      const res = await apiCall<{ ok: true; status: string; minutesSpent: number; updatedAt: string }>('/api/orva_support/replies', {
+      const res = await apiCall<{ ok: true; status: string; minutesSpent: number; updatedAt: string; email: { sent: boolean; error?: string } | null }>('/api/orva_support/replies', {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ticketId: selected.id, author: reply.author, body: reply.body, minutesSpent: reply.minutes, ...(reply.status ? { status: reply.status } : {}) }),
+        body: JSON.stringify({
+          ticketId: selected.id, author: reply.author, body: reply.body, minutesSpent: reply.minutes,
+          sendEmail: canEmail && reply.sendEmail,
+          ...(reply.status ? { status: reply.status } : {}),
+        }),
       })
       if (!res.ok || !res.result) throw new Error((res.result as { error?: string } | undefined)?.error ?? 'failed')
+      if (res.result.email) {
+        if (res.result.email.sent) flash(t('orva_support.email.sent', 'ส่งอีเมลถึงลูกค้าแล้ว'), 'success')
+        else flash(t('orva_support.email.failed', 'บันทึกคำตอบแล้ว แต่ส่งอีเมลไม่สำเร็จ: {error}').replace('{error}', res.result.email.error ?? ''), 'error')
+      }
       setSelected({ ...selected, status: res.result.status, minutesSpent: res.result.minutesSpent, updatedAt: res.result.updatedAt })
-      setReply({ body: '', minutes: 0, author: 'staff', status: '' })
+      setReply((current) => ({ body: '', minutes: 0, author: 'staff', status: '', sendEmail: current.sendEmail }))
       await refresh()
     } catch (e) { flash(e instanceof Error ? e.message : String(e), 'error') } finally { setBusy(false) }
   }
@@ -114,6 +135,30 @@ export default function TicketsPage() {
       })
       if (!res.ok || !res.result) throw new Error((res.result as { error?: string } | undefined)?.error ?? 'failed')
       setSelected({ ...selected, status: res.result.status, updatedAt: res.result.updatedAt })
+      await refresh()
+    } catch (e) { flash(e instanceof Error ? e.message : String(e), 'error') } finally { setBusy(false) }
+  }
+
+  const merge = async () => {
+    if (!selected || !mergeTarget) return
+    const target = (list.data?.items ?? []).find((row) => row.id === mergeTarget)
+    if (!target) return
+    const ok = await confirm({
+      title: t('orva_support.merge.title', 'รวม {source} เข้ากับ {target}?').replace('{source}', selected.ticketNo).replace('{target}', target.ticketNo),
+      description: t('orva_support.merge.description', 'การตอบกลับทั้งหมดจะย้ายไปอยู่ที่ {target} เนื้อหาของเรื่องนี้จะถูกเก็บไว้เป็นข้อความหนึ่งรายการ และเรื่องนี้จะถูกปิด').replace('{target}', target.ticketNo),
+      confirmText: t('orva_support.merge.confirm', 'รวมเรื่อง'),
+      cancelText: t('orva_support.merge.cancel', 'ยกเลิก'),
+    })
+    if (!ok) return
+    setBusy(true)
+    try {
+      const res = await apiCall<{ ok: true; targetId: string; ticketNo: string; updatedAt: string }>('/api/orva_support/tickets/merge', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ sourceId: selected.id, targetId: target.id, updatedAt: target.updatedAt }),
+      })
+      if (!res.ok || !res.result) throw new Error((res.result as { error?: string } | undefined)?.error ?? 'failed')
+      flash(t('orva_support.merge.done', 'รวมเข้ากับ {target} แล้ว').replace('{target}', res.result.ticketNo), 'success')
+      setSelected({ ...target, updatedAt: res.result.updatedAt })
       await refresh()
     } catch (e) { flash(e instanceof Error ? e.message : String(e), 'error') } finally { setBusy(false) }
   }
@@ -228,6 +273,8 @@ export default function TicketsPage() {
                           <span className={`text-xs ${priorityTone(row.priority)}`}>{label('priority', row.priority)}</span>
                           {row.awaitingFirstResponse ? <span className="rounded bg-status-error-bg px-1.5 text-xs text-status-error-text">{t('orva_support.badge.unanswered', 'ยังไม่ตอบ')}</span> : null}
                           {row.daysOverdue > 0 ? <span className="rounded bg-status-warning-bg px-1.5 text-xs text-status-warning-text">{t('orva_support.badge.overdue', 'เลย {days} วัน').replace('{days}', String(row.daysOverdue))}</span> : null}
+                          {row.source === 'email' ? <span className="rounded bg-status-info-bg px-1.5 text-xs text-status-info-text">{t('orva_support.badge.fromEmail', 'จากอีเมล')}</span> : null}
+                          {row.source === 'email' && !row.customerEntityId ? <span className="rounded bg-status-warning-bg px-1.5 text-xs text-status-warning-text">{t('orva_support.badge.unmatched', 'ยังไม่จับคู่ลูกค้า')}</span> : null}
                         </div>
                         <div className="truncate text-xs text-muted-foreground">{label('kind', row.kind)} · {row.subject}</div>
                       </td>
@@ -270,7 +317,11 @@ export default function TicketsPage() {
                     <p className="px-3 py-4 text-center text-xs text-muted-foreground">{t('orva_support.noReplies', 'ยังไม่มีการตอบกลับ')}</p>
                   ) : (replies.data?.items ?? []).map((r) => (
                     <div key={r.id} className="border-b px-3 py-2 text-sm last:border-b-0">
-                      <div className="text-xs text-muted-foreground">{label('author', r.author)} · {r.createdAt.slice(0, 16).replace('T', ' ')}{r.minutesSpent ? ` · ${r.minutesSpent} ${t('orva_support.minutes', 'นาที')}` : ''}</div>
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                        <span>{label('author', r.author)} · {r.createdAt.slice(0, 16).replace('T', ' ')}{r.minutesSpent ? ` · ${r.minutesSpent} ${t('orva_support.minutes', 'นาที')}` : ''}</span>
+                        {r.emailStatus === 'sent' ? <span className="rounded bg-status-success-bg px-1.5 text-status-success-text">{t('orva_support.email.badgeSent', 'ส่งอีเมลแล้ว')}</span> : null}
+                        {r.emailStatus === 'failed' ? <span className="rounded bg-status-error-bg px-1.5 text-status-error-text" title={r.emailError ?? undefined}>{t('orva_support.email.badgeFailed', 'ส่งอีเมลไม่สำเร็จ')}</span> : null}
+                      </div>
                       <p className="whitespace-pre-line">{r.body}</p>
                     </div>
                   ))}
@@ -289,14 +340,37 @@ export default function TicketsPage() {
                       <option value="">{t('orva_support.keepStatus', 'คงสถานะเดิม')}</option>
                       {STATUSES.filter((s) => s !== selected.status).map((s) => <option key={s} value={s}>{label('status', s)}</option>)}
                     </select>
-                    <Button size="sm" disabled={busy || !reply.body.trim()} onClick={send}>{t('orva_support.send', 'บันทึก')}</Button>
+                    <Button size="sm" disabled={busy || !reply.body.trim()} onClick={send}>{canEmail && reply.sendEmail ? t('orva_support.sendAndEmail', 'บันทึกและส่งอีเมล') : t('orva_support.send', 'บันทึก')}</Button>
                   </div>
+                  {canEmail ? (
+                    <SwitchField
+                      checked={reply.sendEmail}
+                      onCheckedChange={(checked) => setReply({ ...reply, sendEmail: checked })}
+                      label={t('orva_support.email.switch', 'ส่งอีเมลถึงลูกค้า')}
+                      description={t('orva_support.email.switchHelp', 'ส่งไปที่ {email} ในหัวเรื่อง Re: [{ticket}] — คำตอบของลูกค้าจะกลับมาเข้าเรื่องนี้เอง').replace('{email}', selected.contactEmail ?? '').replace('{ticket}', selected.ticketNo)}
+                    />
+                  ) : null}
                 </div>
+
+                <details className="text-sm">
+                  <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">{t('orva_support.merge.open', 'รวมเข้าเรื่องอื่น…')}</summary>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <select className="min-w-0 flex-1 rounded-md border bg-background px-2 py-1.5 text-sm" value={mergeTarget} onChange={(e) => setMergeTarget(e.target.value)} aria-label={t('orva_support.merge.target', 'เรื่องที่จะรวมเข้าไป')}>
+                      <option value="">{t('orva_support.merge.pick', 'เลือกเรื่องที่ถูกต้อง')}</option>
+                      {(list.data?.items ?? []).filter((row) => row.id !== selected.id).map((row) => (
+                        <option key={row.id} value={row.id}>{row.ticketNo} · {row.subject}</option>
+                      ))}
+                    </select>
+                    <Button size="sm" variant="outline" disabled={busy || !mergeTarget} onClick={merge}>{t('orva_support.merge.action', 'รวมเรื่อง')}</Button>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{t('orva_support.merge.help', 'ใช้เมื่ออีเมลของลูกค้าเปิดเป็นเรื่องซ้ำ — คำตอบทั้งหมดจะย้ายไป และเรื่องนี้จะถูกปิด')}</p>
+                </details>
               </div>
             )}
           </section>
         </div>
       </PageBody>
+      {ConfirmDialogElement}
     </Page>
   )
 }

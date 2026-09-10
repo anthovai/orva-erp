@@ -56,9 +56,18 @@ export const replyCreateSchema = z.object({
   minutesSpent: z.coerce.number().int().min(0).max(10_000).optional().default(0),
   /** Move the ticket at the same time (optional). */
   status: z.enum(TICKET_STATUSES).optional(),
+  /** Also send this reply to the ticket's contact email (staff replies only). */
+  sendEmail: z.boolean().optional().default(false),
 })
 
 export const ticketQuerySchema = z.object({ id: z.string().uuid() })
+
+/** Fold one ticket into another; `updatedAt` is the target's optimistic lock. */
+export const ticketMergeSchema = z.object({
+  sourceId: z.string().uuid(),
+  targetId: z.string().uuid(),
+  updatedAt: z.string().min(1),
+})
 
 export const SUBSCRIPTION_KINDS = ['software', 'domain', 'hosting', 'certificate', 'other'] as const
 export const BILLING_CYCLES = ['monthly', 'quarterly', 'yearly', 'one_time'] as const

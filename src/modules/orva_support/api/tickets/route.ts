@@ -31,6 +31,8 @@ const ticketSchema = z.object({
   quoteId: z.string().nullable(),
   dueOn: z.string().nullable(),
   minutesSpent: z.number(),
+  source: z.enum(['manual', 'email']),
+  threadId: z.string().nullable(),
   ageHours: z.number(),
   responseHours: z.number().nullable(),
   awaitingFirstResponse: z.boolean(),
@@ -49,6 +51,7 @@ type Row = {
   id: string; ticket_no: string; subject: string; description: string | null; kind: string; priority: string; status: string
   customer_entity_id: string | null; customer_name: string | null; contact_email: string | null; quote_id: string | null
   due_on: string | null; minutes_spent: number; first_response_at: string | null; resolved_at: string | null
+  source: string; thread_id: string | null
   created_at: string; updated_at: string
 }
 
@@ -59,6 +62,7 @@ const toJson = (row: Row) => {
     kind: row.kind, priority: row.priority, status: row.status,
     customerEntityId: row.customer_entity_id, customerName: row.customer_name, contactEmail: row.contact_email,
     quoteId: row.quote_id, dueOn: row.due_on, minutesSpent: row.minutes_spent,
+    source: row.source, threadId: row.thread_id,
     createdAt: row.created_at, updatedAt: row.updated_at, ...age,
   }
 }
@@ -86,7 +90,7 @@ export async function GET(req: Request) {
   const result = await withTenantRls(em, tenantId, async (tem) => {
     const rows = (await tem.execute(
       `select id, ticket_no, subject, description, kind, priority, status, customer_entity_id, customer_name, contact_email,
-              quote_id, to_char(due_on, 'YYYY-MM-DD') as due_on, minutes_spent,
+              quote_id, to_char(due_on, 'YYYY-MM-DD') as due_on, minutes_spent, source, thread_id,
               first_response_at::text, resolved_at::text, created_at::text, updated_at::text
        from orva_support_tickets
        where deleted_at is null and tenant_id = ?::uuid and organization_id = ?::uuid

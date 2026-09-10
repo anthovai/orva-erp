@@ -169,6 +169,10 @@ test.describe('every screen opens (screens smoke)', () => {
     }
     console.log(`[smoke] ${pages.length} pages loaded, ${failures.length} with problems`)
     expect(failures, 'pages that threw on load').toEqual([])
+
+    // The assistant is reached from the corner, not the header (G2 child spec).
+    await expect(page.locator('[data-orva-ai-launcher]')).toBeVisible()
+    await expect(page.locator('header [data-ai-launcher-trigger]')).toBeHidden()
     await context.close()
   })
 
