@@ -9,8 +9,9 @@ import { apiCall, readApiResultOrThrow } from '@open-mercato/ui/backend/utils/ap
 import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { useBrandCodes } from '@/modules/orva_documents/components/queries'
 
-type Lot = { lotId: string; catalogVariantId: string; variantName: string | null; sku: string | null; lotNumber: string | null; expiresAt: string | null; onHand: string; unitCost: string | null }
+type Lot ={ lotId: string; catalogVariantId: string; variantName: string | null; sku: string | null; lotNumber: string | null; expiresAt: string | null; onHand: string; unitCost: string | null }
 type Brand = { code: string; name: string }
 type CartLine = { lot: Lot; quantity: number; unitPriceGross: number }
 type SaleResult = { ok: true; invoiceId: string; invoiceNumber: string; gross: number; net: number; vat: number; documents: { abbreviatedTaxInvoice: string; receipt: string } }
@@ -39,7 +40,7 @@ export default function RetailSalePage() {
   const [result, setResult] = React.useState<SaleResult | null>(null)
 
   const lots = useQuery({ queryKey: ['orva_stock.lots', scopeVersion], queryFn: async () => (await readApiResultOrThrow<{ items: Lot[] }>('/api/orva_stock/lots')).items })
-  const brands = useQuery({ queryKey: ['orva_documents.brands.codes', scopeVersion], queryFn: async () => (await readApiResultOrThrow<{ items: Brand[] }>('/api/orva_documents/brands')).items })
+  const brands = useBrandCodes()
 
   const add = (lot: Lot) => setCart((c) => (c.some((l) => l.lot.lotId === lot.lotId) ? c : [...c, { lot, quantity: 1, unitPriceGross: 0 }]))
   const update = (lotId: string, patch: Partial<CartLine>) => setCart((c) => c.map((l) => (l.lot.lotId === lotId ? { ...l, ...patch } : l)))

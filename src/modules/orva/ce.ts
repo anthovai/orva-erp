@@ -31,6 +31,13 @@ export const entities = [
         description: 'KKG = Kaiser (บริการซอฟต์แวร์), MRV = Marventine (สินค้า)',
         filterable: true,
       }),
+      // คลัง: when on-hand (all lots, all variants of the product) falls to this
+      // number or below, the home screen and the valuation page say "ใกล้หมด"
+      // and point at สั่งซื้อ. Empty = no alert for this product.
+      cf.integer('reorder_point', {
+        label: 'จุดสั่งซื้อซ้ำ (ชิ้น)',
+        description: 'เมื่อคงเหลือรวมทุกล็อตต่ำกว่าหรือเท่ากับจำนวนนี้ ระบบจะแจ้ง "ใกล้หมด" บนหน้าแรก — เว้นว่างถ้าไม่ต้องการแจ้ง',
+      }),
     ],
   },
   {
@@ -49,6 +56,28 @@ export const entities = [
           filterable: true,
         },
       ),
+    ],
+  },
+  {
+    // การตลาด (PDPA): whether this contact — person or company — agreed to
+    // receive news from us. Defined once on the shared customer record, so it
+    // renders on both the person and the company form and orva_marketing reads
+    // it from one place. Default is no; only an explicit yes counts.
+    id: 'customers:customer_entity',
+    fields: [
+      cf.boolean('marketing_consent', {
+        label: 'ยินยอมรับข่าวสาร',
+        description: 'ติ๊กเมื่อลูกค้ายินยอมรับอีเมลข่าวสาร/โปรโมชัน (PDPA) — ระบบส่งข่าวให้เฉพาะคนที่ติ๊กไว้',
+        filterable: true,
+      }),
+      cf.date('marketing_consent_at', {
+        label: 'วันที่ให้ความยินยอม',
+        description: 'วันที่ลูกค้าให้หรือถอนความยินยอมล่าสุด',
+      }),
+      cf.text('marketing_consent_source', {
+        label: 'ที่มาของความยินยอม',
+        description: 'เช่น แบบฟอร์มเว็บ, บอกด้วยวาจา, LINE, ยกเลิกเองจากลิงก์ในอีเมล',
+      }),
     ],
   },
   {

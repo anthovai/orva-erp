@@ -303,6 +303,8 @@
   "orva_finance.home.waiting.lateDays": "เกิน {days} วัน",
   "orva_finance.home.waiting.latePurchase": "ของที่สั่งแล้วยังไม่ได้รับ: {item} ({vendor})",
   "orva_finance.home.waiting.latePurchaseMore": "ของที่สั่งแล้วยังไม่ได้รับ (ทั้งหมด)",
+  "orva_finance.home.waiting.lowStock": "ใกล้หมด: {item} — สั่งซื้อจาก OEM",
+  "orva_finance.home.waiting.lowStockSub": "เหลือ {onHand} · จุดสั่งซื้อ {point}",
   "orva_finance.home.waiting.pack": "ชุดปิดเดือนที่แล้วยังไม่ส่งสำนักงานบัญชี",
   "orva_finance.home.waiting.quoteExpired": "หมดอายุแล้ว {days} วัน",
   "orva_finance.home.waiting.quoteValid": "ใบเสนอราคาหมดอายุในอีก {days} วัน",

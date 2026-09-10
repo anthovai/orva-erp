@@ -55,6 +55,30 @@ export const retailSaleSchema = z.object({
   lines: z.array(retailSaleLineSchema).min(1).max(50),
 })
 
+/** A normalized marketplace order, as the preview showed it and the import will record it. */
+export const marketplaceOrderSchema = z.object({
+  externalOrderId: z.string().trim().min(1).max(120),
+  orderDate: isoDate.nullable().optional(),
+  buyerName: z.string().trim().max(200).nullable().optional(),
+  lines: z.array(z.object({
+    sku: z.string().trim().min(1).max(120),
+    productName: z.string().trim().max(300).nullable().optional(),
+    quantity: z.coerce.number().positive(),
+    unitPrice: z.coerce.number().positive(),
+  })).min(1).max(50),
+})
+
+export const marketplaceImportSchema = z.object({
+  marketplace: z.enum(['shopee', 'lazada', 'tiktok', 'custom']),
+  brand: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{2,6}$/).optional(),
+  orders: z.array(marketplaceOrderSchema).min(1).max(500),
+})
+
+export const marketplaceHistoryQuerySchema = z.object({
+  marketplace: z.enum(['shopee', 'lazada', 'tiktok', 'custom']).optional(),
+  pageSize: z.coerce.number().int().min(1).max(500).optional().default(200),
+})
+
 export const valuationQuerySchema = z.object({
   asOf: isoDate.optional(),
 })

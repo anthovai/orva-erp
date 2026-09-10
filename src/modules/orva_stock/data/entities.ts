@@ -150,3 +150,60 @@ export class StockSettings {
   @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
   updatedAt: Date = new Date()
 }
+
+/**
+ * One marketplace order the import has seen. `imported` rows carry the sales
+ * invoice the order became and hold the unique slot per (marketplace, order
+ * id), so a second upload of the same file skips them; `failed` rows keep the
+ * reason and may be retried once the cause (a SKU, stock) is fixed.
+ */
+@Entity({ tableName: 'orva_stock_marketplace_imports' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class MarketplaceImport {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  /** shopee | lazada | tiktok | custom */
+  @Property({ type: 'text' })
+  marketplace!: string
+
+  @Property({ name: 'external_order_id', type: 'text' })
+  externalOrderId!: string
+
+  /** imported | failed */
+  @Property({ type: 'text' })
+  status!: string
+
+  @Property({ name: 'invoice_id', type: 'uuid', nullable: true })
+  invoiceId?: string | null
+
+  @Property({ name: 'invoice_number', type: 'text', nullable: true })
+  invoiceNumber?: string | null
+
+  @Property({ name: 'order_date', type: 'date', nullable: true })
+  orderDate?: string | null
+
+  @Property({ name: 'buyer_name', type: 'text', nullable: true })
+  buyerName?: string | null
+
+  @Property({ type: 'numeric', precision: 18, scale: 2, nullable: true })
+  gross?: string | null
+
+  @Property({ type: 'text', nullable: true })
+  message?: string | null
+
+  @Property({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+}

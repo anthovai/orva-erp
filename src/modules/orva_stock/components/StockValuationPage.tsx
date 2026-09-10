@@ -13,6 +13,7 @@ import { useT } from '@open-mercato/shared/lib/i18n/context'
 type Valuation = {
   asOf: string
   lines: Array<{ lotId: string; variantId: string; variantName: string | null; sku: string | null; lotNumber: string | null; expiresAt: string | null; onHand: number; unitCost: number | null; value: number; daysToExpiry: number | null; expiryState: 'ok' | 'soon' | 'expired' | 'unknown' }>
+  lowStock?: Array<{ variantId: string; productId: string; name: string; sku: string | null; onHand: number; reorderPoint: number }>
   totalOnHand: number
   totalValue: number
   uncosted: number
@@ -105,8 +106,27 @@ export default function StockValuationPage() {
               <Kpi label={t('orva_stock.valuation.totalValue', 'มูลค่าสินค้าคงเหลือ')} value={fmt(valuation.data.totalValue)} />
               <Kpi label={t('orva_stock.valuation.totalOnHand', 'จำนวนคงเหลือ (ชิ้น)')} value={qty(valuation.data.totalOnHand)} />
               <Kpi label={t('orva_stock.valuation.expiringSoon', 'ล็อตใกล้หมดอายุ (90 วัน)')} value={String(valuation.data.expiringSoon)} tone={valuation.data.expiringSoon > 0 ? 'warn' : undefined} />
+              <Kpi label={t('orva_stock.valuation.lowStock', 'สินค้าใกล้หมด (ถึงจุดสั่งซื้อ)')} value={String((valuation.data.lowStock ?? []).length)} tone={(valuation.data.lowStock ?? []).length > 0 ? 'warn' : undefined} />
               <Kpi label={t('orva_stock.valuation.unpostedCogs', 'ต้นทุนขายรอลงบัญชี')} value={fmt(valuation.data.unpostedCogs.total)} tone={valuation.data.unpostedCogs.count > 0 ? 'warn' : undefined} />
             </div>
+
+            {(valuation.data.lowStock ?? []).length > 0 ? (
+              <section className="rounded-md border border-status-warning-border bg-status-warning-bg/40 p-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <h2 className="text-sm font-semibold">{t('orva_stock.lowStock.title', 'ใกล้หมด — ถึงจุดสั่งซื้อซ้ำแล้ว')}</h2>
+                  <Button asChild size="sm"><Link href="/backend/purchasing/orders/create">{t('orva_stock.lowStock.order', 'สั่งซื้อจาก OEM')}</Link></Button>
+                </div>
+                <ul className="mt-2 flex flex-col gap-1 text-sm">
+                  {(valuation.data.lowStock ?? []).map((row) => (
+                    <li key={row.variantId} className="flex items-baseline justify-between gap-3">
+                      <span>{row.name}{row.sku ? <span className="ml-1 text-xs text-muted-foreground">{row.sku}</span> : null}</span>
+                      <span className="tabular-nums">{t('orva_stock.lowStock.line', 'เหลือ {onHand} / จุดสั่งซื้อ {point}').replace('{onHand}', qty(row.onHand)).replace('{point}', qty(row.reorderPoint))}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-muted-foreground">{t('orva_stock.lowStock.help', 'ตั้งจุดสั่งซื้อซ้ำได้ที่สินค้าแต่ละตัว (ช่อง "จุดสั่งซื้อซ้ำ") — เว้นว่างถ้าไม่ต้องการแจ้ง')}</p>
+              </section>
+            ) : null}
 
             <section className="overflow-x-auto rounded-md border">
               <table className="w-full text-sm">
@@ -126,7 +146,10 @@ export default function StockValuationPage() {
                     <tr><td colSpan={7} className="px-3 py-8 text-center text-muted-foreground">{t('orva_stock.valuation.empty', 'ยังไม่มีสินค้าในคลัง — รับล็อตแรกเข้าจากบิล OEM ได้ที่ "รับสินค้าเข้าคลัง"')}</td></tr>
                   ) : valuation.data.lines.map((l) => (
                     <tr key={l.lotId} className="border-b last:border-b-0">
-                      <td className="px-3 py-2">{l.variantName ?? l.sku ?? l.variantId}{l.sku ? <span className="ml-1 text-xs text-muted-foreground">{l.sku}</span> : null}</td>
+                      <td className="px-3 py-2">
+                        {l.variantName ?? l.sku ?? l.variantId}{l.sku ? <span className="ml-1 text-xs text-muted-foreground">{l.sku}</span> : null}
+                        {(valuation.data.lowStock ?? []).some((row) => row.variantId === l.variantId) ? <span className="ml-2 rounded bg-status-warning-bg px-1.5 text-xs text-status-warning-text">{t('orva_stock.lowStock.badge', 'ใกล้หมด')}</span> : null}
+                      </td>
                       <td className="px-3 py-2 font-medium">{l.lotNumber ?? '—'}</td>
                       <td className={`px-3 py-2 ${l.expiryState === 'expired' ? 'text-status-error-text' : l.expiryState === 'soon' ? 'text-status-warning-text' : ''}`}>
                         {l.expiresAt ?? '—'}{stateLabel[l.expiryState] ? ` · ${stateLabel[l.expiryState]}` : ''}{l.daysToExpiry != null && l.expiryState !== 'expired' ? ` (${l.daysToExpiry} วัน)` : ''}

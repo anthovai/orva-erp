@@ -11,6 +11,17 @@ import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/u
  */
 export type ProjectOption = { quoteId: string; quoteNumber: string; customerName: string | null }
 
+/** Document brands (number series + logo) — the codes a sale or an import files under. */
+export type BrandOption = { code: string; name: string }
+
+export function useBrandCodes() {
+  const scopeVersion = useOrganizationScopeVersion()
+  return useQuery({
+    queryKey: ['orva_documents.brands.codes', scopeVersion],
+    queryFn: async () => (await readApiResultOrThrow<{ items: BrandOption[] }>('/api/orva_documents/brands')).items,
+  })
+}
+
 export function useProjectOptions(enabled = true) {
   const scopeVersion = useOrganizationScopeVersion()
   return useQuery({

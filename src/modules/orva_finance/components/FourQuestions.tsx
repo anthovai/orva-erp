@@ -40,6 +40,7 @@ export type HomeOverview = {
     lastMonthPackSent: boolean
     expiringLots: number
     expiredLots: number
+    lowStock?: Array<{ variantId: string; name: string; sku: string | null; onHand: number; reorderPoint: number }>
     renewingSubscriptions: number
     lapsedSubscriptions: number
     untouchedLeads: number
@@ -148,7 +149,7 @@ export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOver
   const t = useT()
   const overdue = data.cashIn.overdueCount > 0
   const accepted = data.waiting.acceptedAwaitingInstallment ?? []
-  const waitingCount = data.waiting.quotes.length + data.waiting.unpostedInvoices + data.waiting.draftJournals + data.waiting.unmatchedBankLines + (data.waiting.lastMonthPackSent ? 0 : 1) + (data.waiting.expiringLots ?? 0) + (data.waiting.expiredLots ?? 0) + (data.waiting.renewingSubscriptions ?? 0) + (data.waiting.lapsedSubscriptions ?? 0) + (data.waiting.untouchedLeads ?? 0) + (data.waiting.latePurchaseLines?.length ?? 0) + accepted.length
+  const waitingCount = data.waiting.quotes.length + data.waiting.unpostedInvoices + data.waiting.draftJournals + data.waiting.unmatchedBankLines + (data.waiting.lastMonthPackSent ? 0 : 1) + (data.waiting.expiringLots ?? 0) + (data.waiting.expiredLots ?? 0) + (data.waiting.renewingSubscriptions ?? 0) + (data.waiting.lapsedSubscriptions ?? 0) + (data.waiting.untouchedLeads ?? 0) + (data.waiting.latePurchaseLines?.length ?? 0) + accepted.length + (data.waiting.lowStock?.length ?? 0)
   const taxTone: Tone = data.tax.some((d) => d.state === 'overdue' && !d.packSentAt) ? 'bad' : data.tax.some((d) => d.state === 'due_soon' && !d.packSentAt) ? 'warn' : undefined
 
   return (
@@ -272,6 +273,19 @@ export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOver
               tone="warn"
             />
           ) : null}
+          {(data.waiting.lowStock ?? []).slice(0, 4).map((row) => (
+            <Row
+              key={row.variantId}
+              left={(
+                <Link href="/backend/purchasing/orders/create" className="hover:underline">
+                  {t('orva_finance.home.waiting.lowStock', 'ใกล้หมด: {item} — สั่งซื้อจาก OEM').replace('{item}', row.name)}
+                </Link>
+              )}
+              sub={t('orva_finance.home.waiting.lowStockSub', 'เหลือ {onHand} · จุดสั่งซื้อ {point}').replace('{onHand}', String(row.onHand)).replace('{point}', String(row.reorderPoint))}
+              right={String(row.onHand)}
+              tone={row.onHand <= 0 ? 'bad' : 'warn'}
+            />
+          ))}
           {(data.waiting.latePurchaseLines ?? []).slice(0, 4).map((line) => (
             <Row
               key={line.orderId + line.description}

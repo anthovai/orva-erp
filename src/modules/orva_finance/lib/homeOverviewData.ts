@@ -4,6 +4,7 @@ import type { PurchasingLateLine, PurchasingSummaryReader } from './purchasingSu
 import { CustomerEntity } from '@open-mercato/core/modules/customers/data/entities'
 import { daysBetween, monthBounds, monthOf, upcomingDeadlines, type TaxDeadline } from './homeOverview'
 import { reminderState } from './reminders'
+import { lowStockVariants } from '@/modules/orva_stock/lib/lowStock'
 import {
   bookkeepingStatus, cashBalances, monthPackHistory, openInvoices, pendingQuotes, receiptsInMonth,
   vatReport, whtReport, type Scope,
@@ -72,6 +73,8 @@ export type HomeOverviewData = {
     committedNotBilled: string
     /** Quotes accepted by the customer with no งวด issued yet. */
     acceptedAwaitingInstallment: Array<{ id: string; ref: string; customer: string | null; total: string }>
+    /** คลัง: variants at or below their product's reorder point. */
+    lowStock: Array<{ variantId: string; name: string; sku: string | null; onHand: number; reorderPoint: number }>
   }
 }
 
@@ -261,7 +264,7 @@ export async function buildHomeOverview(
 ): Promise<HomeOverviewData> {
   const month = monthOf(today)
   const bounds = monthBounds(month)
-  const [invoices, receipts, bank, quotes, books, stock, subs, leads, purchasing, accepted] = await Promise.all([
+  const [invoices, receipts, bank, quotes, books, stock, subs, leads, purchasing, accepted, lowStock] = await Promise.all([
     openInvoices(tem, scope),
     receiptsInMonth(tem, scope, bounds.from, bounds.to),
     cashBalances(tem, scope),
@@ -274,6 +277,9 @@ export async function buildHomeOverview(
       ? deps.purchasing.summarise(tem, { tenantId: scope.tenantId, organizationId: scope.organizationId ?? '' }, today)
       : Promise.resolve(null),
     quotesAwaitingFirstInstallment(tem, scope),
+    // Reorder points live on the product (orva/ce.ts); the on-hand comes from
+    // the same WMS balances the expiry alert reads. Same seam, same owner.
+    scope.organizationId ? lowStockVariants(tem, { tenantId: scope.tenantId, organizationId: scope.organizationId }) : Promise.resolve([]),
   ])
   const deadlines = upcomingDeadlines(today)
   const reminders = await reminderHistory(tem, scope, invoices.map((i) => i.id))
@@ -360,6 +366,7 @@ export async function buildHomeOverview(
         customer: row.customerEntityId ? customerNames.get(row.customerEntityId) ?? null : null,
         total: row.total,
       })),
+      lowStock: lowStock.map((row) => ({ variantId: row.variantId, name: row.name, sku: row.sku, onHand: row.onHand, reorderPoint: row.reorderPoint })),
     },
   }
 }

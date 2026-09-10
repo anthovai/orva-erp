@@ -303,6 +303,8 @@
   "orva_finance.home.waiting.lateDays": "{days}d late",
   "orva_finance.home.waiting.latePurchase": "Ordered and not received: {item} ({vendor})",
   "orva_finance.home.waiting.latePurchaseMore": "Ordered and not received (all)",
+  "orva_finance.home.waiting.lowStock": "Running low: {item} — order from the OEM",
+  "orva_finance.home.waiting.lowStockSub": "{onHand} left · reorder at {point}",
   "orva_finance.home.waiting.pack": "Last month's pack not sent to the accountant",
   "orva_finance.home.waiting.quoteExpired": "Expired {days} days ago",
   "orva_finance.home.waiting.quoteValid": "Quote expires in {days} days",
