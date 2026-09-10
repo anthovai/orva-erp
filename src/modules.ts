@@ -429,6 +429,10 @@ enabledModules.push({ id: 'orva_stock', from: '@app' })
 enabledModules.push({ id: 'orva_purchasing', from: '@app' })
 // Customer support for shipped software (benchmark spec F0 gap #7).
 enabledModules.push({ id: 'orva_support', from: '@app' })
+// การตลาด: consent per CRM contact (custom fields on customers:customer_entity),
+// public unsubscribe link, broadcasts through the installed messages module.
+// Spec: .ai/specs/2026-09-10-orva-phase-h-department-completion.md (H2)
+enabledModules.push({ id: 'orva_marketing', from: '@app' })
 enabledModules.push({ id: 'orva_tasking', from: '@app' })
 // The seam between the work and the hours: keeps โครงการ (staff_time_projects)
 // in step with โปรเจกต์ (orva_tasking_projects). Registered after orva_tasking
