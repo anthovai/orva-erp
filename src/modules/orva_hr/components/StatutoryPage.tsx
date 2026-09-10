@@ -50,7 +50,7 @@ export default function StatutoryPage() {
   })
   const employees = useQuery({
     queryKey: ['orva_hr.statutory.employees', scopeVersion],
-    queryFn: () => readApiResultOrThrow<{ items: EmployeeRow[] }>('/api/orva_hr/employees?page=1&pageSize=200&status=active'),
+    queryFn: () => readApiResultOrThrow<{ items: EmployeeRow[] }>('/api/orva_hr/employees?page=1&pageSize=100&status=active'),
   })
 
   const employer = pnd1.data?.employer ?? sso.data?.employer ?? null
