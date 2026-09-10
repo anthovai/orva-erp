@@ -1,6 +1,6 @@
 # Lessons
 
-This catalog indexes 16 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
+This catalog indexes 17 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
 
 ## How to use this catalog
 
@@ -56,3 +56,4 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 - [Flush a DB-generated uuid PK before creating child rows that reference it](lessons/db-generated-uuid-pk-needs-flush-before-child-rows.md) — area:debugging,module-data; module:orva_finance,orva_hr; topic:mikro-orm,primary-keys,posting-routes
 - [CRUD list.entityId must be the generated registry id, not a hand-guessed segment](lessons/crud-list-entityid-must-match-generated-registry.md) — area:debugging,module-data; module:orva_hr; topic:crud-factory,query-engine,entity-ids
 - [A list bound to raw SQL is ONE Postgres array literal, never a JavaScript array](lessons/raw-sql-array-binding-is-one-literal.md) — area:debugging,module-data; module:orva_stock,orva_marketing,orva_tasking,orva_documents,orva_finance,orva_support; topic:raw-sql,mikro-orm,array-binding,malformed-array-literal,empty-500
+- [In a Zod union, z.coerce.number() matches null and returns 0 — put the null branch first](lessons/zod-coerce-number-swallows-null.md) — area:module-data,debugging,testing; module:orva_documents,orva_support; topic:zod,validators,nullable-numbers,silent-data-corruption,integration-tests
