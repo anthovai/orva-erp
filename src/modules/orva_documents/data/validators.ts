@@ -47,6 +47,21 @@ export const settingsPutSchema = z.object({
   logoHeaderQuotation: logoSchema,
   documentTerms: z.string().trim().max(2000).optional().nullable(),
   etaxSenderEmail: z.string().trim().email().optional().nullable().or(z.literal('').transform(() => null)),
+  /**
+   * Baht per hour of work; null or an empty form field means "not set".
+   *
+   * Order matters: `z.coerce.number()` turns null into 0, so the null and
+   * empty-string branches MUST come first. With the coerce branch first,
+   * clearing the rate stored 0 — and a zero rate says the work costs nothing
+   * per hour, which is exactly the misleading figure the null is for.
+   */
+  defaultHourlyRate: z.union([z.null(), z.literal('').transform(() => null), z.coerce.number().min(0).max(1_000_000)]).optional(),
+})
+
+/** One project's hourly rate; null removes the override so the default applies again. */
+export const projectRateSchema = z.object({
+  quoteId: z.string().uuid(),
+  hourlyRate: z.coerce.number().min(0).max(1_000_000).nullable(),
 })
 
 export const previewQuerySchema = z.object({

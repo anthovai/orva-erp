@@ -35,6 +35,7 @@ type SettingsPayload = {
   logoHeaderQuotation: string | null
   documentTerms: string | null
   etaxSenderEmail: string | null
+  defaultHourlyRate: number | null
   updatedAt: string | null
 }
 
@@ -89,6 +90,11 @@ export default function DocumentSettingsPage() {
       type: 'text',
     },
     {
+      id: 'defaultHourlyRate',
+      label: t('orva_documents.settings.defaultHourlyRate', 'ต้นทุนต่อชั่วโมงทำงาน (บาท) — ใช้คิดต้นทุนและกำไรโปรเจกต์จากเวลาที่จับไว้ เว้นว่าง = ไม่คิด'),
+      type: 'number',
+    },
+    {
       id: 'invoiceNumberFormat',
       label: t('orva_documents.settings.invoiceNumberFormat', 'รูปแบบเลขที่ใบแจ้งหนี้ (เช่น KK-INV-{yyyy}{seq:3})'),
       type: 'text',
@@ -127,7 +133,7 @@ export default function DocumentSettingsPage() {
       id: 'seller',
       title: t('orva_documents.settings.groupSeller', 'ข้อมูลกิจการบนเอกสาร'),
       column: 1,
-      fields: ['sellerName', 'sellerLegalName', 'sellerTaxId', 'sellerBranch', 'sellerAddress', 'sellerPhone', 'sellerEmail', 'paymentDetails', 'documentTerms', 'etaxSenderEmail'],
+      fields: ['sellerName', 'sellerLegalName', 'sellerTaxId', 'sellerBranch', 'sellerAddress', 'sellerPhone', 'sellerEmail', 'paymentDetails', 'documentTerms', 'etaxSenderEmail', 'defaultHourlyRate'],
     },
     {
       id: 'templates',

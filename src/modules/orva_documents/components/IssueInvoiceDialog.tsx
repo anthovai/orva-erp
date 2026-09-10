@@ -29,10 +29,16 @@ export function IssueInvoiceDialog({
   quoteId,
   open,
   onOpenChange,
+  defaultPercent,
+  onIssued,
 }: {
   quoteId: string
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Pre-fills the percent field — the projects list passes what is still unbilled. */
+  defaultPercent?: number | null
+  /** When given, the caller decides what happens next instead of the preview redirect. */
+  onIssued?: (invoice: { id: string; invoiceNumber: string }) => void
 }) {
   const t = useT()
   const router = useRouter()
@@ -58,6 +64,10 @@ export function IssueInvoiceDialog({
     })
     return () => { cancelled = true }
   }, [open, quoteId])
+
+  React.useEffect(() => {
+    if (open && defaultPercent != null && defaultPercent > 0) { setMode('percent'); setValue(String(defaultPercent)) }
+  }, [open, defaultPercent])
 
   const numeric = Number(value)
   const net = !quote || !Number.isFinite(numeric) || numeric <= 0
@@ -93,7 +103,8 @@ export function IssueInvoiceDialog({
         'success',
       )
       onOpenChange(false)
-      router.push(`/backend/documents/preview?type=invoice&documentId=${body.id}`)
+      if (onIssued) onIssued({ id: String(body.id), invoiceNumber: String(body.invoiceNumber ?? '') })
+      else router.push(`/backend/documents/preview?type=invoice&documentId=${body.id}`)
     } finally {
       setBusy(false)
     }

@@ -108,6 +108,14 @@ export class DocumentSettings {
   @Property({ name: 'etax_sender_email', type: 'text', nullable: true })
   etaxSenderEmail?: string | null
 
+  /**
+   * โปรเจกต์: what one hour of the owner's work costs, used to turn logged
+   * minutes into a project's cost and margin. One default for the company;
+   * a quote may override it (ProjectRate). Null = margin is not computed.
+   */
+  @Property({ name: 'default_hourly_rate', type: 'numeric', precision: 12, scale: 2, nullable: true })
+  defaultHourlyRate?: string | null
+
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()
 
@@ -116,6 +124,37 @@ export class DocumentSettings {
 
   @Property({ name: 'deleted_at', type: Date, nullable: true })
   deletedAt?: Date | null
+}
+
+/**
+ * An hourly rate for one project (quote) that differs from the company
+ * default — a fixed-price job quoted at a discount, or work that a
+ * contractor does at their own rate. `quoteId` is a bare uuid into
+ * sales_quotes; one row per quote.
+ */
+@Entity({ tableName: 'orva_documents_project_rates' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class ProjectRate {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ name: 'quote_id', type: 'uuid' })
+  quoteId!: string
+
+  @Property({ name: 'hourly_rate', type: 'numeric', precision: 12, scale: 2 })
+  hourlyRate!: string
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onCreate: () => new Date(), onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
 }
 
 /**

@@ -10,6 +10,14 @@ import { useQuery } from '@tanstack/react-query'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy'
+import { useQueryClient } from '@tanstack/react-query'
+import { Button } from '@open-mercato/ui/primitives/button'
+import { Input } from '@open-mercato/ui/primitives/input'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@open-mercato/ui/primitives/dialog'
+import { apiCall } from '@open-mercato/ui/backend/utils/apiCall'
+import { flash } from '@open-mercato/ui/backend/FlashMessages'
+import { formatHours } from '@/modules/orva_time/lib/hours'
+import { IssueInvoiceDialog } from '../../components/IssueInvoiceDialog'
 
 /**
  * โปรเจกต์: the quote-as-project view. Each software project Kaiser Klowns
@@ -46,6 +54,12 @@ type ProjectRow = {
     | { verdict: 'bill_behind'; gap: number }
     | { verdict: 'work_behind'; gap: number }
     | { verdict: 'in_step'; gap: number }
+  minutes: number
+  hourlyRate: number | null
+  rateSource: 'project' | 'default' | 'none'
+  cost: number | null
+  marginBilled: number | null
+  marginProjected: number | null
 }
 
 const money = (value: number, currency: string) =>
@@ -75,6 +89,11 @@ export default function OrvaProjectsPage() {
   const t = useT()
   const router = useRouter()
   const scopeVersion = useOrganizationScopeVersion()
+  const qc = useQueryClient()
+  // Row actions that open a dialog: the project whose next งวด is being issued,
+  // and the project whose hourly rate is being set.
+  const [issueFor, setIssueFor] = React.useState<ProjectRow | null>(null)
+  const [rateFor, setRateFor] = React.useState<ProjectRow | null>(null)
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['orva_documents.projects', scopeVersion],
     queryFn: async () => readApiResultOrThrow<{ items: ProjectRow[] }>('/api/orva_documents/projects'),
@@ -199,6 +218,54 @@ export default function OrvaProjectsPage() {
       ),
     },
     {
+      /**
+       * Hours into money (H3). Cost is only shown against a rate someone typed;
+       * without one the cell says so and offers the setting, never a 0 margin.
+       */
+      id: 'economics',
+      header: t('orva_documents.projects.column.economics', 'เวลาที่ใช้ · ต้นทุน · กำไร'),
+      cell: ({ row }: { row: { original: ProjectRow } }) => {
+        const r = row.original
+        const hours = t('orva_documents.projects.hours', '{hours} ชม.').replace('{hours}', formatHours(r.minutes))
+        if (r.cost == null || r.hourlyRate == null) {
+          return (
+            <div className="flex flex-col text-sm">
+              <span className="tabular-nums">{hours}</span>
+              <button
+                type="button"
+                className="text-left text-xs text-muted-foreground hover:underline"
+                onClick={(e) => { e.stopPropagation(); setRateFor(r) }}
+              >
+                {t('orva_documents.projects.noRate', 'ยังไม่ตั้งอัตราต่อชั่วโมง — ตั้งเพื่อดูต้นทุน')}
+              </button>
+            </div>
+          )
+        }
+        const marginTone = (r.marginProjected ?? 0) < 0 ? 'text-status-error-text' : 'text-status-success-text'
+        return (
+          <div className="flex flex-col text-sm" data-testid={`economics-${r.quoteId}`}>
+            <span className="tabular-nums">
+              {hours} · {t('orva_documents.projects.cost', 'ต้นทุน {cost}').replace('{cost}', money(r.cost, r.currencyCode))}
+            </span>
+            <span className={`text-xs tabular-nums ${marginTone}`}>
+              {t('orva_documents.projects.marginProjected', 'กำไรคาด {margin}').replace('{margin}', money(r.marginProjected ?? 0, r.currencyCode))}
+              {' · '}
+              {t('orva_documents.projects.marginBilled', 'เก็บแล้ว−ต้นทุน {margin}').replace('{margin}', money(r.marginBilled ?? 0, r.currencyCode))}
+            </span>
+            <button
+              type="button"
+              className="text-left text-xs text-muted-foreground hover:underline"
+              onClick={(e) => { e.stopPropagation(); setRateFor(r) }}
+            >
+              {(r.rateSource === 'project'
+                ? t('orva_documents.projects.rateProject', 'อัตราเฉพาะโปรเจกต์ {rate}/ชม.')
+                : t('orva_documents.projects.rateDefault', 'อัตราบริษัท {rate}/ชม.')).replace('{rate}', money(r.hourlyRate, r.currencyCode))}
+            </button>
+          </div>
+        )
+      },
+    },
+    {
       id: 'status',
       header: t('orva_documents.projects.column.status', 'สถานะ'),
       cell: ({ row }: { row: { original: ProjectRow } }) => (
@@ -254,6 +321,18 @@ export default function OrvaProjectsPage() {
           rowActions={(row) => (
             <RowActions
               items={[
+                ...(row.remainingToBill > 0
+                  ? [{
+                      id: 'issue-next',
+                      label: t('orva_documents.projects.rowAction.issueNext', 'ออกใบแจ้งหนี้งวดถัดไป'),
+                      onSelect: () => setIssueFor(row),
+                    }]
+                  : []),
+                {
+                  id: 'set-rate',
+                  label: t('orva_documents.projects.rowAction.rate', 'ตั้งอัตราต่อชั่วโมงของโปรเจกต์นี้'),
+                  onSelect: () => setRateFor(row),
+                },
                 {
                   id: 'open-quote',
                   label: t('orva_documents.projects.rowAction.quote', 'เปิดใบเสนอราคา / ออกงวดถัดไป'),
@@ -279,7 +358,89 @@ export default function OrvaProjectsPage() {
             </div>
           }
         />
+        {issueFor ? (
+          <IssueInvoiceDialog
+            quoteId={issueFor.quoteId}
+            open
+            onOpenChange={(open) => { if (!open) setIssueFor(null) }}
+            // What is still unbilled, so the last งวด closes the project exactly.
+            defaultPercent={issueFor.billedPct < 100 ? Math.round((100 - issueFor.billedPct) * 10) / 10 : null}
+            onIssued={(invoice) => {
+              setIssueFor(null)
+              void qc.invalidateQueries({ queryKey: ['orva_documents.projects'] })
+              router.push(`/backend/documents/preview?type=invoice&documentId=${invoice.id}`)
+            }}
+          />
+        ) : null}
+        {rateFor ? (
+          <RateDialog
+            project={rateFor}
+            onClose={() => setRateFor(null)}
+            onSaved={() => { setRateFor(null); void qc.invalidateQueries({ queryKey: ['orva_documents.projects'] }) }}
+          />
+        ) : null}
       </PageBody>
     </Page>
+  )
+}
+
+/**
+ * อัตราต่อชั่วโมงของโปรเจกต์ — the exception to the company default. Empty
+ * clears the override so the default applies again; the note names that
+ * default (or says none is set and where to set it) so the owner is never
+ * guessing what the blank means.
+ */
+function RateDialog({ project, onClose, onSaved }: { project: ProjectRow; onClose: () => void; onSaved: () => void }) {
+  const t = useT()
+  const [value, setValue] = React.useState(project.rateSource === 'project' && project.hourlyRate != null ? String(project.hourlyRate) : '')
+  const [busy, setBusy] = React.useState(false)
+  const defaultRate = project.rateSource === 'default' ? project.hourlyRate : null
+
+  const save = async (clear: boolean) => {
+    const numeric = clear ? null : Number(value)
+    if (!clear && (!Number.isFinite(numeric) || (numeric as number) < 0)) { flash(t('orva_documents.projects.rate.invalid', 'ใส่ตัวเลขบาทต่อชั่วโมง'), 'error'); return }
+    setBusy(true)
+    try {
+      const res = await apiCall<{ ok: boolean }>('/api/orva_documents/project-rates', {
+        method: 'PUT', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ quoteId: project.quoteId, hourlyRate: numeric }),
+      })
+      if (!res.ok) throw new Error('failed')
+      flash(t('orva_documents.projects.rate.saved', 'บันทึกอัตราแล้ว'), 'success')
+      onSaved()
+    } catch {
+      flash(t('orva_documents.projects.rate.failed', 'บันทึกไม่สำเร็จ'), 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{t('orva_documents.projects.rate.title', 'อัตราต่อชั่วโมงของโปรเจกต์')}</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">{project.quoteNumber}{project.customerName ? ` · ${project.customerName}` : ''}</p>
+        <p className="text-sm">
+          {defaultRate != null || project.rateSource === 'none'
+            ? project.rateSource === 'none' && defaultRate == null
+              ? t('orva_documents.projects.rate.noDefault', 'ยังไม่ตั้งอัตราบริษัท — ตั้งได้ที่ ตั้งค่า → เอกสาร หรือใส่อัตราเฉพาะโปรเจกต์นี้ด้านล่าง')
+              : t('orva_documents.projects.rate.body', 'ใช้คิดต้นทุนจากเวลาที่จับไว้ เว้นว่างเพื่อใช้อัตราบริษัท ({rate}/ชม.)').replace('{rate}', money(defaultRate ?? 0, project.currencyCode))
+            : t('orva_documents.projects.rate.bodyOverride', 'โปรเจกต์นี้ใช้อัตราของตัวเอง — ลบค่าเพื่อกลับไปใช้อัตราบริษัท')}
+        </p>
+        <label className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">{t('orva_documents.projects.rate.label', 'บาทต่อชั่วโมง')}</span>
+          <Input inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} placeholder="เช่น 800" data-testid="rate-input" />
+        </label>
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={busy}>{t('orva_documents.projects.rate.cancel', 'ยกเลิก')}</Button>
+          {project.rateSource === 'project' ? (
+            <Button type="button" variant="outline" onClick={() => save(true)} disabled={busy}>{t('orva_documents.projects.rate.clear', 'ใช้อัตราบริษัท')}</Button>
+          ) : null}
+          <Button type="button" onClick={() => save(false)} disabled={busy || !value.trim()} data-testid="rate-save">{t('orva_documents.projects.rate.save', 'บันทึก')}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

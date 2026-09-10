@@ -9,12 +9,16 @@ import { flash } from '@open-mercato/ui/backend/FlashMessages'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useProjectOptions } from '@/modules/orva_documents/components/queries'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
+import { SwitchField } from '@open-mercato/ui/primitives/switch-field'
+import { useDueRetainers } from './queries'
 
 type Subscription = {
   id: string; name: string; vendor: string | null; kind: string; cost: number; currencyCode: string
   billingCycle: string; renewsOn: string | null; autoRenew: boolean; expenseAccountCode: string | null
   customerEntityId: string | null; customerName: string | null; quoteId: string | null; notes: string | null
   status: string; lastRenewedAt: string | null
+  invoiceOnRenewal: boolean; retainerAmount: number | null
+  lastInvoiceId: string | null; lastInvoiceNumber: string | null; lastInvoicedAt: string | null
   daysLeft: number | null; state: 'lapsed' | 'due_soon' | 'upcoming' | null; annualCost: number
   updatedAt: string
 }
@@ -56,8 +60,29 @@ export default function SubscriptionsPage() {
     },
   })
   const projects = useProjectOptions(creating)
+  // Retainers whose cycle has come round. The daily scan raises a notification
+  // for the same rows; the invoice is minted here, by the owner (spec A8).
+  const dueRetainers = useDueRetainers()
 
-  const refresh = () => qc.invalidateQueries({ queryKey: ['orva_support.subscriptions'] })
+  const refresh = () => Promise.all([
+    qc.invalidateQueries({ queryKey: ['orva_support.subscriptions'] }),
+    qc.invalidateQueries({ queryKey: ['orva_support.retainers'] }),
+  ])
+
+  const issueRetainer = async (row: { id: string; updatedAt: string; name: string }) => {
+    setBusy(true)
+    try {
+      const res = await apiCall<{ ok: true; invoiceNumber: string | null; nextRenewsOn: string | null }>('/api/orva_support/retainers', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: row.id, updatedAt: row.updatedAt }),
+      })
+      if (!res.ok || !res.result) throw new Error((res.result as { error?: string } | undefined)?.error ?? 'failed')
+      flash(t('orva_support.retainer.issued', 'ออกใบแจ้งหนี้ {number} แล้ว รอบถัดไป {date}')
+        .replace('{number}', res.result.invoiceNumber ?? '')
+        .replace('{date}', res.result.nextRenewsOn ?? '—'), 'success')
+      await refresh()
+    } catch (e) { flash(e instanceof Error ? e.message : String(e), 'error') } finally { setBusy(false) }
+  }
 
   const create = async () => {
     if (!draft.name.trim()) { flash(t('orva_support.subscriptions.needName', 'ใส่ชื่อรายการก่อน'), 'error'); return }
@@ -127,6 +152,35 @@ export default function SubscriptionsPage() {
             <Kpi label={t('orva_support.subscriptions.kpi.active', 'รายการที่ใช้อยู่')} value={String(list.data.counts.active)} />
             <Kpi label={t('orva_support.subscriptions.kpi.annual', 'ค่าใช้จ่ายต่อปี')} value={money(list.data.counts.annualTotal)} />
           </div>
+        ) : null}
+
+        {dueRetainers.data?.items.length ? (
+          <section className="mb-4 rounded-md border border-status-warning-border bg-status-warning-bg/40 p-4" aria-labelledby="retainers-due-title" data-testid="retainers-due">
+            <h2 id="retainers-due-title" className="text-sm font-semibold text-status-warning-text">
+              {t('orva_support.retainer.dueTitle', 'ถึงรอบออกใบแจ้งหนี้ค่าดูแลระบบ {n} รายการ').replace('{n}', String(dueRetainers.data.items.length))}
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t('orva_support.retainer.dueNote', 'ระบบไม่ออกใบแจ้งหนี้เอง — กดออกเมื่อพร้อม แล้ววันต่ออายุจะเลื่อนไปรอบถัดไปให้')}
+            </p>
+            <ul className="mt-3 space-y-2">
+              {dueRetainers.data.items.map((row) => (
+                <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span>
+                    <span className="font-medium">{row.name}</span>
+                    <span className="text-muted-foreground">
+                      {' '}· {row.customerName ?? t('orva_support.retainer.noCustomer', 'ไม่ระบุลูกค้า')} · {t('orva_support.retainer.cycleOf', 'รอบ {date}').replace('{date}', row.renewsOn ?? '—')}
+                    </span>
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span className="tabular-nums">{money(row.amount)}</span>
+                    <Button size="sm" disabled={busy} onClick={() => issueRetainer(row)} data-testid={`issue-retainer-${row.id}`}>
+                      {t('orva_support.retainer.issue', 'ออกใบแจ้งหนี้')}
+                    </Button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : null}
 
         {creating ? (
@@ -219,6 +273,7 @@ export default function SubscriptionsPage() {
                       <span className="text-xs text-muted-foreground">{label('kind', row.kind)}</span>
                       {!row.autoRenew ? <span className="rounded bg-status-warning-bg px-1.5 text-xs text-status-warning-text">{t('orva_support.subscriptions.manual', 'ต่อเอง')}</span> : null}
                       {row.status !== 'active' ? <span className="rounded bg-muted px-1.5 text-xs text-muted-foreground">{t('orva_support.subscriptions.cancelled', 'ยกเลิกแล้ว')}</span> : null}
+                      {row.invoiceOnRenewal ? <span className="rounded bg-status-info-bg px-1.5 text-xs text-status-info-text">{t('orva_support.retainer.badge', 'ค่าดูแลระบบ (เราเก็บ)')}</span> : null}
                     </div>
                     <div className="truncate text-xs text-muted-foreground">
                       {[row.vendor, row.customerName, row.expenseAccountCode].filter(Boolean).join(' · ') || '—'}
@@ -227,6 +282,11 @@ export default function SubscriptionsPage() {
                   <td className={`px-3 py-2 ${stateTone(row)}`}>
                     <div className="tabular-nums">{row.renewsOn ?? '—'}</div>
                     <div className="text-xs">{whenText(row)}</div>
+                    {row.lastInvoiceNumber ? (
+                      <div className="text-xs text-muted-foreground">
+                        {t('orva_support.retainer.lastInvoice', 'ใบล่าสุด {number}').replace('{number}', row.lastInvoiceNumber)}
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {money(row.cost, row.currencyCode)}
@@ -234,7 +294,18 @@ export default function SubscriptionsPage() {
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">{row.annualCost > 0 ? money(row.annualCost, row.currencyCode) : '—'}</td>
                   <td className="px-3 py-2">
-                    <div className="flex flex-wrap justify-end gap-1">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {row.customerEntityId && row.quoteId ? (
+                        <SwitchField
+                          id={`retainer-${row.id}`}
+                          checked={row.invoiceOnRenewal}
+                          disabled={busy}
+                          onCheckedChange={(next) => put(row, { invoiceOnRenewal: Boolean(next) }, Boolean(next)
+                            ? t('orva_support.retainer.on', 'จะแจ้งเตือนให้ออกใบแจ้งหนี้ทุกรอบ')
+                            : t('orva_support.retainer.off', 'เลิกแจ้งเตือนรอบค่าดูแลระบบ'))}
+                          label={t('orva_support.retainer.toggle', 'เก็บค่าดูแล')}
+                        />
+                      ) : null}
                       {row.status === 'active' && row.renewsOn && row.billingCycle !== 'one_time' ? (
                         <Button size="sm" variant="outline" disabled={busy} onClick={() => put(row, { markRenewed: true }, t('orva_support.subscriptions.renewed', 'เลื่อนวันต่ออายุแล้ว'))}>
                           {t('orva_support.subscriptions.action.renewed', 'ต่ออายุแล้ว')}

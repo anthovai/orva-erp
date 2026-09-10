@@ -41,6 +41,11 @@ const subscriptionSchema = z.object({
   daysLeft: z.number().nullable(),
   state: z.enum(['lapsed', 'due_soon', 'upcoming']).nullable(),
   annualCost: z.number(),
+  invoiceOnRenewal: z.boolean(),
+  retainerAmount: z.number().nullable(),
+  lastInvoiceId: z.string().nullable(),
+  lastInvoiceNumber: z.string().nullable(),
+  lastInvoicedAt: z.string().nullable(),
   updatedAt: z.string(),
 })
 
@@ -55,6 +60,8 @@ type Row = {
   billing_cycle: string; renews_on: string | null; auto_renew: boolean; expense_account_code: string | null
   customer_entity_id: string | null; customer_name: string | null; quote_id: string | null
   notes: string | null; status: string; last_renewed_at: string | null; updated_at: string
+  invoice_on_renewal?: boolean | null; retainer_amount?: string | null
+  last_invoice_id?: string | null; last_invoice_number?: string | null; last_invoiced_at?: string | null
 }
 
 const isoToday = () => new Date().toISOString().slice(0, 10)
@@ -67,6 +74,11 @@ const toJson = (row: Row, today: string) => {
     renewsOn: row.renews_on, autoRenew: row.auto_renew, expenseAccountCode: row.expense_account_code,
     customerEntityId: row.customer_entity_id, customerName: row.customer_name, quoteId: row.quote_id,
     notes: row.notes, status: row.status, lastRenewedAt: row.last_renewed_at,
+    invoiceOnRenewal: row.invoice_on_renewal === true,
+    retainerAmount: row.retainer_amount == null ? null : Number(row.retainer_amount),
+    lastInvoiceId: row.last_invoice_id ?? null,
+    lastInvoiceNumber: row.last_invoice_number ?? null,
+    lastInvoicedAt: row.last_invoiced_at ?? null,
     daysLeft: row.renews_on ? daysUntil(row.renews_on, today) : null,
     state: row.renews_on ? renewalState(row.renews_on, today) : null,
     annualCost: annualisedCost(Number(row.cost), cycle),
@@ -99,7 +111,9 @@ export async function GET(req: Request) {
       `select id, name, vendor, kind, cost::text, currency_code, billing_cycle,
               to_char(renews_on, 'YYYY-MM-DD') as renews_on, auto_renew, expense_account_code,
               customer_entity_id, customer_name, quote_id, notes, status,
-              last_renewed_at::text, updated_at::text
+              last_renewed_at::text, updated_at::text,
+              invoice_on_renewal, retainer_amount::text,
+              last_invoice_id::text, last_invoice_number, last_invoiced_at::text
        from orva_support_subscriptions
        where deleted_at is null and tenant_id = ?::uuid and organization_id = ?::uuid
          and (?::text is null or status = ?::text)
@@ -152,6 +166,10 @@ export async function POST(req: Request) {
       cost: input.cost.toFixed(4), currencyCode: input.currencyCode.toUpperCase(),
       billingCycle: input.billingCycle, renewsOn: input.renewsOn ?? null,
       autoRenew: input.autoRenew, expenseAccountCode: input.expenseAccountCode ?? null,
+      // Retainer billing stays off until the owner turns it on for this line.
+      invoiceOnRenewal: input.invoiceOnRenewal ?? false,
+      retainerAmount: input.retainerAmount == null ? null : input.retainerAmount.toFixed(4),
+      lastInvoiceId: null, lastInvoiceNumber: null, lastInvoicedAt: null,
       customerEntityId: input.customerEntityId ?? null,
       customerName: await customerNameFor(tem, scope, input.customerEntityId),
       quoteId: input.quoteId ?? null, notes: input.notes ?? null, status: 'active',
@@ -196,6 +214,8 @@ export async function PUT(req: Request) {
       if (input.expenseAccountCode !== undefined) row.expenseAccountCode = input.expenseAccountCode
       if (input.quoteId !== undefined) row.quoteId = input.quoteId
       if (input.notes !== undefined) row.notes = input.notes
+      if (input.invoiceOnRenewal !== undefined) row.invoiceOnRenewal = input.invoiceOnRenewal
+      if (input.retainerAmount !== undefined) row.retainerAmount = input.retainerAmount == null ? null : input.retainerAmount.toFixed(4)
       if (input.status !== undefined) row.status = input.status
       if (input.customerEntityId !== undefined) {
         row.customerEntityId = input.customerEntityId

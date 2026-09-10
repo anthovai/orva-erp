@@ -77,6 +77,51 @@ export type ProjectRow = ProjectProgress & {
   workPct: number | null
   /** How the two percentages compare — the reason this pairing exists. */
   drift: WorkVsBilling
+} & ProjectEconomics
+
+export type RateSource = 'project' | 'default' | 'none'
+
+export type ProjectEconomics = {
+  /** minutes logged on the linked timesheet project (0 when none) */
+  minutes: number
+  /** baht per hour applied, or null when neither the quote nor the settings name one */
+  hourlyRate: number | null
+  rateSource: RateSource
+  /** minutes/60 × rate, or null without a rate */
+  cost: number | null
+  /** billed − cost: what the work has earned so far */
+  marginBilled: number | null
+  /** quote total − cost: what the whole project earns if no more hours go in */
+  marginProjected: number | null
+}
+
+const money2 = (value: number) => Math.round(value * 100) / 100
+
+/**
+ * Hours into money. Cost is only ever computed against a rate someone typed
+ * — a missing rate gives null, never a silent 0 margin that would read as
+ * "this project made nothing". The project's own rate wins over the default.
+ */
+export function projectEconomics(args: {
+  minutes: number
+  projectRate: number | null
+  defaultRate: number | null
+  billed: number
+  quoteTotal: number
+}): ProjectEconomics {
+  const minutes = Math.max(0, args.minutes)
+  const rateSource: RateSource = args.projectRate != null ? 'project' : args.defaultRate != null ? 'default' : 'none'
+  const hourlyRate = rateSource === 'project' ? args.projectRate : rateSource === 'default' ? args.defaultRate : null
+  if (hourlyRate == null) return { minutes, hourlyRate: null, rateSource, cost: null, marginBilled: null, marginProjected: null }
+  const cost = money2((minutes / 60) * hourlyRate)
+  return {
+    minutes,
+    hourlyRate,
+    rateSource,
+    cost,
+    marginBilled: money2(args.billed - cost),
+    marginProjected: money2(args.quoteTotal - cost),
+  }
 }
 
 type InvoiceAggregate = {
@@ -156,6 +201,41 @@ export async function listProjects(
     : []
   const taskMap = new Map(taskRows.map((r) => [r.quote_id, { total: r.total, done: r.done }]))
 
+  // Minutes per quote: tasking project (quote_id) → its timesheet project
+  // (orva_time link) → finished entries. Running timers carry 0 minutes until
+  // stopped, so summing is honest. Same scalar seam as the task counts above.
+  const minuteRows = quoteIds.length > 0
+    ? (await tem.execute(
+        `select p.quote_id::text as quote_id,
+                coalesce(sum(e.duration_minutes), 0)::int as minutes
+         from orva_tasking_projects p
+         join orva_time_project_links l on l.tasking_project_id = p.id and l.deleted_at is null
+         left join staff_time_entries e
+                on e.time_project_id = l.time_project_id and e.tenant_id = l.tenant_id and e.deleted_at is null
+         where p.deleted_at is null and p.tenant_id = ?::uuid
+           and p.quote_id = any(?::uuid[])
+         group by 1`,
+        [scope.tenantId, `{${quoteIds.join(',')}}`],
+      )) as Array<{ quote_id: string; minutes: number }>
+    : []
+  const minuteMap = new Map(minuteRows.map((r) => [r.quote_id, Number(r.minutes)]))
+
+  const rateRows = quoteIds.length > 0
+    ? (await tem.execute(
+        `select quote_id::text as quote_id, hourly_rate::text as hourly_rate
+         from orva_documents_project_rates
+         where tenant_id = ?::uuid and quote_id = any(?::uuid[])`,
+        [scope.tenantId, `{${quoteIds.join(',')}}`],
+      )) as Array<{ quote_id: string; hourly_rate: string }>
+    : []
+  const rateMap = new Map(rateRows.map((r) => [r.quote_id, Number(r.hourly_rate)]))
+  const settingsRows = (await tem.execute(
+    `select default_hourly_rate::text as rate from orva_documents_settings
+     where tenant_id = ?::uuid and deleted_at is null ${scope.organizationId ? 'and organization_id = ?::uuid' : ''} limit 1`,
+    scope.organizationId ? [scope.tenantId, scope.organizationId] : [scope.tenantId],
+  )) as Array<{ rate: string | null }>
+  const defaultRate = settingsRows[0]?.rate == null ? null : Number(settingsRows[0].rate)
+
   return quotes.map((quote) => {
     const agg = byQuote.get(quote.id)
     const quoteTotal = Number(quote.grandTotalGrossAmount ?? 0)
@@ -182,6 +262,13 @@ export async function listProjects(
       workPct: counts.total > 0 ? donePct(counts) : null,
       drift: workVsBilling(counts, progress.billedPct),
       ...progress,
+      ...projectEconomics({
+        minutes: minuteMap.get(quote.id) ?? 0,
+        projectRate: rateMap.get(quote.id) ?? null,
+        defaultRate,
+        billed,
+        quoteTotal,
+      }),
     }
   })
 }

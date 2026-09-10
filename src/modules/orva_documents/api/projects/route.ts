@@ -37,6 +37,17 @@ const projectSchema = z.object({
   tasksDone: z.number().int(),
   /** Null when no tasks are listed — never 0, which would read as alarming. */
   workPct: z.number().nullable(),
+  /** Minutes logged on the linked timesheet project (0 when none). */
+  minutes: z.number(),
+  /** Baht per hour applied: the quote's own rate, else the company default, else null. */
+  hourlyRate: z.number().nullable(),
+  rateSource: z.enum(['project', 'default', 'none']),
+  /** minutes/60 × rate; null when there is no rate. */
+  cost: z.number().nullable(),
+  /** billed − cost (what the work has earned so far); null when there is no rate. */
+  marginBilled: z.number().nullable(),
+  /** quote total − cost (what the whole project will earn if no more hours are spent). */
+  marginProjected: z.number().nullable(),
   drift: z.discriminatedUnion('verdict', [
     z.object({ verdict: z.literal('no_tasks') }),
     z.object({ verdict: z.literal('bill_behind'), gap: z.number() }),

@@ -84,6 +84,13 @@ export const subscriptionListSchema = z
   })
   .passthrough()
 
+/** Retainer: the customer pays us this each cycle; the owner issues the invoice. */
+const retainerFields = {
+  invoiceOnRenewal: z.coerce.boolean().optional(),
+  // null first: z.coerce.number() would turn null into 0 and bill ฿0.
+  retainerAmount: z.union([z.null(), z.literal('').transform(() => null), z.coerce.number().min(0).max(1e12)]).optional(),
+}
+
 export const subscriptionCreateSchema = z.object({
   name: z.string().trim().min(1).max(200),
   vendor: z.string().trim().max(200).optional().nullable(),
@@ -97,6 +104,7 @@ export const subscriptionCreateSchema = z.object({
   customerEntityId: z.string().uuid().optional().nullable(),
   quoteId: z.string().uuid().optional().nullable(),
   notes: z.string().trim().max(4000).optional().nullable(),
+  ...retainerFields,
 })
 
 export const subscriptionUpdateSchema = subscriptionCreateSchema
@@ -110,3 +118,46 @@ export const subscriptionUpdateSchema = subscriptionCreateSchema
     /** Optimistic lock — the row's updatedAt as read. */
     updatedAt: z.string().min(1),
   })
+
+// ── Knowledge base (H4a) ─────────────────────────────────────────────────────
+
+/** Lower-case, ASCII/Thai word characters and dashes; what the portal URL carries. */
+export const slugSchema = z.string().trim().min(1).max(120).regex(/^[\p{L}\p{N}\p{M}]+(?:-[\p{L}\p{N}\p{M}]+)*$/u, 'ใช้ตัวอักษร ตัวเลข และขีดกลางเท่านั้น')
+
+export const articleListQuerySchema = z.object({
+  search: z.string().trim().max(200).optional(),
+  published: z.enum(['all', 'yes', 'no']).optional().default('all'),
+})
+
+export const articleCreateSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  slug: slugSchema.optional(),
+  summary: z.string().trim().max(500).optional().nullable(),
+  body: z.string().trim().min(1).max(50_000),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+  isPublished: z.coerce.boolean().optional().default(false),
+  position: z.coerce.number().int().min(0).max(9999).optional().default(0),
+})
+
+export const articleUpdateSchema = articleCreateSchema.partial().extend({
+  id: z.string().uuid(),
+  /** Optimistic lock — the row's updatedAt as read. */
+  updatedAt: z.string().min(1),
+})
+
+export const articleDeleteSchema = z.object({ id: z.string().uuid() })
+
+/** Public portal read: a slug picks one article, otherwise the published list. */
+export const portalArticleQuerySchema = z.object({
+  slug: slugSchema.optional(),
+  search: z.string().trim().max(200).optional(),
+})
+
+/** Issue this retainer's invoice for the current cycle. */
+export const retainerIssueSchema = z.object({
+  id: z.string().uuid(),
+  updatedAt: z.string().min(1),
+  /** Overrides the stored retainer amount for this cycle only. */
+  amount: z.coerce.number().positive().max(1e12).optional(),
+  dueInDays: z.coerce.number().int().min(0).max(365).optional(),
+})

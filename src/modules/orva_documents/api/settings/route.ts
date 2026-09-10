@@ -37,6 +37,7 @@ const settingsSchema = z.object({
   logoHeaderQuotation: z.string().nullable(),
   documentTerms: z.string().nullable(),
   etaxSenderEmail: z.string().nullable(),
+  defaultHourlyRate: z.number().nullable(),
   updatedAt: z.string().nullable(),
 })
 
@@ -62,6 +63,7 @@ function serialize(row: DocumentSettings | null) {
       logoHeaderQuotation: null,
       documentTerms: null,
       etaxSenderEmail: null,
+      defaultHourlyRate: null,
       updatedAt: null,
     }
   }
@@ -85,6 +87,7 @@ function serialize(row: DocumentSettings | null) {
     logoHeaderQuotation: row.logoHeaderQuotation ?? null,
     documentTerms: row.documentTerms ?? null,
     etaxSenderEmail: row.etaxSenderEmail ?? null,
+    defaultHourlyRate: row.defaultHourlyRate == null ? null : Number(row.defaultHourlyRate),
     updatedAt: row.updatedAt ? row.updatedAt.toISOString() : null,
   }
 }
@@ -148,6 +151,7 @@ export async function PUT(req: Request) {
     if (input.logoHeaderQuotation !== undefined) target.logoHeaderQuotation = input.logoHeaderQuotation
     if (input.documentTerms !== undefined) target.documentTerms = input.documentTerms || null
     if (input.etaxSenderEmail !== undefined) target.etaxSenderEmail = input.etaxSenderEmail || null
+    if (input.defaultHourlyRate !== undefined) target.defaultHourlyRate = input.defaultHourlyRate == null ? null : input.defaultHourlyRate.toFixed(2)
     if (input.invoiceNumberFormat) target.invoiceNumberFormat = input.invoiceNumberFormat
     if (input.brandColor) target.brandColor = input.brandColor
     if (input.templateQuotation) target.templateQuotation = input.templateQuotation

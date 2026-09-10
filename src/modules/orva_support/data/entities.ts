@@ -228,8 +228,87 @@ export class SupportSubscription {
   @Property({ name: 'last_renewed_at', type: Date, nullable: true })
   lastRenewedAt?: Date | null
 
+  /**
+   * Retainer: this line is not a bill we pay but a maintenance fee the
+   * customer pays us each cycle. On the renewal date the scan raises a
+   * notification and the register offers "ออกใบแจ้งหนี้" — the invoice is
+   * minted with the owner's own session, never by a worker (spec A8).
+   */
+  @Property({ name: 'invoice_on_renewal', type: 'boolean' })
+  invoiceOnRenewal: boolean = false
+
+  /** What to bill each cycle, when it differs from `cost`. Null = use cost. */
+  @Property({ name: 'retainer_amount', type: 'numeric', precision: 18, scale: 4, nullable: true })
+  retainerAmount?: string | null
+
+  /** The last invoice issued for this retainer, and when. */
+  @Property({ name: 'last_invoice_id', type: 'uuid', nullable: true })
+  lastInvoiceId?: string | null
+
+  @Property({ name: 'last_invoice_number', type: 'text', nullable: true })
+  lastInvoiceNumber?: string | null
+
+  @Property({ name: 'last_invoiced_at', type: Date, nullable: true })
+  lastInvoicedAt?: Date | null
+
   @Property({ name: 'created_by', type: 'uuid', nullable: true })
   createdBy?: string | null
+
+  @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: Date, onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+
+  @Property({ name: 'deleted_at', type: Date, nullable: true })
+  deletedAt?: Date | null
+}
+
+/**
+ * A short answer the owner writes once and points customers at: how to reset
+ * a password, what the maintenance retainer covers, how to send a bug report.
+ * Markdown body, published or not; the portal shows only the published ones
+ * of this organization.
+ */
+@Entity({ tableName: 'orva_support_articles' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class SupportArticle {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ type: 'text' })
+  title!: string
+
+  /** URL-safe, unique per organization; what the portal link carries. */
+  @Property({ type: 'text' })
+  slug!: string
+
+  /** One line under the title in the list, so a reader can pick without opening. */
+  @Property({ type: 'text', nullable: true })
+  summary?: string | null
+
+  @Property({ type: 'text' })
+  body!: string
+
+  /** Free tags, comma-free (stored as a text array). */
+  @Property({ type: 'text[]', nullable: true })
+  tags?: string[] | null
+
+  @Property({ name: 'is_published', type: 'boolean' })
+  isPublished: boolean = false
+
+  /** Ascending; ties fall back to the title. */
+  @Property({ type: 'integer' })
+  position: number = 0
+
+  @Property({ name: 'updated_by', type: 'uuid', nullable: true })
+  updatedBy?: string | null
 
   @Property({ name: 'created_at', type: Date, onCreate: () => new Date() })
   createdAt: Date = new Date()
