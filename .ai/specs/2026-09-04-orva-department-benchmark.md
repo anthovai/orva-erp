@@ -1,6 +1,6 @@
 # Orva by department — benchmark against the market and the gap plan
 
-Status: design + rolling implementation (2026-09-04; **reconciled against the code 2026-09-09** — every row below was checked by grep, not memory). Companion to
+Status: design + rolling implementation (2026-09-04; **reconciled against the code 2026-09-10** — every row below was checked by grep, not memory; the 2026-09-10 pass folded in Phase H, which closed the last department gaps outside accounting: broadcast §2, project margin §3, reorder point + marketplace import §4, knowledge base §7, and recurring/retainer invoices §1). Companion to
 `2026-09-03-orva-for-kaiser-klowns-operating-model.md` (phases A–E shipped).
 
 Benchmarks used (from product knowledge, not a live audit): **Odoo 17 Community**,
@@ -20,7 +20,7 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 | **ใบวางบิล** (billing note) listing open invoices per customer | FlowAccount/PEAK | ✅ | document type `billing_note`, row action on the invoices list |
 | ใบส่งของ / delivery note | all | ✅ 2026-09-09 (B1–B2) | `delivery_note` document type printed from the invoice (upstream shipments need a sales order, which this profile hides). Prices hidden by default, delivery block, two dated signature lines, two counterparts, and the delivery date/carrier/tracking recorded from the invoices list with a conflict guard. No receiver name is stored — invoice metadata is plaintext at rest. Public link live 2026-09-09 (own token table, no prices, rotation); emailed PDF rides the existing send route |
 | Customer statement (ใบแจ้งยอด) | Odoo/ERPNext | ✅ | document type `statement` (`asOf` date), billed − paid = closing balance |
-| Recurring invoices (annual maintenance) | Odoo/ERPNext | ❌ | deferred (roadmap G5, assumption A1) — no code |
+| Recurring invoices (annual maintenance) | Odoo/ERPNext | ✅ 2026-09-10 | ค่าดูแลระบบ as a retainer on the subscription register (customer + quote + amount + toggle); a daily scan raises "ถึงกำหนดเรียกเก็บ" and the owner presses ออกใบแจ้งหนี้, which mints a real invoice through issue-invoice and rolls the cycle (Phase H4). Unattended issuing is a one-file change once the owner asks (A8) |
 | PromptPay QR on invoice | FlowAccount/PEAK | 🚫 | built then declined by owner 2026-09-04 ("ไม่เอา QR") — reverted in d430d3c; do NOT rebuild |
 | Price lists, products on quotes, discounts | Odoo | ✅ upstream | — |
 | Sales orders / channels | Odoo | ⏸ | not the business |
@@ -33,7 +33,7 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 |---|---|---|---|
 | Unified inbox (email/LINE/Slack) | Odoo Discuss | ✅ upstream (messages, channels) | connect the LINE OA channel when available |
 | AI proposals from inbound mail | — | ✅ upstream (inbox_ops) | — |
-| Email campaigns / broadcast | Odoo Marketing | ❌ | deferred (roadmap G5, assumption A7) — lead capture ✅ 2026-09-08 is the inbound half only |
+| Email campaigns / broadcast | Odoo Marketing | ✅ 2026-09-10 | `orva_marketing`: consent per contact (PDPA custom fields on the shared customer record), audience counts, composer, one `messages` email per consented contact with a per-recipient unsubscribe link and a send log; public unsubscribe page needs no login (Phase H2). No scheduling or templates (A5) |
 | Lead capture form → deal | Odoo Website | ✅ 2026-09-05 (G4) | public form at `/[orgSlug]/portal/lead`; honeypot + 24h dedupe |
 | **Enquiry actually reaches the owner** | Odoo activities | ✅ 2026-09-08 | the form was silent: it now raises `orva.lead.received` and the home waiting card counts enquiries still on the first pipeline stage within 30 days. No auto-reply — answering is a human act |
 | Lead source / UTM on deals | Odoo | ✅ 2026-09-04 | `lead_source` (ช่องทางที่มา) select on deals via orva/ce.ts, filterable |
@@ -46,7 +46,7 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 |---|---|---|---|
 | Tasks, calendar, workflow user tasks | all | ✅ | — |
 | **Timesheets + projects** | Odoo/ERPNext | ✅ | `orva_time` (project hours via interceptors on the installed timesheet) + โปรเจกต์ page; upstream staff screens stay hidden |
-| Project = quote, milestones = งวด, profitability (billed − hours × rate) | Odoo Project | 🟡 | โปรเจกต์ page: billed/paid % per quote, unpaid งวด, remaining, hours logged; **no rate**, so no margin yet |
+| Project = quote, milestones = งวด, profitability (billed − hours × rate) | Odoo Project | ✅ 2026-09-10 | โปรเจกต์ page: billed/paid % per quote, unpaid งวด, remaining, hours logged, and now cost + margin from an hourly rate (company default in document settings, optional per-project override); "ออกใบแจ้งหนี้งวดถัดไป" is a row action (Phase H3). No rate set = blank, never a zero margin |
 | Kanban board | all | 🟡 (customer tasks) | later |
 | Client acceptance → triggers next งวด invoice | — | 🟡 | G1 (2026-09-05): accepted quotes appear as a derived "issue งวด" row on the home screen; no event exists upstream to automate the issue itself |
 
@@ -57,9 +57,9 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 | Lots, expiry, balances, movements | Odoo Inventory | ✅ upstream wms | — |
 | Cost per lot, valuation, COGS posting | Odoo | ✅ (orva_stock) | — |
 | **Purchase order to OEM → bill → receive** | Odoo Purchase | ✅ 2026-09-08 (A1–A4) | `orva_purchasing`: order → receive through orva_stock → link the bill finance raised. Three-way match complete (ordered / received / billed), over-receipt refused, over-billing warned. What is late and what is committed-but-unbilled now reach the home screen and a daily 06:30 notification without opening the module. Every screen and dialog walked by browser specs 2026-09-09 (TEST-010, 11 specs), which found and fixed empty dropdowns on the create form |
-| Reorder point / low-stock alert | Odoo | 🟡 | expiry alerts (≤90 วัน + expired) on the home waiting card; no reorder point — no code |
+| Reorder point / low-stock alert | Odoo | ✅ 2026-09-10 | expiry alerts (≤90 วัน + expired) plus a per-product reorder point: on-hand across every lot ≤ the point shows "ใกล้หมด" on the home waiting card and on สินค้าคงเหลือ, linking to สั่งซื้อ (Phase H1a) |
 | Barcode / lot label printing (with FDA no.) | Odoo | ✅ 2026-09-09 | `lot_label` document: A4 3 × 8, อย. no., LOT, MFG/EXP, EAN-13 (Code 39 fallback), brand mark; "พิมพ์ฉลาก" on every lot; physical print test is the owner's |
-| Marketplace order import (Shopee/Lazada/TikTok) | Odoo connectors | ❌ | the retail sale can *record* a marketplace as its payment channel; nothing imports orders |
+| Marketplace order import (Shopee/Lazada/TikTok) | Odoo connectors | ✅ 2026-09-10 | file import (CSV/.xlsx, own reader, no new dependency): header-alias presets per marketplace with an editable mapping, preview that writes nothing, then each order becomes the same ขายปลีก the counter makes (invoice + payment + FEFO stock issue + COGS), idempotent on the marketplace order id (Phase H1b). Fees/payout not modelled — A3 |
 | Shipping labels (Flash/Kerry) | — | ⏸ shipping_carriers | phase G |
 
 ## 5. บัญชี (Accounting)
@@ -95,7 +95,7 @@ Legend: ✅ have · 🟡 partial · ❌ missing · ⏸ upstream has it, hidden o
 | **Helpdesk / tickets for clients** (SLA, email-in, customer link) | Odoo Helpdesk / osTicket | ✅ | tickets on customer companies, status/priority, reply thread, minutes logged; linked to a project (`quoteId`) 2026-09-05 — the Projects page counts open tickets per project and links straight into the filtered queue, so a client's bugs surface next to their billing. Email-in later |
 | Software & subscription register (licences, renewals, cost account 5700) | ITAM tools | ✅ 2026-09-05 | `/backend/support/subscriptions`: licence/domain/hosting/certificate with cycle, cost, renewal date, auto-renew flag, expense account, project link; "ต่ออายุแล้ว" rolls the date one cycle on (past lapsed dates roll forward to the future); yearly run-rate KPI; lapsed + ≤30-day counts on the home waiting card |
 | Client site uptime monitoring | Uptime Kuma | ❌ | out of scope (use Uptime Kuma) |
-| Knowledge base | Odoo Knowledge | ❌ | later |
+| Knowledge base | Odoo Knowledge | ✅ 2026-09-10 | `orva_support_articles`: title, Thai slug, summary, body, tags, draft until published; published articles appear in ศูนย์ช่วยเหลือ in the customer portal, searchable, scoped to the customer's own session (Phase H4) |
 
 ## This phase (F0) — in order (1–3 shipped 2026-09-04; 4–5 next)
 
