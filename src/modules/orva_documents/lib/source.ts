@@ -483,7 +483,7 @@ export async function documentFromQuote(
     : args.type === 'statement'
       ? await statementLines(tem, args.row, args.asOf ?? null)
       : null
-  const [lines, buyerIdentity, settings] = await Promise.all([
+  const [lines, buyerIdentity, branded] = await Promise.all([
     billing
       ? Promise.resolve(billing.lines)
       : args.row.kind === 'credit_memo'
@@ -494,6 +494,7 @@ export async function documentFromQuote(
     loadBuyerThaiIdentity(tem, args.row.customer_entity_id),
     brandedSettings(tem, args.settings, args.row.quote_number, args.brand),
   ])
+  const { settings, brandName } = branded
   // Neither carries VAT of its own: the tax invoices already do. The billing
   // note totals what is open; the statement totals billed minus paid, so its
   // grand total IS the closing balance.
@@ -520,6 +521,7 @@ export async function documentFromQuote(
     buyer: partyFromSnapshot(args.row, buyerIdentity),
     source: sourceFromQuote(row, lines),
     accentColor: settings?.brandColor ?? null,
+    brandName,
     paymentDetails: settings?.paymentDetails ?? null,
     logoHeader: headerLogoFor(args.type, settings),
     logoFooter: settings?.logoFooter ?? null,
@@ -539,15 +541,17 @@ async function brandedSettings(
   settings: DocumentSettings | null,
   number: unknown,
   brandCode?: string | null,
-): Promise<DocumentSettings | null> {
-  if (!settings) return settings
+): Promise<{ settings: DocumentSettings | null; brandName: string | null }> {
+  if (!settings) return { settings, brandName: null }
   const numbered = typeof number === 'string' && number.includes('-')
-  if (!numbered && !brandCode) return settings
+  if (!numbered && !brandCode) return { settings, brandName: null }
   const brands = await loadBrands(tem, { tenantId: settings.tenantId, organizationId: settings.organizationId })
   // the document's own number wins; the explicit code is for sheets that carry no brand yet
   const brand = (numbered ? brandForNumber(number, brands) : null)
     ?? (brandCode ? brands.find((b) => b.code === brandCode.toUpperCase()) ?? null : null)
-  return settingsWithBrand(settings, brand)
+  // The name travels with the colours: the sheet prints the trading name the
+  // customer knows next to the legal entity that issues it.
+  return { settings: settingsWithBrand(settings, brand), brandName: brand?.name ?? null }
 }
 
 /** The quotation may carry its own mark; billing documents share logoHeader. */
@@ -563,8 +567,8 @@ export async function sampleDocumentForBrand(
   tem: EntityManager,
   args: { type: DocumentType; template?: TemplateId; settings: DocumentSettings | null; brand?: string | null; copies?: number },
 ): Promise<PrintableDocument> {
-  const settings = await brandedSettings(tem, args.settings, null, args.brand)
-  return sampleDocument({ ...args, settings })
+  const { settings, brandName } = await brandedSettings(tem, args.settings, null, args.brand)
+  return { ...sampleDocument({ ...args, settings }), brandName }
 }
 
 /** Clamp the requested copies to whole sheets' worth, never zero, never a ream. */
@@ -583,11 +587,11 @@ export async function documentFromLot(
   tem: EntityManager,
   args: { data: LotLabelData; settings: DocumentSettings | null; copies?: number; template?: TemplateId },
 ): Promise<PrintableDocument> {
-  const settings = await brandedSettings(tem, args.settings, null, args.data.product.brandCode)
+  const { settings, brandName } = await brandedSettings(tem, args.settings, null, args.data.product.brandCode)
   const label = {
-    brandName: args.data.product.brandCode
-      ? (settings?.sellerName && settings.sellerName !== args.settings?.sellerName ? settings.sellerName : args.data.product.brandCode)
-      : null,
+    // The brand's own name now travels with its colours, so the label no
+    // longer falls back to printing the bare code (MRV) as a name.
+    brandName: brandName ?? (args.data.product.brandCode || null),
     productTitle: args.data.product.title,
     packSize: args.data.product.packSize,
     fdaNotification: args.data.product.fdaNotification,

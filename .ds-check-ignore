@@ -2274,6 +2274,18 @@
       "rule": "inline-style",
       "match": "style=",
       "reason": "Paper geometry: the printed sheet is a piece of A4 and its height is physical, stated in millimetres like templates/label.tsx states its label grid. No design token expresses a sheet of paper, and a Tailwind arbitrary value would state the same millimetres in pixels."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/brand.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "The brand template paints the TENANT'S configured colour (settings.brandColor), resolved at render time per tenant — runtime data no build-time design token can express, so inline style is the only vehicle."
+    },
+    {
+      "file": "src/modules/orva_documents/components/templates/brand.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "The brand template paints the TENANT'S configured colour (settings.brandColor), resolved at render time per tenant — runtime data no build-time design token can express, so inline style is the only vehicle."
     }
   ]
 }

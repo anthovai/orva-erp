@@ -5,6 +5,7 @@
   "orva_documents.brand.customerName": "ชื่อลูกค้า",
   "orva_documents.brand.free": "ฟรี",
   "orva_documents.brand.grand": "จำนวนเงินสุทธิที่ต้องชำระ",
+  "orva_documents.brand.issuedBy": "โดย",
   "orva_documents.brand.order": "ลำดับ",
   "orva_documents.brand.paymentDetails": "การชำระเงิน",
   "orva_documents.brand.phone": "เบอร์โทรลูกค้า",

@@ -34,20 +34,37 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
         <div className="flex items-start gap-4 pt-1">
           {doc.logoHeader ? (
             // eslint-disable-next-line @next/next/no-img-element -- data URI from tenant settings; next/image cannot optimize it
-            <img src={doc.logoHeader} alt={doc.seller.name} className="h-20 max-w-52 shrink-0 object-contain" />
+            <img src={doc.logoHeader} alt={doc.brandName ?? doc.seller.legalName ?? doc.seller.name} className="h-20 max-w-52 shrink-0 object-contain" />
           ) : null}
-          {/* Who is issuing the paper. A brand's logo carries the mark, but the
-              name beside it is always the LEGAL entity — a brand is a trading
-              name, and a document that shows only a logo leaves the recipient
-              guessing who they are dealing with. The taxpayer id stays on
-              statutory documents, where it is required. */}
+          {/* Who is issuing the paper.
+             *
+             * A brand is a trading name; the company is who is liable. Both
+             * belong on the sheet, and which one leads depends on the sheet:
+             * on commercial paper (quotation, invoice, ใบส่งของ) the trading
+             * name leads, because that is the name the customer is meant to
+             * remember, with "โดย <นิติบุคคล>" under it. On a statutory
+             * ใบกำกับภาษี / ใบเสร็จ the registered name leads and carries the
+             * taxpayer id, because that is the identity the form is about —
+             * the brand stays as a line above it.
+             *
+             * A logo alone was the previous behaviour and printed neither:
+             * the recipient of an Anthovai quotation could not tell which
+             * company was quoting, and the word "Anthovai" appeared nowhere. */}
           <div className={doc.logoHeader ? 'pt-1' : undefined}>
-            {doc.logoHeader ? (
-              <div className="text-sm font-bold">{doc.seller.legalName ?? doc.seller.name}</div>
+            {doc.brandName && !doc.isTaxDocument ? (
+              <>
+                <div className="text-xl font-extrabold leading-tight" style={{ color: accent }}>{doc.brandName}</div>
+                <div className="text-xs font-semibold">
+                  {t('orva_documents.brand.issuedBy', 'โดย')} {doc.seller.legalName ?? doc.seller.name}
+                </div>
+              </>
             ) : (
-              <div className="text-xl font-extrabold uppercase leading-tight" style={{ color: accent }}>
-                {doc.seller.name}
-              </div>
+              <>
+                {doc.brandName ? <div className="text-xs font-semibold" style={{ color: accent }}>{doc.brandName}</div> : null}
+                <div className={doc.logoHeader ? 'text-sm font-bold' : 'text-xl font-extrabold uppercase leading-tight'} style={doc.logoHeader ? undefined : { color: accent }}>
+                  {doc.logoHeader ? (doc.seller.legalName ?? doc.seller.name) : doc.seller.name}
+                </div>
+              </>
             )}
             {doc.isTaxDocument ? <TaxIdentityLine taxId={doc.seller.taxId} branch={doc.seller.branch} t={t} /> : null}
             {doc.seller.address ? (

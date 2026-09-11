@@ -227,6 +227,13 @@ export type PrintableDocument = {
   terms: string | null
   /** Accent colour for the 'brand' template (tenant-configured). */
   accentColor: string | null
+  /**
+   * The trading name of the brand series this document belongs to (ANT →
+   * "Anthovai"), or null for the company's own series. Printed BESIDE the
+   * legal entity, never instead of it: a brand is what the customer
+   * remembers, the company is who is liable.
+   */
+  brandName: string | null
   /** True for statutory documents: templates then print the tax id block. */
   isTaxDocument: boolean
   /**
@@ -335,6 +342,7 @@ export function buildPrintableDocument(input: {
   buyer: Party
   source: DocumentSource
   accentColor?: string | null
+  brandName?: string | null
   paymentDetails?: string | null
   logoHeader?: string | null
   logoFooter?: string | null
@@ -388,6 +396,7 @@ export function buildPrintableDocument(input: {
     type,
     template,
     accentColor: input.accentColor ?? null,
+    brandName: input.brandName ?? null,
     headingTh: heading.th,
     headingEn: heading.en,
     number: source.number,

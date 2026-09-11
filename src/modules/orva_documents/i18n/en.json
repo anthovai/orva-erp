@@ -5,6 +5,7 @@
   "orva_documents.brand.customerName": "Customer",
   "orva_documents.brand.free": "Free",
   "orva_documents.brand.grand": "Net amount due",
+  "orva_documents.brand.issuedBy": "by",
   "orva_documents.brand.order": "No.",
   "orva_documents.brand.paymentDetails": "Payment",
   "orva_documents.brand.phone": "Customer phone",
