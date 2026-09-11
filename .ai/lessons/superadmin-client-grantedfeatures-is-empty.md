@@ -55,6 +55,23 @@ await fetch('/api/auth/admin/nav', { credentials: 'include' })
 the same user at the same moment. The server and the client disagree, and the
 widget gate reads the client.
 
+## The same codebase gets it right next door
+
+Dashboard widgets carry `features` too, and they work — because
+`dashboards/lib/access.ts` passes the bypass explicitly:
+
+```ts
+authorizeFeatures(widget.metadata.features ?? [], {
+  grantedFeatures: ctx.features,
+  unrestricted: ctx.isSuperAdmin,   // ← the injection path has no equivalent
+})
+```
+
+So this is a gap between the two widget systems, not a deliberate policy, and
+the dashboard widgets on this app (`orva_finance` owner-home and
+finance-overview) are correctly gated and must be left alone. Only the
+injection path needs the gates removed.
+
 ## The rule
 
 **Do not put a `features` gate in an app injection widget's metadata** unless
@@ -77,3 +94,7 @@ before suspecting the registration.
 
 **Applies to**: every `src/modules/*/widgets/injection/*/widget.ts` in this
 app, and to any installed widget whose absence is being investigated.
+
+**Guarded by** `src/lib/__tests__/injectionWidgetFeatureGate.test.ts`, which
+fails with the offending file names if a `features` gate is ever added back to
+an Orva injection widget.
