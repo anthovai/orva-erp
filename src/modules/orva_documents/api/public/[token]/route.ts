@@ -2,7 +2,7 @@ import type { EntityManager } from '@mikro-orm/postgresql'
 import { createRequestContainer } from '@open-mercato/shared/lib/di/container'
 import { getAuthFromRequest } from '@open-mercato/shared/lib/auth/server'
 import { createLogger } from '@open-mercato/shared/lib/logger'
-import { loadDictionary } from '@open-mercato/shared/lib/i18n/server'
+import { documentLabels } from '../../../lib/labels'
 import type { OpenApiRouteDoc } from '@open-mercato/shared/lib/openapi'
 import { isForeignTenantActor } from '@open-mercato/core/modules/sales/lib/publicQuoteTenantScope'
 import { hashAuthToken } from '@open-mercato/core/modules/auth/lib/tokenHash'
@@ -27,23 +27,6 @@ const responseSchema = z.object({
   /** Which door the token came through. Absent on responses from before share links existed. */
   kind: z.enum(['quote', 'share_link']).optional(),
 })
-
-/**
- * The labels printed on the sheet travel with the document, pinned to Thai.
- *
- * They are not UI chrome: "เลขประจำตัวผู้เสียภาษี" and "จำนวนเงินรวมทั้งสิ้น"
- * are what makes the paper a Thai statutory document. Letting them follow the
- * recipient's Accept-Language would mean the seller approves one sheet and the
- * customer prints another — and an English-labelled ใบกำกับภาษี is not a valid
- * one. A per-tenant document language, if it is ever wanted, belongs in
- * document settings rather than in the visitor's browser.
- */
-async function documentLabels(): Promise<Record<string, string>> {
-  const dictionary = await loadDictionary('th')
-  return Object.fromEntries(
-    Object.entries(dictionary).filter(([key]) => key.startsWith('orva_documents.')),
-  ) as Record<string, string>
-}
 
 /**
  * The document behind a customer's quote link.

@@ -2060,6 +2060,12 @@
       "reason": "A4 paper width at 96dpi — the second sheet (สำเนา for the company) must match the printed page exactly, a physical measurement rather than a design-system step."
     },
     {
+      "file": "src/modules/orva_documents/frontend/[orgSlug]/portal/billing/page.tsx",
+      "rule": "arbitrary-tailwind",
+      "match": "w-[794px]",
+      "reason": "A4 paper width at 96dpi — the customer prints the same sheet the seller issued, so it must match the page exactly, like the public document view."
+    },
+    {
       "file": "src/modules/orva_finance/components/WhtCertificateSheet.tsx",
       "rule": "arbitrary-tailwind",
       "match": "w-[794px]",
