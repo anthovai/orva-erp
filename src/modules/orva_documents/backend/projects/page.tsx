@@ -108,6 +108,31 @@ export default function OrvaProjectsPage() {
     }
   }, [t])
 
+  /**
+   * A new draft carrying this project's customer and lines. The server does
+   * the copying through upstream's own create route, so the new quote claims
+   * its own number in the brand's series.
+   */
+  const duplicateQuote = async (row: ProjectRow) => {
+    try {
+      const res = await apiCall<{ id: string; quoteNumber: string | null; lines: number }>('/api/orva_documents/duplicate-quote', {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ quoteId: row.quoteId }),
+      })
+      if (!res.ok || !res.result) throw new Error((res.result as { error?: string } | undefined)?.error ?? 'failed')
+      flash(
+        t('orva_documents.projects.duplicated', 'ทำใบใหม่ {number} จาก {source} แล้ว ({n} รายการ)')
+          .replace('{number}', res.result.quoteNumber ?? '')
+          .replace('{source}', row.quoteNumber)
+          .replace('{n}', String(res.result.lines)),
+        'success',
+      )
+      void qc.invalidateQueries({ queryKey: ['orva_documents.projects'] })
+      router.push(`/backend/sales/quotes/${res.result.id}`)
+    } catch (e) {
+      flash(e instanceof Error ? e.message : String(e), 'error')
+    }
+  }
+
   const columns = React.useMemo<ColumnDef<ProjectRow>[]>(() => [
     {
       id: 'project',
@@ -328,6 +353,11 @@ export default function OrvaProjectsPage() {
                       onSelect: () => setIssueFor(row),
                     }]
                   : []),
+                {
+                  id: 'duplicate',
+                  label: t('orva_documents.rowAction.duplicate', 'ทำใบเสนอราคาใหม่จากใบนี้'),
+                  onSelect: () => { void duplicateQuote(row) },
+                },
                 {
                   id: 'set-rate',
                   label: t('orva_documents.projects.rowAction.rate', 'ตั้งอัตราต่อชั่วโมงของโปรเจกต์นี้'),

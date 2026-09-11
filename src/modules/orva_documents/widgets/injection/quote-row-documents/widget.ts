@@ -33,6 +33,38 @@ const widget: InjectionRowActionWidget = {
       label: 'orva_documents.rowAction.review',
       onSelect: (row, context) => navigateToPreview(row, context, 'quotation'),
     },
+    // The reusable thing in this business is the last quote, so a copy is a
+    // row action rather than a blank form: same customer, same lines, a new
+    // draft with its own number.
+    {
+      id: 'orva_documents.quote.duplicate',
+      label: 'orva_documents.rowAction.duplicate',
+      onSelect: (row, context) => {
+        if (!row || typeof row !== 'object') return
+        const id = (row as Record<string, unknown>).id
+        if (typeof id !== 'string' || !id) return
+        const navigate = (context as { navigate?: (href: string) => void }).navigate
+        void (async () => {
+          try {
+            const res = await fetch('/api/orva_documents/duplicate-quote', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ quoteId: id }),
+            })
+            const body = (await res.json().catch(() => null)) as { id?: string; error?: string } | null
+            if (!res.ok || !body?.id) {
+              window.alert(body?.error ?? 'ทำใบใหม่ไม่สำเร็จ')
+              return
+            }
+            if (typeof navigate === 'function') navigate(`/backend/sales/quotes/${encodeURIComponent(body.id)}`)
+            else window.location.href = `/backend/sales/quotes/${encodeURIComponent(body.id)}`
+          } catch {
+            window.alert('ทำใบใหม่ไม่สำเร็จ')
+          }
+        })()
+      },
+    },
     // billing documents come from an ISSUED invoice, not from printing the
     // quote — this opens the quote with the issue dialog already up
     {
