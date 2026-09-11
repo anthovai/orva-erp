@@ -44,5 +44,22 @@
   "orva.nav.stock": "Stock",
   "orva.nav.support": "Support",
   "orva.notifications.leadReceived.body": "{name} wrote in via {source} and nobody has replied yet",
-  "orva.notifications.leadReceived.title": "New enquiry from the contact form"
+  "orva.notifications.leadReceived.title": "New enquiry from the contact form",
+  "orva.readiness.allGood": "Ready — nothing outstanding",
+  "orva.readiness.counts": "{blockers} to fix first · {warnings} to look at",
+  "orva.readiness.description": "The settings that let this business bill, post and send — each lives on a different screen, so they are gathered here",
+  "orva.readiness.email": "Email to customers",
+  "orva.readiness.failed": "The check failed",
+  "orva.readiness.loading": "Checking…",
+  "orva.readiness.open": "Open that screen",
+  "orva.readiness.pdf": "PDF generation",
+  "orva.readiness.period": "Open accounting period",
+  "orva.readiness.portal": "Customer portal accounts",
+  "orva.readiness.posting": "Invoice posting",
+  "orva.readiness.rate": "Hourly rate",
+  "orva.readiness.refresh": "Check again",
+  "orva.readiness.schedules": "Scheduled jobs",
+  "orva.readiness.seller": "Seller identity on documents",
+  "orva.readiness.tax": "Default tax rate",
+  "orva.readiness.title": "Operational readiness"
 }
