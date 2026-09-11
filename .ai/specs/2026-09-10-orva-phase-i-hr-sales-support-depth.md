@@ -1,7 +1,7 @@
 # Orva Phase I — depth where a department is thin: HR paperwork, sales reuse, customer self-service
 
 **Date**: 2026-09-10
-**Status**: In implementation — **I1, I2 and I3 done** (61/61 integration green); I4 remains. Slice by slice, the owner asked to build rather than review a plan first
+**Status**: **I1–I4 built and green** (63/63 integration). Phase I is complete as scoped. Slice by slice, the owner asked to build rather than review a plan first
 
 > Written after the owner said HR, Sales and Support "ยังไม่ตอบโจทย์" and pointed at
 > Horilla HR and Horilla CRM as the yardstick. Companion to
@@ -136,9 +136,41 @@ the last send date, the days since and the chase count on every quote row, so
    negative assertions. The customer login route needs an explicit `organizationId` on a
    platform domain — it refuses to guess the tenant from the host.
 
-### I4 — Support: attachments and customer-opened tickets
-
-(Each is written up when it starts, in this file.)
+### I4 — Support: attachments and customer-opened tickets — built 2026-09-11
+1. `Migration20260911100000_portal_and_canned.ts` — `'portal'` joins the ticket sources
+   (the check constraint is replaced, not dropped: an unconstrained `source` is how
+   `"portl"` ends up in the data), and `orva_support_canned_replies` is created with its
+   own display order. Ends in `select orva_apply_rls();` like every tenant-scoped table.
+2. Three customer-authenticated routes under `api/portal/`, all scoped by the session's
+   customer entity and never by an id from the request:
+   - `tickets` — GET the customer's own list, or one conversation with internal notes
+     filtered out (`author = 'note'` is what staff write to each other). POST opens a
+     ticket, numbered from the same `orva_gl_sequences` series as the desk so TCK-000007
+     means one thing however it arrived, marked `source = 'portal'`. Priority and due
+     date stay the desk's judgement, not the requester's.
+   - `replies` — the customer answers; a resolved or closed ticket reopens, and
+     `waiting_customer` becomes `in_progress`, because a customer who writes again has
+     not finished. No minutes are logged: a customer's typing is not billable time.
+   - `attachments` — POST uploads through the installed `attachmentScopedUploadService`
+     (8 MB, images/PDF/text), so quota, storage driver and the attachment record are the
+     ones the staff screen already uses; this route only decides who may upload where.
+     GET streams a file back, asking ownership **of the ticket**, not of the attachment.
+     The installed `/api/attachments/file/[id]` cannot be reused: it answers to a staff
+     session, which a customer will never have.
+3. `api/canned-replies` — staff CRUD for the answers typed every week, behind
+   `orva_support.view` / `orva_support.manage`.
+4. `frontend/[orgSlug]/portal/tickets` — report something, follow it, reply, attach the
+   screenshot that explains a bug faster than a paragraph does. `linked: false` is its own
+   state here too.
+5. Staff side, in `TicketsPage.tsx`: the installed `AttachmentsSection` on the ticket (same
+   storage the customer's upload lands in), a canned-answer picker that appends into the
+   reply box with one click, "เก็บไว้ใช้ซ้ำ" to save the answer just typed, and a
+   **ลูกค้าแจ้งเอง** badge so the owner can see where their work comes from.
+6. Integration spec `portal-tickets.spec.ts`: the whole path — customer opens, attaches,
+   desk answers and writes an internal note, customer sees the answer and never the note,
+   writes back on a resolved ticket and it reopens. Plus the negatives: another customer's
+   ticket, its conversation, its file and an upload against it are all 404, and a customer
+   session cannot read the desk's saved answers.
 
 ## Risks
 
@@ -158,3 +190,4 @@ the last send date, the days since and the chase count on every quote row, so
 | 2026-09-10 | **I2 (first half) built and green**: 59 passed. Quote duplication from the list row and the projects page, through upstream's create route. Verified once on the real tenant against KK-QTN-2026011: the copy took KKG-QTN-2026012 with 7 lines and the same 85,600 total, then the test quote was removed and the quote sequence stepped back so the next real quote still takes 2026012. **Demo payroll purged** as far as the module allows: PRUN-0002 and its 5 lines are gone; PRUN-0001 stays because `orva_hr_payroll_run_guard_trg` makes a posted run immutable and that guard was not worked around |
 | 2026-09-11 | **I2 complete, 60/60 green.** Quote follow-up on the home waiting card (11 unit tests + an integration spec that watches a quote arrive on the card and leave it when a งวด is issued). Also that morning: the recovered database was missing the `orva_app` role, so the app could not connect at all — `scripts/setup-rls-role.mjs` recreated it with the existing password and transferred 361 tables, 58 sequences and 52 functions; `verify-rls.mjs` passes 7/7 with 289 tenant-isolated tables |
 | 2026-09-11 | **I3 built, 61/61 green.** Customer portal billing: the customer's own quotes and invoices, the outstanding total and the real printed sheet, scoped to the session's customer entity. Cross-customer isolation is asserted both ways in the integration spec. Owner setup found: the three existing portal accounts have no `customer_entity_id`, so they see the not-linked state until somebody connects them |
+| 2026-09-11 | **I4 built, 63/63 green.** The customer's own side of the support desk: open a ticket from the portal (same TCK- series as the queue, `source = 'portal'`), attach a screenshot through the installed attachments storage, read the desk's answers and never the internal notes, and reopen a resolved ticket by writing back. Staff side gains the installed `AttachmentsSection` on the ticket, a canned-answer picker and "เก็บไว้ใช้ซ้ำ", plus a ลูกค้าแจ้งเอง badge. `customerNameFor` was extracted so both doors name the company the same way. Two schema assumptions about the installed `attachments` table cost a run each and became one lesson: `record_id` is `text` (not `uuid`), the table has **no** `deleted_at`, and the `.catch(() => [])` that had been hiding the first was removed. A read-only `information_schema` probe found both in under a minute after a 25-minute run had reported only an empty body |

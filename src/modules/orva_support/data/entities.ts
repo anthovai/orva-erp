@@ -319,3 +319,44 @@ export class SupportArticle {
   @Property({ name: 'deleted_at', type: Date, nullable: true })
   deletedAt?: Date | null
 }
+
+/**
+ * An answer worth keeping: the reply that gets typed again every week.
+ *
+ * Tenant-wide rather than per ticket, ordered so the common one sits first.
+ * The body is inserted into the reply box for editing, never sent as-is —
+ * a canned answer that cannot be adjusted stops being an answer.
+ */
+@Entity({ tableName: 'orva_support_canned_replies' })
+@Index({ properties: ['tenantId', 'organizationId'] })
+export class SupportCannedReply {
+  @PrimaryKey({ type: 'uuid', defaultRaw: 'gen_random_uuid()' })
+  id!: string
+
+  @Property({ name: 'tenant_id', type: 'uuid' })
+  tenantId!: string
+
+  @Property({ name: 'organization_id', type: 'uuid' })
+  organizationId!: string
+
+  @Property({ type: 'text' })
+  title!: string
+
+  @Property({ type: 'text' })
+  body!: string
+
+  @Property({ type: 'integer' })
+  position: number = 0
+
+  @Property({ name: 'created_by', type: 'uuid', nullable: true })
+  createdBy?: string | null
+
+  @Property({ name: 'created_at', type: 'timestamptz' })
+  createdAt: Date = new Date()
+
+  @Property({ name: 'updated_at', type: 'timestamptz', onUpdate: () => new Date() })
+  updatedAt: Date = new Date()
+
+  @Property({ name: 'deleted_at', type: 'timestamptz', nullable: true })
+  deletedAt?: Date | null
+}

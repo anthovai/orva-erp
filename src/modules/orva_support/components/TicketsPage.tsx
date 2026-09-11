@@ -12,11 +12,13 @@ import { useProjectOptions } from '@/modules/orva_documents/components/queries'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { SwitchField } from '@open-mercato/ui/primitives/switch-field'
 import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
+import { AttachmentsSection } from '@open-mercato/ui/backend/detail'
+import { useCannedReplies } from './queries'
 
 type Ticket = {
   id: string; ticketNo: string; subject: string; description?: string | null; kind: string; priority: string; status: string
   customerEntityId: string | null; customerName: string | null; contactEmail: string | null; quoteId?: string | null
-  dueOn: string | null; minutesSpent: number; source?: 'manual' | 'email'; threadId?: string | null; ageHours: number; responseHours: number | null
+  dueOn: string | null; minutesSpent: number; source?: 'manual' | 'email' | 'portal'; threadId?: string | null; ageHours: number; responseHours: number | null
   awaitingFirstResponse: boolean; daysOverdue: number; createdAt: string; updatedAt: string
 }
 type TicketsResponse = { items: Ticket[]; total: number; counts: { open: number; waiting: number; overdue: number; unanswered: number; minutesOpen: number } }
@@ -71,6 +73,7 @@ export default function TicketsPage() {
     enabled: creating,
   })
   const projects = useProjectOptions(creating)
+  const canned = useCannedReplies()
 
   const refresh = async () => {
     await qc.invalidateQueries({ queryKey: ['orva_support.tickets'] })
@@ -160,6 +163,41 @@ export default function TicketsPage() {
       flash(t('orva_support.merge.done', 'รวมเข้ากับ {target} แล้ว').replace('{target}', res.result.ticketNo), 'success')
       setSelected({ ...target, updatedAt: res.result.updatedAt })
       await refresh()
+    } catch (e) { flash(e instanceof Error ? e.message : String(e), 'error') } finally { setBusy(false) }
+  }
+
+  // The answer just typed, kept for next time. The title is the operator's own
+  // first line, because that is what they will look for in the picker.
+  const saveCanned = async () => {
+    if (!reply.body.trim()) return
+    const title = reply.body.trim().split('\n')[0].slice(0, 120)
+    setBusy(true)
+    try {
+      const res = await apiCall<{ ok: true }>('/api/orva_support/canned-replies', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ title, body: reply.body.trim() }),
+      })
+      if (!res.ok) throw new Error((res.result as { error?: string } | undefined)?.error ?? 'failed')
+      flash(t('orva_support.canned.saved', 'เก็บคำตอบนี้ไว้ใช้ซ้ำแล้ว'), 'success')
+      await qc.invalidateQueries({ queryKey: ['orva_support.cannedReplies'] })
+    } catch (e) { flash(e instanceof Error ? e.message : String(e), 'error') } finally { setBusy(false) }
+  }
+
+  const removeCanned = async (id: string, title: string) => {
+    const ok = await confirm({
+      title: t('orva_support.canned.deleteTitle', 'ลบคำตอบสำเร็จรูป "{title}"?').replace('{title}', title),
+      confirmText: t('orva_support.canned.delete', 'ลบ'),
+      cancelText: t('orva_support.cancel', 'ยกเลิก'),
+    })
+    if (!ok) return
+    setBusy(true)
+    try {
+      const res = await apiCall<{ ok: true }>('/api/orva_support/canned-replies', {
+        method: 'DELETE', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      if (!res.ok) throw new Error((res.result as { error?: string } | undefined)?.error ?? 'failed')
+      await qc.invalidateQueries({ queryKey: ['orva_support.cannedReplies'] })
     } catch (e) { flash(e instanceof Error ? e.message : String(e), 'error') } finally { setBusy(false) }
   }
 
@@ -274,6 +312,7 @@ export default function TicketsPage() {
                           {row.awaitingFirstResponse ? <span className="rounded bg-status-error-bg px-1.5 text-xs text-status-error-text">{t('orva_support.badge.unanswered', 'ยังไม่ตอบ')}</span> : null}
                           {row.daysOverdue > 0 ? <span className="rounded bg-status-warning-bg px-1.5 text-xs text-status-warning-text">{t('orva_support.badge.overdue', 'เลย {days} วัน').replace('{days}', String(row.daysOverdue))}</span> : null}
                           {row.source === 'email' ? <span className="rounded bg-status-info-bg px-1.5 text-xs text-status-info-text">{t('orva_support.badge.fromEmail', 'จากอีเมล')}</span> : null}
+                          {row.source === 'portal' ? <span className="rounded bg-status-info-bg px-1.5 text-xs text-status-info-text">{t('orva_support.badge.fromPortal', 'ลูกค้าแจ้งเอง')}</span> : null}
                           {row.source === 'email' && !row.customerEntityId ? <span className="rounded bg-status-warning-bg px-1.5 text-xs text-status-warning-text">{t('orva_support.badge.unmatched', 'ยังไม่จับคู่ลูกค้า')}</span> : null}
                         </div>
                         <div className="truncate text-xs text-muted-foreground">{label('kind', row.kind)} · {row.subject}</div>
@@ -328,6 +367,25 @@ export default function TicketsPage() {
                 </div>
 
                 <div className="flex flex-col gap-2">
+                  {(canned.data?.items ?? []).length ? (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-xs text-muted-foreground">{t('orva_support.canned.pick', 'คำตอบสำเร็จรูป')}</span>
+                      {(canned.data?.items ?? []).map((item) => (
+                        <span key={item.id} className="inline-flex items-center rounded-full border text-xs">
+                          <button
+                            type="button" className="max-w-48 truncate px-2 py-0.5 hover:bg-muted"
+                            title={item.body}
+                            onClick={() => setReply((current) => ({ ...current, body: current.body ? `${current.body}\n${item.body}` : item.body }))}
+                          >{item.title}</button>
+                          <button
+                            type="button" className="px-1.5 py-0.5 text-muted-foreground hover:text-status-error-text"
+                            aria-label={t('orva_support.canned.delete', 'ลบ')}
+                            onClick={() => removeCanned(item.id, item.title)}
+                          >×</button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
                   <textarea className="rounded-md border bg-background px-3 py-2 text-sm" rows={3} value={reply.body} onChange={(e) => setReply({ ...reply, body: e.target.value })} placeholder={t('orva_support.replyPlaceholder', 'ตอบกลับลูกค้า หรือบันทึกภายใน')} />
                   <div className="flex flex-wrap items-center gap-2">
                     <select className="rounded-md border bg-background px-2 py-1.5 text-sm" value={reply.author} onChange={(e) => setReply({ ...reply, author: e.target.value as typeof reply.author })}>
@@ -341,6 +399,7 @@ export default function TicketsPage() {
                       {STATUSES.filter((s) => s !== selected.status).map((s) => <option key={s} value={s}>{label('status', s)}</option>)}
                     </select>
                     <Button size="sm" disabled={busy || !reply.body.trim()} onClick={send}>{canEmail && reply.sendEmail ? t('orva_support.sendAndEmail', 'บันทึกและส่งอีเมล') : t('orva_support.send', 'บันทึก')}</Button>
+                    <Button size="sm" variant="outline" disabled={busy || !reply.body.trim()} onClick={saveCanned}>{t('orva_support.canned.save', 'เก็บไว้ใช้ซ้ำ')}</Button>
                   </div>
                   {canEmail ? (
                     <SwitchField
@@ -351,6 +410,16 @@ export default function TicketsPage() {
                     />
                   ) : null}
                 </div>
+
+                {/* The installed attachments section: the same storage, quota and
+                    partition the customer's own upload goes through. */}
+                <AttachmentsSection
+                  entityId="orva_support:ticket"
+                  recordId={selected.id}
+                  compact
+                  title={t('orva_support.attachments.title', 'ไฟล์แนบ')}
+                  description={t('orva_support.attachments.description', 'ภาพหน้าจอและไฟล์จากลูกค้า รวมถึงที่แนบเพิ่มเอง')}
+                />
 
                 <details className="text-sm">
                   <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">{t('orva_support.merge.open', 'รวมเข้าเรื่องอื่น…')}</summary>

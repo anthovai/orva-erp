@@ -161,3 +161,35 @@ export const retainerIssueSchema = z.object({
   amount: z.coerce.number().positive().max(1e12).optional(),
   dueInDays: z.coerce.number().int().min(0).max(365).optional(),
 })
+
+/** What a customer may say when opening a ticket from the portal. */
+export const portalTicketCreateSchema = z.object({
+  subject: z.string().trim().min(1).max(200),
+  description: z.string().trim().min(1).max(8000),
+  kind: z.enum(TICKET_KINDS).optional(),
+})
+
+/** A customer's reply on their own ticket. */
+export const portalReplySchema = z.object({
+  ticketId: z.string().uuid(),
+  body: z.string().trim().min(1).max(8000),
+})
+
+export const portalTicketQuerySchema = z.object({
+  ticketId: z.string().uuid().optional(),
+})
+
+export const cannedReplyCreateSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  body: z.string().trim().min(1).max(8000),
+  position: z.coerce.number().int().min(0).max(9999).optional(),
+})
+
+export const cannedReplyUpdateSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().trim().min(1).max(200).optional(),
+  body: z.string().trim().min(1).max(8000).optional(),
+  position: z.coerce.number().int().min(0).max(9999).optional(),
+})
+
+export const cannedReplyDeleteSchema = z.object({ id: z.string().uuid() })

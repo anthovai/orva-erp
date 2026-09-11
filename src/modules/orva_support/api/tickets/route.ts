@@ -3,14 +3,13 @@ import { getAuthFromRequest } from '@open-mercato/shared/lib/auth/server'
 import { resolveActiveOrganizationId, organizationScopeRequiredResponse } from '@open-mercato/shared/lib/auth/organizationScope'
 import { createRequestContainer } from '@open-mercato/shared/lib/di/container'
 import { readJsonSafe } from '@open-mercato/shared/lib/http/readJsonSafe'
-import { findWithDecryption } from '@open-mercato/shared/lib/encryption/find'
-import { CustomerEntity } from '@open-mercato/core/modules/customers/data/entities'
 import type { OpenApiRouteDoc } from '@open-mercato/shared/lib/openapi'
 import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
 import { SupportTicket } from '../../data/entities'
 import { OPEN_STATUSES, ticketCreateSchema, ticketListSchema, ticketUpdateSchema } from '../../data/validators'
 import { ageOf, canTransition, queueOrder, stampsFor, ticketNumber, type TicketStatus } from '../../lib/tickets'
+import { customerNameFor } from '../../lib/customerName'
 
 export const metadata = {
   GET: { requireAuth: true, requireFeatures: ['orva_support.view'] },
@@ -31,7 +30,7 @@ const ticketSchema = z.object({
   quoteId: z.string().nullable(),
   dueOn: z.string().nullable(),
   minutesSpent: z.number(),
-  source: z.enum(['manual', 'email']),
+  source: z.enum(['manual', 'email', 'portal']),
   threadId: z.string().nullable(),
   ageHours: z.number(),
   responseHours: z.number().nullable(),
@@ -68,12 +67,6 @@ const toJson = (row: Row) => {
 }
 
 /** Resolves a CRM company/person name through the decrypting finder. */
-async function customerNameFor(tem: EntityManager, scope: { tenantId: string; organizationId: string }, entityId: string | null | undefined): Promise<string | null> {
-  if (!entityId) return null
-  const [entity] = await findWithDecryption(tem, CustomerEntity, { id: entityId }, {}, { tenantId: scope.tenantId, organizationId: scope.organizationId })
-  return (entity as { displayName?: string | null } | undefined)?.displayName ?? null
-}
-
 /** The support queue: open tickets first, urgent and overdue on top. */
 export async function GET(req: Request) {
   const auth = await getAuthFromRequest(req)
@@ -169,8 +162,8 @@ export async function POST(req: Request) {
       customerEntityId: input.customerEntityId ?? null,
       customerName: await customerNameFor(tem, scope, input.customerEntityId),
       contactEmail: input.contactEmail ?? null, quoteId: input.quoteId ?? null,
-      // Opened by hand on the queue screen; the inbound-email subscriber is
-      // the only thing that writes 'email'.
+      // Opened by hand on the queue screen. The inbound-email subscriber is
+      // the only thing that writes 'email', and the portal route 'portal'.
       source: 'manual',
       dueOn: input.dueOn ?? null, minutesSpent: 0,
       createdBy: auth.sub, createdAt: now, updatedAt: now,

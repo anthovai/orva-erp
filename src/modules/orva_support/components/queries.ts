@@ -40,3 +40,20 @@ export function useDueRetainers() {
     queryFn: () => readApiResultOrThrow<{ items: DueRetainer[]; today: string }>('/api/orva_support/retainers'),
   })
 }
+
+export type CannedReply = { id: string; title: string; body: string; position: number; updatedAt: string }
+
+/**
+ * The answers the desk types every week, kept once.
+ *
+ * Loaded with the ticket screen rather than on demand: the list is small, and
+ * a picker that has to fetch before it can offer anything is a picker nobody
+ * uses.
+ */
+export function useCannedReplies() {
+  const scopeVersion = useOrganizationScopeVersion()
+  return useQuery({
+    queryKey: ['orva_support.cannedReplies', scopeVersion],
+    queryFn: () => readApiResultOrThrow<{ items: CannedReply[] }>('/api/orva_support/canned-replies'),
+  })
+}
