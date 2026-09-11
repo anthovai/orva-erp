@@ -2250,6 +2250,30 @@
       "rule": "inline-style",
       "match": "style=",
       "reason": "Lot label sheet: physical print geometry (A4, 70 x 37 mm labels, barcode module widths) is stated in millimetres inline, as a paper artefact must be; every colour and type token still comes from the design system."
+    },
+    {
+      "file": "src/modules/orva_documents/backend/documents/preview/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Paper geometry: the printed sheet is a piece of A4 and its height is physical, stated in millimetres like templates/label.tsx states its label grid. No design token expresses a sheet of paper, and a Tailwind arbitrary value would state the same millimetres in pixels."
+    },
+    {
+      "file": "src/modules/orva_documents/backend/documents/preview/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Paper geometry: the printed sheet is a piece of A4 and its height is physical, stated in millimetres like templates/label.tsx states its label grid. No design token expresses a sheet of paper, and a Tailwind arbitrary value would state the same millimetres in pixels."
+    },
+    {
+      "file": "src/modules/orva_documents/frontend/documents/[token]/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Paper geometry: the printed sheet is a piece of A4 and its height is physical, stated in millimetres like templates/label.tsx states its label grid. No design token expresses a sheet of paper, and a Tailwind arbitrary value would state the same millimetres in pixels."
+    },
+    {
+      "file": "src/modules/orva_documents/frontend/[orgSlug]/portal/billing/page.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "Paper geometry: the printed sheet is a piece of A4 and its height is physical, stated in millimetres like templates/label.tsx states its label grid. No design token expresses a sheet of paper, and a Tailwind arbitrary value would state the same millimetres in pixels."
     }
   ]
 }

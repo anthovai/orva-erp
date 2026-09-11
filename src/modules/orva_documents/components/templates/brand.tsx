@@ -25,7 +25,10 @@ const money = (value: number) => value.toLocaleString('th-TH', { minimumFraction
 export function BrandTemplate({ doc, t }: TemplateProps) {
   const accent = doc.accentColor ?? '#11836E'
   return (
-    <div className="flex flex-col text-foreground">
+    // `flex-1` so the template fills the A4 sheet it sits in: without it a
+    // short quotation ends halfway down the paper and the contact band floats
+    // in the middle of the page.
+    <div className="flex flex-1 flex-col text-foreground">
       {/* masthead */}
       <div className="flex items-start justify-between gap-6 pb-4">
         <div className="flex items-start gap-4 pt-1">
@@ -33,22 +36,24 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
             // eslint-disable-next-line @next/next/no-img-element -- data URI from tenant settings; next/image cannot optimize it
             <img src={doc.logoHeader} alt={doc.seller.name} className="h-20 max-w-52 shrink-0 object-contain" />
           ) : null}
-          {/* A logo REPLACES the display name (the tenant's call) — except on
-              statutory documents, where the seller's name is required by law,
-              so the legal name stays, smaller, beside the taxpayer id. */}
-          {!doc.logoHeader ? (
-            <div>
+          {/* Who is issuing the paper. A brand's logo carries the mark, but the
+              name beside it is always the LEGAL entity — a brand is a trading
+              name, and a document that shows only a logo leaves the recipient
+              guessing who they are dealing with. The taxpayer id stays on
+              statutory documents, where it is required. */}
+          <div className={doc.logoHeader ? 'pt-1' : undefined}>
+            {doc.logoHeader ? (
+              <div className="text-sm font-bold">{doc.seller.legalName ?? doc.seller.name}</div>
+            ) : (
               <div className="text-xl font-extrabold uppercase leading-tight" style={{ color: accent }}>
                 {doc.seller.name}
               </div>
-              {doc.isTaxDocument ? <TaxIdentityLine taxId={doc.seller.taxId} branch={doc.seller.branch} t={t} /> : null}
-            </div>
-          ) : doc.isTaxDocument ? (
-            <div className="pt-1">
-              <div className="text-sm font-bold">{doc.seller.legalName ?? doc.seller.name}</div>
-              <TaxIdentityLine taxId={doc.seller.taxId} branch={doc.seller.branch} t={t} />
-            </div>
-          ) : null}
+            )}
+            {doc.isTaxDocument ? <TaxIdentityLine taxId={doc.seller.taxId} branch={doc.seller.branch} t={t} /> : null}
+            {doc.seller.address ? (
+              <div className="mt-0.5 max-w-xs text-xs leading-5 text-muted-foreground">{doc.seller.address}</div>
+            ) : null}
+          </div>
         </div>
         <div className="text-right">
           <div className="text-3xl font-extrabold leading-none" style={{ color: accent }}>{doc.headingEn}</div>
@@ -163,7 +168,7 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
       <div className="mt-2"><AmountInWords doc={doc} t={t} /></div>
 
       {/* payment terms beside the client signature line, like the paper */}
-      <div className="mt-6 grid grid-cols-2 items-end gap-8">
+      <div className="mt-6 grid grid-cols-2 items-end gap-8 pb-8">
         <div className="space-y-2 text-xs leading-5">
           {doc.paymentDetails ? (
             <div>
@@ -211,10 +216,12 @@ export function BrandTemplate({ doc, t }: TemplateProps) {
         )}
       </div>
 
-      {/* contact footer band bleeding to the sheet edge — commercial paper only;
-          the statutory ใบกำกับภาษี/ใบเสร็จ end at the signatures */}
+      {/* Contact footer band bleeding to the sheet edge — commercial paper only;
+          the statutory ใบกำกับภาษี/ใบเสร็จ end at the signatures.
+          `mt-auto` pins the band to the foot of the sheet, so a short document
+          fills its page instead of leaving the band floating mid-paper. */}
       {!doc.isTaxDocument ? (
-      <div className="-mx-10 -mb-10 mt-8 flex items-center gap-6 px-10 py-5 text-white" style={{ backgroundColor: accent }}>
+      <div className="-mx-10 -mb-10 mt-auto flex items-center gap-6 px-10 pb-5 pt-5 text-white" style={{ backgroundColor: accent }}>
         {doc.logoFooter ? (
           // The mark arrives in its own colours; brightness(0) invert(1)
           // knocks it out to white on the accent band, like the paper.

@@ -1114,15 +1114,27 @@ aside:has([data-sidebar-scroll]) {
   }
 
   /* exact A4 geometry regardless of the app shell's columns; one sheet per
-     page (tax documents print ต้นฉบับ then สำเนา) */
+     page (tax documents print ต้นฉบับ then สำเนา).
+
+     `min-height` is what stops a short document from ending halfway down the
+     paper with its contact band floating in the middle: the sheet always
+     fills the page, and the template pushes its footer to the bottom with
+     `mt-auto`. The padding is stated in px, not mm, because the footer band
+     bleeds past it with `-mx-10 -mb-10` (40px) — any other value leaves a
+     white gutter down the sides of the band. */
   [data-document-sheet],
   .break-before-page {
     width: 210mm !important;
+    /* A hair under the 297mm page height: at exactly one page Chrome rounds up
+       and emits a blank second page (measured — 297mm gave 2 pages, 296mm 1). */
+    min-height: 296mm !important;
     max-width: none !important;
     margin: 0 !important;
-    padding: 14mm 14mm 12mm !important;
+    padding: 40px !important;
     box-sizing: border-box !important;
     box-shadow: none !important;
+    display: flex !important;
+    flex-direction: column !important;
     break-inside: avoid;
   }
   .break-before-page {

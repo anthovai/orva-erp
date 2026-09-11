@@ -17,6 +17,7 @@ import { Input } from '@open-mercato/ui/primitives/input'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { DOCUMENT_TYPES, TEMPLATE_IDS, typesForSourceKind, type DocumentType, type PrintableDocument, type TemplateId } from '../../../lib/document'
 import { DOCUMENT_TEMPLATES, templateComponentFor } from '../../../components/templates'
+import { A4_SHEET_MIN_HEIGHT } from '../../../lib/sheet'
 
 type SourceOption = { id: string; kind?: string; number: string; issueDate: string | null; customerName: string | null }
 type PreviewResponse = { document: PrintableDocument; sources: SourceOption[]; usedSample: boolean; sourceKind?: string }
@@ -386,7 +387,7 @@ export default function DocumentPreviewPage() {
               <div
                 // the server-side PDF renderer waits for this marker before printing
                 data-document-sheet="true"
-                className="w-[794px] max-w-full bg-card p-10 shadow-sm print:w-full print:p-0 print:shadow-none"
+                className="flex w-[794px] max-w-full flex-col bg-card p-10 shadow-sm print:w-full print:p-0 print:shadow-none" style={{ minHeight: A4_SHEET_MIN_HEIGHT }}
               >
                 <Template doc={doc} t={t} />
               </div>
@@ -397,7 +398,7 @@ export default function DocumentPreviewPage() {
                 // different reason: one is left with the goods and one comes
                 // back signed.
                 <div
-                  className="w-[794px] max-w-full break-before-page bg-card p-10 shadow-sm print:w-full print:p-0 print:shadow-none"
+                  className="flex w-[794px] max-w-full break-before-page flex-col bg-card p-10 shadow-sm print:w-full print:p-0 print:shadow-none" style={{ minHeight: A4_SHEET_MIN_HEIGHT }}
                 >
                   <Template doc={{ ...doc, copyRole: 'copy' }} t={t} />
                 </div>

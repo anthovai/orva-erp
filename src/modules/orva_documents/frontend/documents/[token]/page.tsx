@@ -5,6 +5,7 @@ import { Spinner } from '@open-mercato/ui/primitives/spinner'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import type { PrintableDocument } from '../../../lib/document'
 import { templateComponentFor } from '../../../components/templates'
+import { A4_SHEET_MIN_HEIGHT } from '../../../lib/sheet'
 
 type PublicDocumentResponse = {
   document: PrintableDocument
@@ -87,7 +88,7 @@ export default function PublicDocumentPage({ params }: { params: { token: string
         {/* A4 sheet: same marker the server-side renderer waits for */}
         <div
           data-document-sheet="true"
-          className="w-[794px] max-w-full bg-card p-10 shadow-sm print:w-full print:p-0 print:shadow-none"
+          className="flex w-[794px] max-w-full flex-col bg-card p-10 shadow-sm print:w-full print:p-0 print:shadow-none" style={{ minHeight: A4_SHEET_MIN_HEIGHT }}
         >
           <Template doc={doc} t={sheetT} />
         </div>
