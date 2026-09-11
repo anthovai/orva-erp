@@ -405,6 +405,8 @@ export async function cashBalances(tem: EntityManager, scope: Scope): Promise<Ar
 export type PendingQuoteRow = {
   id: string; quote_number: string; customer_entity_id: string | null; status: string | null
   valid_until: string | null; total: string; invoiced: number
+  /** When the quote was written — the clock a never-sent quote is judged on. */
+  created_on: string
 }
 
 /**
@@ -417,6 +419,7 @@ export async function pendingQuotes(tem: EntityManager, scope: Scope): Promise<P
   return (await tem.execute(
     `select q.id, q.quote_number, q.customer_entity_id,
             q.status, to_char(q.valid_until, 'YYYY-MM-DD') as valid_until,
+            to_char(q.created_at, 'YYYY-MM-DD') as created_on,
             q.grand_total_gross_amount::text as total,
             (select count(*)::int from sales_invoices i
                where i.deleted_at is null and i.metadata->>'quoteId' = q.id::text) as invoiced

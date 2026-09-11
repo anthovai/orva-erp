@@ -33,7 +33,13 @@ export type HomeOverview = {
   }
   tax: Array<{ kind: 'vat' | 'wht'; period: string; dueDate: string; daysLeft: number; state: 'upcoming' | 'due_soon' | 'overdue'; amount: string; packSentAt: string | null }>
   waiting: {
-    quotes: Array<{ id: string; ref: string; customer: string | null; validUntil: string | null; daysLeft: number | null; total: string }>
+    quotes: Array<{
+      id: string; ref: string; customer: string | null; validUntil: string | null; daysLeft: number | null; total: string
+      followUp?: 'never_sent' | 'waiting' | 'due' | 'expiring' | 'expired'
+      lastSentOn?: string | null
+      daysSinceSent?: number | null
+      sendCount?: number
+    }>
     unpostedInvoices: number
     draftJournals: number
     unmatchedBankLines: number
@@ -242,17 +248,37 @@ export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOver
               tone="good"
             />
           ))}
-          {data.waiting.quotes.slice(0, 4).map((q) => (
-            <Row
-              key={q.id}
-              left={<Link href={`/backend/sales/quotes/${q.id}`} className="hover:underline">{q.ref}</Link>}
-              sub={[q.customer, q.daysLeft == null ? null : q.daysLeft < 0
-                ? t('orva_finance.home.waiting.quoteExpired', 'หมดอายุแล้ว {days} วัน').replace('{days}', String(-q.daysLeft))
-                : t('orva_finance.home.waiting.quoteValid', 'ใบเสนอราคาหมดอายุในอีก {days} วัน').replace('{days}', String(q.daysLeft))].filter(Boolean).join(' · ')}
-              right={money(q.total)}
-              tone={q.daysLeft != null && q.daysLeft < 0 ? 'bad' : q.daysLeft != null && q.daysLeft <= 7 ? 'warn' : undefined}
-            />
-          ))}
+          {data.waiting.quotes.slice(0, 4).map((q) => {
+            /*
+             * Two different facts, and the owner needs both: when the quote
+             * dies, and whether anybody has chased it. The second one used to
+             * be unanswerable — the send log now answers it.
+             */
+            const expiry = q.daysLeft == null ? null : q.daysLeft < 0
+              ? t('orva_finance.home.waiting.quoteExpired', 'หมดอายุแล้ว {days} วัน').replace('{days}', String(-q.daysLeft))
+              : t('orva_finance.home.waiting.quoteValid', 'ใบเสนอราคาหมดอายุในอีก {days} วัน').replace('{days}', String(q.daysLeft))
+            const chase = q.followUp === 'never_sent'
+              ? t('orva_finance.home.waiting.quoteNeverSent', 'ยังไม่ได้ส่งให้ลูกค้า')
+              : q.followUp === 'due'
+                ? t('orva_finance.home.waiting.quoteDue', 'ส่งไปแล้ว {days} วัน ยังไม่ตอบ').replace('{days}', String(q.daysSinceSent ?? 0))
+                : q.daysSinceSent != null
+                  ? t('orva_finance.home.waiting.quoteSent', 'ส่งไปแล้ว {days} วัน').replace('{days}', String(q.daysSinceSent))
+                  : null
+            const tone = q.followUp === 'expired' || (q.daysLeft != null && q.daysLeft < 0)
+              ? 'bad'
+              : q.followUp === 'due' || q.followUp === 'never_sent' || q.followUp === 'expiring' || (q.daysLeft != null && q.daysLeft <= 7)
+                ? 'warn'
+                : undefined
+            return (
+              <Row
+                key={q.id}
+                left={<Link href={`/backend/sales/quotes/${q.id}`} className="hover:underline">{q.ref}</Link>}
+                sub={[q.customer, chase, expiry].filter(Boolean).join(' · ')}
+                right={money(q.total)}
+                tone={tone}
+              />
+            )
+          })}
           {data.waiting.unpostedInvoices > 0 ? (
             <Row left={<Link href="/backend/ar/posting" className="hover:underline">{t('orva_finance.home.waiting.unposted', 'ใบแจ้งหนี้ยังไม่ลงบัญชี')}</Link>} right={String(data.waiting.unpostedInvoices)} tone="warn" />
           ) : null}

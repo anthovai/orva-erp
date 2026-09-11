@@ -5,6 +5,8 @@ import { CustomerEntity } from '@open-mercato/core/modules/customers/data/entiti
 import { daysBetween, monthBounds, monthOf, upcomingDeadlines, type TaxDeadline } from './homeOverview'
 import { reminderState } from './reminders'
 import { lowStockVariants } from '@/modules/orva_stock/lib/lowStock'
+import { quoteFollowUp, type FollowUpState } from '@/modules/orva_documents/lib/quoteFollowUp'
+import { toPgTextArray } from '@/lib/pgArray'
 import {
   bookkeepingStatus, cashBalances, monthPackHistory, openInvoices, pendingQuotes, receiptsInMonth,
   vatReport, whtReport, type Scope,
@@ -50,7 +52,14 @@ export type HomeOverviewData = {
   }
   tax: Array<TaxDeadline & { amount: string; packSentAt: string | null }>
   waiting: {
-    quotes: Array<{ id: string; ref: string; customer: string | null; validUntil: string | null; daysLeft: number | null; total: string }>
+    quotes: Array<{
+      id: string; ref: string; customer: string | null; validUntil: string | null; daysLeft: number | null; total: string
+      /** Whether this one is waiting on the customer or on us — see orva_documents/lib/quoteFollowUp. */
+      followUp: FollowUpState
+      lastSentOn: string | null
+      daysSinceSent: number | null
+      sendCount: number
+    }>
     unpostedInvoices: number
     draftJournals: number
     unmatchedBankLines: number
@@ -118,30 +127,36 @@ async function stockExpiryAlerts(
  * invoice or its tax invoice going out IS the nudge, because the owner sends
  * the document itself rather than a separate letter.
  */
-async function reminderHistory(
+async function sendHistory(
   tem: EntityManager,
   scope: Scope,
-  invoiceIds: readonly string[],
+  documentIds: readonly string[],
+  documentTypes: readonly string[],
 ): Promise<Map<string, string[]>> {
-  if (!invoiceIds.length) return new Map()
+  if (!documentIds.length) return new Map()
   const rows = (await tem.execute(
     `select document_id::text as id, to_char(sent_at, 'YYYY-MM-DD') as on_date
      from orva_documents_sends
      where tenant_id = ?::uuid
        and (?::uuid is null or organization_id = ?::uuid)
-       and document_type in ('invoice', 'tax_invoice', 'billing_note')
+       and document_type = any(?::text[])
        and document_id = any(?::uuid[])
      order by sent_at`,
-    [scope.tenantId, scope.organizationId, scope.organizationId, `{${invoiceIds.join(',')}}`],
+    [scope.tenantId, scope.organizationId, scope.organizationId, toPgTextArray(documentTypes), `{${documentIds.join(',')}}`],
   )) as Array<{ id: string; on_date: string }>
-  const byInvoice = new Map<string, string[]>()
+  const byDocument = new Map<string, string[]>()
   for (const row of rows) {
-    const list = byInvoice.get(row.id)
+    const list = byDocument.get(row.id)
     if (list) list.push(row.on_date)
-    else byInvoice.set(row.id, [row.on_date])
+    else byDocument.set(row.id, [row.on_date])
   }
-  return byInvoice
+  return byDocument
 }
+
+/** What was emailed for an invoice: the document itself IS the reminder. */
+const INVOICE_SEND_TYPES = ['invoice', 'tax_invoice', 'billing_note'] as const
+/** A quotation only ever goes out as a quotation. */
+const QUOTE_SEND_TYPES = ['quotation'] as const
 
 /**
  * Quotes the customer accepted through the acceptance link but which have not
@@ -282,7 +297,10 @@ export async function buildHomeOverview(
     scope.organizationId ? lowStockVariants(tem, { tenantId: scope.tenantId, organizationId: scope.organizationId }) : Promise.resolve([]),
   ])
   const deadlines = upcomingDeadlines(today)
-  const reminders = await reminderHistory(tem, scope, invoices.map((i) => i.id))
+  const [reminders, quoteSends] = await Promise.all([
+    sendHistory(tem, scope, invoices.map((i) => i.id), INVOICE_SEND_TYPES),
+    sendHistory(tem, scope, quotes.map((q) => q.id), QUOTE_SEND_TYPES),
+  ])
   const customerNames = await resolveCustomerNames(tem, scope, [
     ...quotes.map((q) => q.customer_entity_id),
     ...invoices.filter((i) => !i.customer_name).map((i) => i.customer_entity_id),
@@ -341,14 +359,26 @@ export async function buildHomeOverview(
       .map((d) => ({ ...d, amount: registers.get(d.period)?.[d.kind] ?? '0.00', packSentAt: sentFor(d.period) }))
       .filter((d) => d.kind === 'vat' || Number(d.amount) !== 0),
     waiting: {
-      quotes: quotes.map((q) => ({
-        id: q.id,
-        ref: q.quote_number,
-        customer: (q.customer_entity_id ? customerNames.get(q.customer_entity_id) : null) ?? null,
-        validUntil: q.valid_until,
-        daysLeft: q.valid_until ? daysBetween(today, q.valid_until) : null,
-        total: Number(q.total).toFixed(2),
-      })),
+      quotes: quotes.map((q) => {
+        const follow = quoteFollowUp({
+          createdOn: q.created_on,
+          validUntil: q.valid_until,
+          sentDates: quoteSends.get(q.id) ?? [],
+          today,
+        })
+        return {
+          id: q.id,
+          ref: q.quote_number,
+          customer: (q.customer_entity_id ? customerNames.get(q.customer_entity_id) : null) ?? null,
+          validUntil: q.valid_until,
+          daysLeft: q.valid_until ? daysBetween(today, q.valid_until) : null,
+          total: Number(q.total).toFixed(2),
+          followUp: follow.state,
+          lastSentOn: follow.lastSentOn,
+          daysSinceSent: follow.daysSinceSent,
+          sendCount: follow.sendCount,
+        }
+      }),
       unpostedInvoices: books.unpostedInvoices,
       draftJournals: books.draftJournals,
       unmatchedBankLines: books.unmatchedBankLines,

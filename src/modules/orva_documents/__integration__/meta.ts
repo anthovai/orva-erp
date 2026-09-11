@@ -7,7 +7,7 @@
  * timesheet mirror) and `staff` (the time entry). The runner skips the files
  * when any of them is missing.
  */
-export const dependsOnModules = ['orva_documents', 'sales', 'customers', 'orva_tasking', 'orva_time', 'staff']
+export const dependsOnModules = ['orva_documents', 'sales', 'customers', 'orva_finance', 'orva_tasking', 'orva_time', 'staff']
 
 const meta = { dependsOnModules }
 

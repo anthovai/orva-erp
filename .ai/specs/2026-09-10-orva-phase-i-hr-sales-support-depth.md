@@ -1,7 +1,7 @@
 # Orva Phase I — depth where a department is thin: HR paperwork, sales reuse, customer self-service
 
 **Date**: 2026-09-10
-**Status**: In implementation — **I1 and I2 done** (59/59 integration green); I3 and I4 remain. Slice by slice, the owner asked to build rather than review a plan first
+**Status**: In implementation — **I1 and I2 done** (60/60 integration green); I3 and I4 remain. Slice by slice, the owner asked to build rather than review a plan first
 
 > Written after the owner said HR, Sales and Support "ยังไม่ตอบโจทย์" and pointed at
 > Horilla HR and Horilla CRM as the yardstick. Companion to
@@ -108,9 +108,14 @@ forever. What is actually reusable in this business is the last quote, so:
 3. Row action on the quote list (injection widget) and on `/backend/projects`.
 4. Integration spec `duplicate-quote.spec.ts`.
 
-**Still open from REQ-I2**: the follow-up half (a quote sent and never answered surfacing
-as work to do). The send log `orva_documents_sends` already answers "when did I last send
-this", which is the seam it would use.
+**Follow-up half, built 2026-09-11**: `lib/quoteFollowUp.ts` is a pure verdict —
+`never_sent | waiting | due | expiring | expired` — from the quote's creation date, its
+validity date and the dates it was emailed. Thresholds are named constants
+(`FOLLOW_UP_AFTER_DAYS` 7, `NUDGE_UNSENT_AFTER_DAYS` 2, `EXPIRING_WITHIN_DAYS` 3); a
+per-tenant setting is the obvious next step. The home waiting card carries the verdict,
+the last send date, the days since and the chase count on every quote row, so
+`reminderHistory` in `orva_finance/lib/homeOverviewData.ts` was generalised into
+`sendHistory(ids, documentTypes)` rather than copied. Expiry outranks the cadence.
 
 ### I3 — Sales: the customer's own portal
 ### I4 — Support: attachments and customer-opened tickets
@@ -133,3 +138,4 @@ this", which is the seam it would use.
 | 2026-09-10 | **I1 built.** `orva_hr_employees` gains prefix, Thai given/family name, national id, social-security number, address, bank name and account, and a termination date; the last four sensitive ones are encrypted at rest by the new `orva_hr/encryption.ts`, so the employee edit form now reads through a decrypting detail route (`api/employees/detail`) instead of the query index. `orva_hr_settings` gains the social-security employer account, its branch and who signs the return. `lib/statutory.ts` is pure: the national-id check digit, ภ.ง.ด.1 rows, สปส.1-10 rows and the annual certificate figures, 15 unit tests. Three read routes (`statutory/pnd1`, `statutory/sso`, `statutory/certificate`), the first two also `format=csv` with the BOM Excel needs for Thai. One screen `/backend/hr/statutory` with a month picker, both returns with their totals and the problems that block filing, plus an employee-and-year picker that prints the 50 ทวิ. The certificate sheet was extracted from `orva_finance/components/WhtCertificate.tsx` into `WhtCertificateSheet.tsx` and is now shared by the vendor and the employee versions — one government form, one component |
 | 2026-09-10 | **I1 ephemeral green**: 58 passed, 0 failed, with the Rust payroll sidecar running so the whole path was exercised — an employee created with a punctuated national id, refused when the check digit is wrong, read back decrypted through the detail route while the list index still cannot see it, then a November run calculated and posted and all three documents asserted against its figures (65,000 gross → 3,679.17 withheld → 750 each side of social security) and both screens rendered. Two environment notes: the harness needs the payroll sidecar on 127.0.0.1:8701 or the figures half reports itself skipped, and Docker Desktop is now a per-user install so `%LOCALAPPDATA%\Programs\DockerDesktopesourcesin` has to be on PATH for the ephemeral runner |
 | 2026-09-10 | **I2 (first half) built and green**: 59 passed. Quote duplication from the list row and the projects page, through upstream's create route. Verified once on the real tenant against KK-QTN-2026011: the copy took KKG-QTN-2026012 with 7 lines and the same 85,600 total, then the test quote was removed and the quote sequence stepped back so the next real quote still takes 2026012. **Demo payroll purged** as far as the module allows: PRUN-0002 and its 5 lines are gone; PRUN-0001 stays because `orva_hr_payroll_run_guard_trg` makes a posted run immutable and that guard was not worked around |
+| 2026-09-11 | **I2 complete, 60/60 green.** Quote follow-up on the home waiting card (11 unit tests + an integration spec that watches a quote arrive on the card and leave it when a งวด is issued). Also that morning: the recovered database was missing the `orva_app` role, so the app could not connect at all — `scripts/setup-rls-role.mjs` recreated it with the existing password and transferred 361 tables, 58 sequences and 52 functions; `verify-rls.mjs` passes 7/7 with 289 tenant-isolated tables |
