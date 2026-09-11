@@ -15,6 +15,11 @@ export const projectUpdateSchema = projectCreateSchema.partial().extend({
   updatedAt: z.string().min(1),
 })
 
+/** Seed a project's task list from the lines of the quotation it bills against. */
+export const tasksFromQuoteSchema = z.object({
+  projectId: z.string().uuid(),
+})
+
 export const taskListSchema = z.object({
   projectId: z.string().uuid().optional(),
   /** 'open' hides finished work, which is the normal way to read the list. */
