@@ -1,6 +1,6 @@
 # Lessons
 
-This catalog indexes 21 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
+This catalog indexes 22 focused lessons without loading their full text. Route the task first, then read only records whose **modules**, standalone-harness **areas**, or **topics** match the work.
 
 ## How to use this catalog
 
@@ -61,3 +61,4 @@ rg -l '"<area>"|"<module>"|"<topic>"' .ai/lessons/*.md
 - [A catch around a database read must still be holding the error](lessons/a-catch-must-still-hold-the-error.md) — area:debugging,testing,module-data; module:platform,orva,orva_support,orva_finance; topic:catch-swallows-errors,silent-failure,raw-sql,readiness,guard-test,savepoint
 - [In a Zod union, z.coerce.number() matches null and returns 0 — put the null branch first](lessons/zod-coerce-number-swallows-null.md) — area:module-data,debugging,testing; module:orva_documents,orva_support; topic:zod,validators,nullable-numbers,silent-data-corruption,integration-tests
 - [A new module's defaultRoleFeatures reach no role until `yarn mercato auth sync-role-acls`](lessons/new-module-features-need-sync-role-acls.md) — area:module-data,debugging; module:orva_marketing,auth,platform; topic:acl,role-features,setup,cli,real-tenant,superadmin-blind-spot
+- [A new module's customer portal features reach no existing tenant](lessons/customer-portal-features-never-reach-an-existing-tenant.md) — area:debugging,module-data,testing; module:orva_tasking,customer_accounts,platform; topic:customer-roles,portal,rbac,existing-tenant,silent-failure
