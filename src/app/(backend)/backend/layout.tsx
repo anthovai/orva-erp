@@ -2,7 +2,10 @@ import { cookies, headers } from 'next/headers'
 import { backendRouteMetadata } from '@/.mercato/generated/backend-route-metadata.generated'
 import { findRouteManifestMatch } from '@open-mercato/shared/modules/registry'
 import { getAuthFromCookies } from '@open-mercato/shared/lib/auth/server'
-import { AppShell } from '@open-mercato/ui/backend/AppShell'
+// Orva's own shell: a fork of the installed AppShell whose sidebar puts the
+// mark on the department and leaves the pages under it a plain list.
+// See src/components/shell/navGroupIcons.tsx for why.
+import { AppShell } from '@/components/shell/OrvaAppShell'
 import { resolveTranslations } from '@open-mercato/shared/lib/i18n/server'
 import { I18nProvider } from '@open-mercato/shared/lib/i18n/context'
 import { authorizeFeatures } from '@open-mercato/shared/security/featurePolicy'

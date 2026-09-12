@@ -168,7 +168,8 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'configs', from: '@open-mercato/core' },
   { id: 'query_index', from: '@open-mercato/core' },
   { id: 'audit_logs', from: '@open-mercato/core' },
-  { id: 'attachments', from: '@open-mercato/core' },
+  // The attachment library was heading a "Media" group by itself.
+  { id: 'attachments', from: '@open-mercato/core', overrides: { routes: { pages: { '/backend/storage/attachments': place('settings', 50) } } } },
   {
     id: 'catalog',
     from: '@open-mercato/core',
@@ -265,6 +266,10 @@ export const enabledModules: ModuleEntry[] = [
           '/backend/rules/create': null,
           '/backend/sets': null,
           '/backend/sets/create': null,
+          // The rule log was heading a group of one. A group of one is the
+          // same problem as the two-item "Authentication" group this
+          // restructure removed, so it joins the other admin surfaces.
+          '/backend/logs': regroup('settings', 60),
         },
       },
     },

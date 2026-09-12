@@ -1,0 +1,1604 @@
+"use client"
+import * as React from 'react'
+import { createContext, useContext } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { ChevronDown, ChevronLeft, Home, PanelLeftClose, PanelLeftOpen, Search, X } from 'lucide-react'
+import { useIsomorphicLayoutEffect } from '@open-mercato/ui/hooks/useIsomorphicLayoutEffect'
+import { Button } from '@open-mercato/ui/primitives/button'
+import {
+  Breadcrumb as BreadcrumbNav,
+  BreadcrumbEllipsis,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@open-mercato/ui/primitives/breadcrumb'
+import { IconButton } from '@open-mercato/ui/primitives/icon-button'
+import { Input } from '@open-mercato/ui/primitives/input'
+import { SearchInput } from '@open-mercato/ui/primitives/search-input'
+import { Checkbox } from '@open-mercato/ui/primitives/checkbox'
+import { Separator } from '@open-mercato/ui/primitives/separator'
+import { FlashMessages } from '@open-mercato/ui/backend/FlashMessages'
+import { QueryProvider } from '@open-mercato/ui/theme/QueryProvider'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { apiCall } from '@open-mercato/ui/backend/utils/apiCall'
+import { LastOperationBanner } from '@open-mercato/ui/backend/operations/LastOperationBanner'
+import { RecordConflictBanner } from '@open-mercato/ui/backend/conflicts/RecordConflictBanner'
+import { dismissRecordConflict } from '@open-mercato/ui/backend/conflicts/store'
+import { ProgressTopBar } from '@open-mercato/ui/backend/progress/ProgressTopBar'
+import { UpgradeActionBanner } from '@open-mercato/ui/backend/upgrades/UpgradeActionBanner'
+import { PartialIndexBanner } from '@open-mercato/ui/backend/indexes/PartialIndexBanner'
+import { OrganizationScopeBoundary } from '@open-mercato/ui/backend/OrganizationScopeBoundary'
+import { useLocale, useT } from '@open-mercato/shared/lib/i18n/context'
+import { slugifySidebarId } from '@open-mercato/shared/modules/navigation/sidebarPreferences'
+import { readVersionedPreference, writeVersionedPreference } from '@open-mercato/shared/lib/browser/versionedPreference'
+import { cloneSidebarGroups } from '@open-mercato/ui/backend/sidebar/customization-helpers'
+import type { SectionNavGroup } from '@open-mercato/ui/backend/section-page/types'
+import { InjectionSpot } from '@open-mercato/ui/backend/injection/InjectionSpot'
+import {
+  BackendRecordInjectionContextProvider,
+  type RecordInjectionContext,
+} from '@open-mercato/ui/backend/injection/recordContext'
+import type { InjectionMenuItem } from '@open-mercato/shared/modules/widgets/injection'
+import { LEGACY_GLOBAL_MUTATION_INJECTION_SPOT_ID } from '@open-mercato/ui/backend/injection/mutationEvents'
+import { NavGroupIcon, hasGroupIcon } from './navGroupIcons'
+import { mergeMenuItems } from '@open-mercato/ui/backend/injection/mergeMenuItems'
+import { useInjectedMenuItems } from '@open-mercato/ui/backend/injection/useInjectedMenuItems'
+import { resolveInjectedIcon } from '@open-mercato/ui/backend/injection/resolveInjectedIcon'
+import { useEventBridge } from '@open-mercato/ui/backend/injection/eventBridge'
+import { StatusBadgeInjectionSpot } from '@open-mercato/ui/backend/injection/StatusBadgeInjectionSpot'
+import { UmesDevToolsPanel } from '@open-mercato/ui/backend/devtools/index'
+import { AiDockProvider } from '@open-mercato/ui/ai/AiDock'
+import { AiChatSessionsProvider } from '@open-mercato/ui/ai/AiChatSessions'
+import { AiAssistantLauncher } from '@open-mercato/ui/ai/AiAssistantLauncher'
+import { BackendChromeProvider, useBackendChrome } from '@open-mercato/ui/backend/BackendChromeProvider'
+import {
+  BACKEND_LAYOUT_FOOTER_INJECTION_SPOT_ID,
+  BACKEND_LAYOUT_TOP_INJECTION_SPOT_ID,
+  BACKEND_RECORD_CURRENT_INJECTION_SPOT_ID,
+  BACKEND_SIDEBAR_FOOTER_INJECTION_SPOT_ID,
+  BACKEND_SIDEBAR_TOP_INJECTION_SPOT_ID,
+  BACKEND_SIDEBAR_NAV_FOOTER_INJECTION_SPOT_ID,
+  BACKEND_SIDEBAR_NAV_INJECTION_SPOT_ID,
+  BACKEND_TOPBAR_ACTIONS_INJECTION_SPOT_ID,
+  GLOBAL_HEADER_STATUS_INDICATORS_INJECTION_SPOT_ID,
+  GLOBAL_SIDEBAR_STATUS_BADGES_INJECTION_SPOT_ID,
+} from '@open-mercato/ui/backend/injection/spotIds'
+
+// Versioned-envelope discriminator for the persisted sidebar open/closed group
+// map. This is a structured value (a record), so it carries a version so future
+// shape changes can migrate or safely discard stale data; legacy bare
+// `Record<string, boolean>` values are migrated forward on the next write. The
+// neighbouring `om:sidebarCollapsed` / `om:progress:expanded` flags are trivial
+// scalar booleans and deliberately stay raw (see their write sites). See
+// `@open-mercato/shared/lib/browser/versionedPreference`.
+const SIDEBAR_OPEN_GROUPS_KEY = 'om:sidebarOpenGroups'
+const SIDEBAR_OPEN_GROUPS_VERSION = 1
+
+function isBooleanRecord(value: unknown): value is Record<string, boolean> {
+  return (
+    !!value &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    Object.values(value as Record<string, unknown>).every((entry) => typeof entry === 'boolean')
+  )
+}
+
+export type ShellLogo = {
+  src: string
+  alt?: string
+  preserveAspectRatio?: boolean
+}
+
+export type AppShellProps = {
+  productName?: string
+  logo?: ShellLogo
+  email?: string
+  canManageUpgradeActions?: boolean
+  groups: {
+    id?: string
+    name: string
+    defaultName?: string
+    items: {
+      id?: string
+      href: string
+      title: string
+      defaultTitle?: string
+      icon?: React.ReactNode
+      iconName?: string
+      iconMarkup?: string
+      enabled?: boolean
+      hidden?: boolean
+      pageContext?: 'main' | 'admin' | 'settings' | 'profile'
+      children?: {
+        id?: string
+        href: string
+        title: string
+        defaultTitle?: string
+        icon?: React.ReactNode
+        iconName?: string
+        iconMarkup?: string
+        enabled?: boolean
+        hidden?: boolean
+        pageContext?: 'main' | 'admin' | 'settings' | 'profile'
+      }[]
+    }[]
+  }[]
+  children: React.ReactNode
+  rightHeaderSlot?: React.ReactNode
+  sidebarCollapsedDefault?: boolean
+  currentTitle?: string
+  breadcrumb?: Array<{ label: string; href?: string }>
+  // Optional: full admin nav API to refresh sidebar client-side
+  adminNavApi?: string
+  version?: string
+  settingsSectionTitle?: string
+  settingsPathPrefixes?: string[]
+  settingsSections?: SectionNavGroup[]
+  profileSections?: SectionNavGroup[]
+  profileSectionTitle?: string
+  profilePathPrefixes?: string[]
+  mobileSidebarSlot?: React.ReactNode
+  /**
+   * Hide the backend footer status bar (app version + terms/privacy links).
+   * Intended for app developers and whitelabel/embedded deployments that want to
+   * suppress the footer entirely. Defaults to `false` (footer shown).
+   */
+  hideFooter?: boolean
+  /**
+   * How long (ms) to keep successfully completed progress operations visible
+   * before auto-hiding. Pass `false` or `0` to disable. Defaults to 10 000 ms.
+   */
+  progressCompletedAutoHideMs?: number | false
+}
+
+type Breadcrumb = Array<{ label: string; href?: string }>
+
+type SidebarGroup = AppShellProps['groups'][number]
+type SidebarItem = SidebarGroup['items'][number]
+
+function convertInjectedMenuItemToSidebarItem(item: InjectionMenuItem, title: string): SidebarItem | null {
+  if (!item.href) return null
+  return {
+    id: item.id,
+    href: item.href,
+    title,
+    defaultTitle: title,
+    icon: resolveInjectedIcon(item.icon) ?? undefined,
+    iconName: item.icon,
+    enabled: true,
+    hidden: false,
+    pageContext: 'main',
+  }
+}
+
+function resolveInjectedMenuLabel(
+  item: { id: string; label?: string; labelKey?: string },
+  t: (key: string, fallback?: string) => string,
+): string {
+  if (item.labelKey && item.label) return t(item.labelKey, item.label)
+  if (item.labelKey) return t(item.labelKey, item.id)
+  if (item.label && item.label.includes('.')) return t(item.label, item.id)
+  return item.label ?? item.id
+}
+
+function shouldBypassLogoOptimization(src?: string | null): boolean {
+  const value = src ?? ''
+  return /^https?:\/\//.test(value) || /^\/api\/attachments\/(?:image|file)\//.test(value)
+}
+
+function ShellBrandLogo({
+  logo,
+  brandName,
+  unoptimized,
+  compact = false,
+  mobile = false,
+}: {
+  logo?: ShellLogo
+  brandName: string
+  unoptimized?: boolean
+  compact?: boolean
+  mobile?: boolean
+}) {
+  const src = logo?.src ?? '/open-mercato.svg'
+  const alt = logo?.alt ?? brandName
+  const isCustomLogo = Boolean(logo?.src)
+  const preserveAspectRatio = Boolean(logo?.preserveAspectRatio)
+  if (!isCustomLogo || !preserveAspectRatio) {
+    return (
+      <Image
+        src={src}
+        alt={alt}
+        width={mobile ? 28 : 40}
+        height={mobile ? 28 : 40}
+        className={`${mobile ? 'rounded' : 'rounded-full'} shrink-0 object-cover`}
+        unoptimized={unoptimized ? true : undefined}
+      />
+    )
+  }
+
+  const width = compact ? 40 : mobile ? 96 : 120
+  const height = mobile ? 28 : 40
+  const className = compact
+    ? 'h-10 max-w-10 w-auto shrink-0 object-contain'
+    : mobile
+      ? 'h-7 max-w-24 w-auto shrink-0 object-contain'
+      : 'h-10 max-w-[120px] w-auto shrink-0 object-contain'
+
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      width={width}
+      height={height}
+      className={className}
+      unoptimized={unoptimized ? true : undefined}
+    />
+  )
+}
+
+function mergeSidebarItemsWithInjected(
+  items: SidebarItem[],
+  injectedItems: InjectionMenuItem[],
+  t: (key: string, fallback?: string) => string,
+): SidebarItem[] {
+  if (injectedItems.length === 0) return items
+
+  const builtInById = new Map<string, SidebarItem>()
+  for (const item of items) {
+    builtInById.set(item.id ?? item.href, item)
+  }
+
+  const merged = mergeMenuItems(
+    items.map((item) => ({
+      id: item.id ?? item.href,
+    })),
+    injectedItems,
+  )
+
+  const result: SidebarItem[] = []
+  for (const entry of merged) {
+    if (entry.source === 'built-in') {
+      const original = builtInById.get(entry.id)
+      if (original) result.push(original)
+      continue
+    }
+    const translatedLabel = resolveInjectedMenuLabel(
+      { id: entry.id, label: entry.label, labelKey: entry.labelKey },
+      t,
+    )
+    const converted = convertInjectedMenuItemToSidebarItem(
+      {
+        id: entry.id,
+        label: translatedLabel,
+        icon: entry.icon,
+        href: entry.href,
+      },
+      translatedLabel,
+    )
+    if (converted) result.push(converted)
+  }
+
+  return result
+}
+
+function mergeSidebarGroupsWithInjected(
+  groups: SidebarGroup[],
+  injectedItems: InjectionMenuItem[],
+  t: (key: string, fallback?: string) => string,
+): SidebarGroup[] {
+  if (injectedItems.length === 0) return groups
+
+  const injectedByGroup = new Map<string, InjectionMenuItem[]>()
+  const ungrouped: InjectionMenuItem[] = []
+
+  for (const item of injectedItems) {
+    if (item.groupId && item.groupId.trim().length > 0) {
+      const groupItems = injectedByGroup.get(item.groupId) ?? []
+      groupItems.push(item)
+      injectedByGroup.set(item.groupId, groupItems)
+      continue
+    }
+    ungrouped.push(item)
+  }
+
+  const nextGroups = groups.map((group, index) => {
+    const groupId = group.id || resolveGroupKey(group)
+    const groupInjected = [
+      ...(injectedByGroup.get(groupId) ?? []),
+      ...(index === 0 ? ungrouped : []),
+    ]
+    return {
+      ...group,
+      items: mergeSidebarItemsWithInjected(group.items, groupInjected, t),
+    }
+  })
+
+  const existingIds = new Set(nextGroups.map((group) => group.id || resolveGroupKey(group)))
+  for (const [groupId, items] of injectedByGroup.entries()) {
+    if (existingIds.has(groupId)) continue
+    const first = items[0]
+    const label = first.groupLabelKey
+      ? t(first.groupLabelKey, first.groupLabel ?? groupId)
+      : (first.groupLabel ?? groupId)
+    const groupItems = mergeSidebarItemsWithInjected([], items, t)
+    if (groupItems.length === 0) continue
+    nextGroups.push({
+      id: groupId,
+      name: label,
+      defaultName: label,
+      items: groupItems,
+    })
+  }
+
+  return nextGroups
+}
+
+function mergeSectionGroupsWithInjected(
+  sections: SectionNavGroup[],
+  injectedItems: InjectionMenuItem[],
+  t: (key: string, fallback?: string) => string,
+): SectionNavGroup[] {
+  if (injectedItems.length === 0) return sections
+  const byGroup = new Map<string, InjectionMenuItem[]>()
+  for (const item of injectedItems) {
+    const groupId = item.groupId && item.groupId.trim().length > 0 ? item.groupId : 'injected'
+    const bucket = byGroup.get(groupId) ?? []
+    bucket.push(item)
+    byGroup.set(groupId, bucket)
+  }
+
+  const nextSections = sections.map((section) => {
+    const sectionItems = byGroup.get(section.id) ?? []
+    if (sectionItems.length === 0) return section
+    const mergedItems = mergeMenuItems(
+      section.items.map((item) => ({ id: item.id, item })),
+      sectionItems,
+    ).flatMap((item) => {
+      if (item.source === 'built-in') {
+        const original = section.items.find((entry) => entry.id === item.id)
+        return original ? [original] : []
+      }
+      if (!item.href) return []
+      const label = resolveInjectedMenuLabel(item, t)
+      return [{
+        id: item.id,
+        label,
+        href: item.href,
+        icon: resolveInjectedIcon(item.icon) ?? undefined,
+      }]
+    })
+    return {
+      ...section,
+      items: mergedItems,
+    }
+  })
+
+  for (const [sectionId, sectionItems] of byGroup.entries()) {
+    const exists = nextSections.some((section) => section.id === sectionId)
+    if (exists) continue
+    const first = sectionItems[0]
+    const label = first.groupLabelKey
+      ? t(first.groupLabelKey, first.groupLabel ?? sectionId)
+      : (first.groupLabel ?? sectionId)
+    const items = sectionItems.flatMap((item) => {
+      if (!item.href) return []
+      const itemLabel = resolveInjectedMenuLabel(item, t)
+      return [{
+        id: item.id,
+        label: itemLabel,
+        href: item.href,
+        icon: resolveInjectedIcon(item.icon) ?? undefined,
+      }]
+    })
+    if (items.length === 0) continue
+    nextSections.push({ id: sectionId, label, items })
+  }
+
+  return nextSections
+}
+
+function resolveGroupKey(group: SidebarGroup): string {
+  if (group.id && group.id.length) return group.id
+  if (group.defaultName && group.defaultName.length) return slugifySidebarId(group.defaultName)
+  return slugifySidebarId(group.name)
+}
+
+function resolveItemKey(item: { id?: string; href: string }): string {
+  const candidate = item.id?.trim()
+  if (candidate && candidate.length > 0) return candidate
+  return item.href
+}
+
+function SerializedIcon({ markup }: { markup: string }) {
+  return <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: markup }} />
+}
+
+function renderIcon(
+  icon: React.ReactNode | undefined,
+  iconName: string | undefined,
+  iconMarkup: string | undefined,
+  fallback: React.ReactNode,
+) {
+  if (icon) return icon
+  if (iconName) {
+    const resolved = resolveInjectedIcon(iconName)
+    if (resolved) return resolved
+  }
+  if (iconMarkup) return <SerializedIcon markup={iconMarkup} />
+  return fallback
+}
+
+const HeaderContext = createContext<{
+  setBreadcrumb: (b?: Breadcrumb) => void
+  setTitle: (t?: string) => void
+} | null>(null)
+
+export function ApplyBreadcrumb({ breadcrumb, title, titleKey }: { breadcrumb?: Array<{ label: string; href?: string; labelKey?: string }>; title?: string; titleKey?: string }) {
+  const ctx = useContext(HeaderContext)
+  const t = useT()
+  const resolvedBreadcrumb = React.useMemo<Breadcrumb | undefined>(() => {
+    if (!breadcrumb) return undefined
+    return breadcrumb.map(({ label, labelKey, href }) => {
+      const translated = labelKey ? t(labelKey) : undefined
+      const finalLabel = translated && translated !== labelKey ? translated : label
+      return {
+        href,
+        label: finalLabel,
+      }
+    })
+  }, [breadcrumb, t])
+  const resolvedTitle = React.useMemo(() => {
+    if (!titleKey) return title
+    const translated = t(titleKey)
+    if (translated && translated !== titleKey) return translated
+    return title
+  }, [titleKey, title, t])
+  React.useEffect(() => {
+    ctx?.setBreadcrumb(resolvedBreadcrumb)
+    if (resolvedTitle !== undefined) ctx?.setTitle(resolvedTitle)
+  }, [ctx, resolvedBreadcrumb, resolvedTitle])
+  return null
+}
+
+const DefaultIcon = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M8 6h13M8 12h13M8 18h13"/>
+    <path d="M3 6h.01M3 12h.01M3 18h.01"/>
+  </svg>
+)
+
+// DataTable icon used for dynamic custom entity records links
+const DataTableIcon = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <rect x="3" y="4" width="18" height="16" rx="2" ry="2"/>
+    <line x1="3" y1="8" x2="21" y2="8"/>
+    <line x1="9" y1="8" x2="9" y2="20"/>
+    <line x1="15" y1="8" x2="15" y2="20"/>
+  </svg>
+)
+
+const CustomizeIcon = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.05.05a2 2 0 1 1-2.83 2.83l-.05-.05A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1.82l-.05.05a2 2 0 1 1-2.83-2.83l.05-.05A1.65 1.65 0 0 0 9 15a1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.05.05a2 2 0 1 1-2.83-2.83l.05-.05A1.65 1.65 0 0 0 4.6 9 1.65 1.65 0 0 0 4 8a1.65 1.65 0 0 0-.6-1.82l-.05-.05a2 2 0 1 1 2.83-2.83l.05.05A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1.82l.05-.05a2 2 0 1 1 2.83 2.83l-.05.05A1.65 1.65 0 0 0 15 9a1.65 1.65 0 0 0 1 .6 1.65 1.65 0 0 0 1.82-.33l.05-.05a2 2 0 1 1 2.83 2.83l-.05.05A1.65 1.65 0 0 0 19.4 15z" />
+  </svg>
+)
+
+const BackArrowIcon = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 12H5M12 19l-7-7 7-7" />
+  </svg>
+)
+
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg className={`transition-transform ${open ? 'rotate-180' : ''}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
+  )
+}
+
+export function AppShell(props: AppShellProps) {
+  return (
+    <QueryProvider>
+      <BackendChromeProvider adminNavApi={props.adminNavApi}>
+        <AiChatSessionsProvider>
+          <AiDockProvider>
+            <AppShellBody {...props} />
+          </AiDockProvider>
+        </AiChatSessionsProvider>
+      </BackendChromeProvider>
+    </QueryProvider>
+  )
+}
+
+function AppShellBody({ productName, logo, email, canManageUpgradeActions = false, groups, rightHeaderSlot, children, sidebarCollapsedDefault = false, currentTitle, breadcrumb, version, settingsSectionTitle, settingsPathPrefixes = [], settingsSections, profileSections, profileSectionTitle, profilePathPrefixes = [], mobileSidebarSlot, hideFooter = false, progressCompletedAutoHideMs }: AppShellProps) {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const t = useT()
+  const locale = useLocale()
+  const { payload: chromePayload, isReady: isChromeReady, isLoading: isChromeLoading } = useBackendChrome()
+  const resolvedGroups = React.useMemo(
+    () => cloneSidebarGroups(chromePayload?.groups ?? groups),
+    [chromePayload?.groups, groups],
+  )
+  const resolvedSettingsSections = chromePayload?.settingsSections ?? settingsSections
+  const resolvedSettingsPathPrefixes = chromePayload?.settingsPathPrefixes ?? settingsPathPrefixes
+  const resolvedProfileSections = chromePayload?.profileSections ?? profileSections
+  const resolvedProfilePathPrefixes = chromePayload?.profilePathPrefixes ?? profilePathPrefixes
+  const { items: mainSidebarInjectedMenuItems } = useInjectedMenuItems('menu:sidebar:main')
+  const { items: settingsSidebarInjectedMenuItems } = useInjectedMenuItems('menu:sidebar:settings')
+  const { items: profileSidebarInjectedMenuItems } = useInjectedMenuItems('menu:sidebar:profile')
+  const { items: topbarInjectedMenuItems } = useInjectedMenuItems('menu:topbar:actions')
+  useEventBridge() // SSE DOM Event Bridge — singleton SSE connection for real-time server events
+  const resolvedProductName = productName ?? t('appShell.productName')
+  const resolvedLogo = chromePayload?.brand?.logo?.src ? chromePayload.brand.logo : logo
+  const resolvedBrandName = chromePayload?.brand?.logo?.src
+    ? chromePayload.brand.name ?? resolvedProductName
+    : resolvedProductName
+  const resolvedLogoBypassesOptimization = shouldBypassLogoOptimization(resolvedLogo?.src)
+  const [mobileOpen, setMobileOpen] = React.useState(false)
+  // When the mobile drawer opens on a settings/profile route, it follows the
+  // section sidebar by default. Set to 'main' to force-show the main nav even
+  // when the route is in a section context. Reset on close.
+  const [mobileDrawerView, setMobileDrawerView] = React.useState<'auto' | 'main'>('auto')
+  // Clear the persistent record-conflict bar when the route changes. The
+  // conflict is scoped to the record the user was editing, so navigating to an
+  // unrelated page should dismiss it instead of carrying a stale "Record
+  // changed" bar across modules.
+  React.useEffect(() => {
+    dismissRecordConflict()
+  }, [pathname])
+  React.useEffect(() => {
+    if (!mobileOpen) setMobileDrawerView('auto')
+  }, [mobileOpen])
+  // Initialize from server-provided prop only to avoid hydration flicker
+  const [collapsed, setCollapsed] = React.useState(sidebarCollapsedDefault)
+  // Maintain internal nav state so we can augment it client-side
+  const [navGroups, setNavGroups] = React.useState(resolvedGroups)
+  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>(() =>
+    Object.fromEntries(resolvedGroups.map((g) => [resolveGroupKey(g), true])) as Record<string, boolean>
+  )
+  const [headerTitle, setHeaderTitle] = React.useState<string | undefined>(currentTitle)
+  const [headerBreadcrumb, setHeaderBreadcrumb] = React.useState<Breadcrumb | undefined>(breadcrumb)
+  const [navQuery, setNavQuery] = React.useState('')
+  const navQueryNorm = navQuery.trim().toLowerCase()
+  const navQueryActive = navQueryNorm.length > 0
+  const matchesQuery = React.useCallback((label: string | undefined) => {
+    if (!navQueryActive) return true
+    if (!label) return false
+    return label.toLowerCase().includes(navQueryNorm)
+  }, [navQueryActive, navQueryNorm])
+  const effectiveCollapsed = collapsed
+  const expandedSidebarWidth = '240px'
+
+  // Track scroll position of the desktop sidebar's inner scroll container so we can
+  // flip the affordance chevron between down/up (and hide it entirely when content
+  // fits without scrolling). The inner div is rendered deep in renderSidebar /
+  // renderSectionSidebar — we tag it with `data-sidebar-scroll="true"` and look it
+  // up via the aside ref so we don't have to thread refs through the JSX tree.
+  const sidebarAsideRef = React.useRef<HTMLElement>(null)
+  const [sidebarScrollState, setSidebarScrollState] = React.useState<'down' | 'up' | 'none'>('down')
+  const sidebarScrollIntentRef = React.useRef<'top' | 'bottom' | null>(null)
+
+  // Click-to-scroll handler for the sidebar affordance chevron (#1803). Resolves the
+  // scroll target lazily through the aside ref so we don't have to thread refs into
+  // renderSidebar; respects `prefers-reduced-motion` by falling back to instant
+  // scrolling when the user has opted out of smooth motion.
+  const handleSidebarChevronScroll = React.useCallback((target: 'top' | 'bottom') => {
+    const aside = sidebarAsideRef.current
+    if (!aside) return
+    const scrollTarget = aside.querySelector<HTMLElement>('[data-sidebar-scroll="true"]')
+    if (!scrollTarget) return
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const behavior: ScrollBehavior = prefersReducedMotion ? 'auto' : 'smooth'
+    const maxScrollTop = Math.max(0, scrollTarget.scrollHeight - scrollTarget.clientHeight)
+    if (maxScrollTop <= 1) {
+      sidebarScrollIntentRef.current = null
+      setSidebarScrollState('none')
+      return
+    }
+    sidebarScrollIntentRef.current = target
+    setSidebarScrollState(target === 'bottom' ? 'up' : 'down')
+    scrollTarget.scrollTo({
+      top: target === 'top' ? 0 : maxScrollTop,
+      behavior,
+    })
+  }, [])
+  React.useEffect(() => {
+    const aside = sidebarAsideRef.current
+    if (!aside) return
+    const target = aside.querySelector<HTMLElement>('[data-sidebar-scroll="true"]')
+    if (!target) return
+    const update = () => {
+      const { scrollTop, scrollHeight, clientHeight } = target
+      const canScroll = scrollHeight > clientHeight + 1
+      if (!canScroll) {
+        sidebarScrollIntentRef.current = null
+        setSidebarScrollState('none')
+        return
+      }
+      const maxScrollTop = Math.max(0, scrollHeight - clientHeight)
+      const atTop = scrollTop <= 8
+      const atBottom = scrollTop >= maxScrollTop - 8
+      const scrollIntent = sidebarScrollIntentRef.current
+      if (scrollIntent === 'bottom') {
+        if (atBottom) sidebarScrollIntentRef.current = null
+        setSidebarScrollState('up')
+        return
+      }
+      if (scrollIntent === 'top') {
+        if (atTop) sidebarScrollIntentRef.current = null
+        setSidebarScrollState('down')
+        return
+      }
+      setSidebarScrollState(atBottom ? 'up' : 'down')
+    }
+    update()
+    target.addEventListener('scroll', update, { passive: true })
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(update) : null
+    ro?.observe(target)
+    return () => {
+      target.removeEventListener('scroll', update)
+      ro?.disconnect()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, effectiveCollapsed])
+  const injectionContext = React.useMemo(
+    () => ({
+      path: pathname ?? '',
+      query: searchParams?.toString() ?? '',
+    }),
+    [pathname, searchParams],
+  )
+
+  // AppShell-owned transport for the current detail record (Phase 0 / S2).
+  // Detail pages publish here; the merged context feeds the global
+  // `backend:record:current` mount so the record_locks widget can resolve the
+  // resource without a hardcoded path allowlist. Stale context (published for a
+  // different path) is ignored so it never leaks across route transitions.
+  const [currentRecordInjectionContext, setCurrentRecordInjectionContext] =
+    React.useState<RecordInjectionContext | null>(null)
+
+  const recordInjectionContext = React.useMemo(() => {
+    if (!currentRecordInjectionContext) return injectionContext
+    const publishedPath = currentRecordInjectionContext.path
+    if (publishedPath && pathname && publishedPath !== pathname) return injectionContext
+    return { ...injectionContext, ...currentRecordInjectionContext }
+  }, [injectionContext, currentRecordInjectionContext, pathname])
+
+  const isOnSettingsPath = React.useMemo(() => {
+    if (!pathname) return false
+    if (pathname === '/backend/settings') return true
+    return resolvedSettingsPathPrefixes.some((prefix) => pathname.startsWith(prefix))
+  }, [pathname, resolvedSettingsPathPrefixes])
+
+  const isOnProfilePath = React.useMemo(() => {
+    if (!pathname) return false
+    if (pathname === '/backend/profile') return true
+    return resolvedProfilePathPrefixes.some((prefix) => pathname.startsWith(prefix))
+  }, [pathname, resolvedProfilePathPrefixes])
+
+  const sidebarMode: 'main' | 'settings' | 'profile' =
+    isOnSettingsPath ? 'settings' :
+    isOnProfilePath ? 'profile' :
+    'main'
+
+  const mainNavGroupsWithInjected = React.useMemo(
+    () => mergeSidebarGroupsWithInjected(navGroups, mainSidebarInjectedMenuItems, t),
+    [mainSidebarInjectedMenuItems, navGroups, t],
+  )
+
+  // Lock body scroll when mobile drawer is open so touch scroll stays in the drawer
+  React.useEffect(() => {
+    if (!mobileOpen || typeof document === 'undefined') return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [mobileOpen])
+
+  React.useEffect(() => {
+    const parsed = readVersionedPreference<Record<string, boolean>>(
+      SIDEBAR_OPEN_GROUPS_KEY,
+      SIDEBAR_OPEN_GROUPS_VERSION,
+      isBooleanRecord,
+      {},
+      { legacyIsValid: isBooleanRecord },
+    )
+    if (Object.keys(parsed).length === 0) return
+    setOpenGroups((prev) => {
+      const next = { ...prev }
+      for (const group of resolvedGroups) {
+        const key = resolveGroupKey(group)
+        if (key in parsed) next[key] = !!parsed[key]
+        else if (group.name in parsed) next[key] = !!parsed[group.name]
+      }
+      return next
+    })
+  }, [resolvedGroups])
+
+  const toggleGroup = (groupId: string) => setOpenGroups((prev) => ({ ...prev, [groupId]: prev[groupId] === false }))
+
+  const asideWidth = effectiveCollapsed ? '80px' : expandedSidebarWidth
+  // Use min-h-svh so the border extends with tall content; no overflow so sticky bottom works
+  const asideClassesBase = `border-r bg-background py-4`;
+
+  // Persist collapse state to localStorage and cookie. Both writes can throw in
+  // private/incognito mode (storage blocked) or when cookies are disabled —
+  // the persisted preference is purely a UX nice-to-have, never functional, so
+  // swallow the failure and let the component fall back to the default state.
+  // This is a trivial scalar flag ('1' | '0') with no schema to evolve, so it is
+  // intentionally kept raw rather than wrapped in a versioned envelope (the
+  // versioning threshold lives in `@open-mercato/shared/lib/browser/versionedPreference`).
+  React.useEffect(() => {
+    try { localStorage.setItem('om:sidebarCollapsed', collapsed ? '1' : '0') } catch { /* localStorage blocked (private mode) — non-critical */ }
+    try {
+      document.cookie = `om_sidebar_collapsed=${collapsed ? '1' : '0'}; path=/; max-age=31536000; samesite=lax`
+    } catch { /* cookies disabled — non-critical */ }
+  }, [collapsed])
+
+  // Two-level sidebar (Option B): when entering settings/profile mode, force the
+  // main sidebar to collapsed (icons only) so the section sub-nav can sit beside
+  // it; restore the user's previous expansion when returning to the main mode.
+  // Initial ref is 'main' so direct mounts on /backend/settings also auto-collapse.
+  const collapsedBeforeSectionRef = React.useRef<boolean | null>(null)
+  const previousSidebarModeRef = React.useRef<'main' | 'settings' | 'profile'>('main')
+  React.useEffect(() => {
+    const previous = previousSidebarModeRef.current
+    if (previous === 'main' && sidebarMode !== 'main') {
+      collapsedBeforeSectionRef.current = collapsed
+      if (!collapsed) setCollapsed(true)
+    } else if (previous !== 'main' && sidebarMode === 'main' && collapsedBeforeSectionRef.current !== null) {
+      const restoreTo = collapsedBeforeSectionRef.current
+      collapsedBeforeSectionRef.current = null
+      if (collapsed !== restoreTo) setCollapsed(restoreTo)
+    }
+    previousSidebarModeRef.current = sidebarMode
+  }, [sidebarMode, collapsed])
+  React.useEffect(() => {
+    writeVersionedPreference(SIDEBAR_OPEN_GROUPS_KEY, SIDEBAR_OPEN_GROUPS_VERSION, openGroups)
+  }, [openGroups])
+
+  // Ensure current route's group is expanded on load
+  React.useEffect(() => {
+    const activeGroup = navGroups.find((g) => g.items.some((i) => pathname?.startsWith(i.href)))
+    if (!activeGroup) return
+    const key = resolveGroupKey(activeGroup)
+    setOpenGroups((prev) => (prev[key] === false ? { ...prev, [key]: true } : prev))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, navGroups])
+  // Keep header state in sync with props (server-side updates)
+  React.useEffect(() => {
+    setHeaderTitle(currentTitle)
+    setHeaderBreadcrumb(breadcrumb)
+  }, [currentTitle, breadcrumb])
+  // Clear breadcrumb on client-side navigation so stale state doesn't persist;
+  // the new page's ApplyBreadcrumb (if any) will set the correct values.
+  // Must be a layout effect: when a prefetched navigation commits the new
+  // pathname and the new page together, child passive effects (ApplyBreadcrumb)
+  // run before parent ones, so a passive clear here would wipe the value the
+  // incoming page just set.
+  const prevPathname = React.useRef(pathname)
+  useIsomorphicLayoutEffect(() => {
+    if (pathname !== prevPathname.current) {
+      prevPathname.current = pathname
+      setHeaderTitle(undefined)
+      setHeaderBreadcrumb(undefined)
+    }
+  }, [pathname])
+
+  // Keep navGroups in sync when server-provided groups change
+  React.useEffect(() => {
+    setNavGroups(cloneSidebarGroups(resolvedGroups))
+  }, [resolvedGroups])
+
+  function renderSectionSidebar(
+    sections: SectionNavGroup[],
+    title: string,
+    compact: boolean,
+    hideHeader?: boolean,
+    hideSearch?: boolean
+  ) {
+    const sortedSections = [...sections].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    const lastVisibleIndex = sortedSections.length - 1
+
+    return (
+      <div className="flex h-full flex-col gap-3">
+        {!hideHeader && (
+          <div className="mb-2">
+            <Link
+              href="/backend"
+              className={`flex items-center gap-3 rounded-xl transition-colors hover:bg-muted ${compact ? 'p-2 justify-center' : 'p-3'}`}
+              aria-label={t('appShell.goToDashboard')}
+            >
+              <ShellBrandLogo logo={resolvedLogo} brandName={resolvedBrandName} compact={compact} unoptimized={resolvedLogoBypassesOptimization} />
+              {!compact && <span className="truncate text-sm font-medium text-foreground">{resolvedBrandName}</span>}
+            </Link>
+          </div>
+        )}
+        {!compact && !hideSearch && (
+          <SearchInput
+            value={navQuery}
+            onChange={setNavQuery}
+            placeholder={t('appShell.searchNavPlaceholder', 'Search...')}
+            aria-label={t('appShell.searchNavAria', 'Search navigation')}
+            clearLabel={t('appShell.searchNavClear', 'Clear search')}
+            className="mb-2"
+          />
+        )}
+        <div data-sidebar-scroll="true" className={`flex flex-1 flex-col gap-3 overflow-y-auto scrollbar-hide pr-1 ${compact ? '-ml-2 pl-2' : '-ml-3 pl-3'}`}>
+          <nav className="flex flex-col gap-2">
+          {sortedSections.map((section, sectionIndex) => {
+            const sectionNavQueryActive = hideSearch ? false : navQueryActive
+            const matchesItemQuery = (item: typeof section.items[number]): boolean => {
+              if (!sectionNavQueryActive) return true
+              const label = item.labelKey ? t(item.labelKey, item.label) : item.label
+              if (matchesQuery(label)) return true
+              return Array.isArray(item.children) && item.children.some(matchesItemQuery)
+            }
+            const visibleItems = sectionNavQueryActive
+              ? section.items.filter(matchesItemQuery)
+              : section.items
+            if (visibleItems.length === 0) return null
+            const sortedItems = [...visibleItems].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+            const sectionLabel = section.labelKey ? t(section.labelKey, section.label) : section.label
+            const sectionKey = `settings:${section.id}`
+            const open = openGroups[sectionKey] !== false
+            const sortSectionItems = (items: typeof section.items = []) =>
+              [...items].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+            const filterChildren = (children: typeof section.items | undefined) => {
+              if (!children) return [] as typeof section.items
+              if (!sectionNavQueryActive) return [...children]
+              return children.filter(matchesItemQuery)
+            }
+
+            const renderSectionItem = (item: (typeof section.items)[number], depth = 0): React.ReactNode => {
+              const label = item.labelKey ? t(item.labelKey, item.label) : item.label
+              const childItems = sortSectionItems(filterChildren(item.children))
+              const isOnItemBranch = !!pathname && (
+                pathname === item.href ||
+                pathname.startsWith(`${item.href}/`)
+              )
+              const hasActiveChild = !!(pathname && childItems.some((child) => (
+                pathname === child.href ||
+                pathname.startsWith(`${child.href}/`)
+              )))
+              const showChildren = childItems.length > 0 && (isOnItemBranch || sectionNavQueryActive)
+              const isActive = isOnItemBranch || hasActiveChild
+              const base = compact ? 'w-10 h-10 justify-center' : 'w-full py-2 gap-2'
+              const spacingStyle = !compact
+                ? {
+                    paddingLeft: `${12 + depth * 16}px`,
+                    paddingRight: '12px',
+                  }
+                : undefined
+
+              return (
+                <React.Fragment key={item.id}>
+                  <Link
+                    href={item.href}
+                    className={`relative text-sm font-medium rounded-lg inline-flex items-center ${base} ${
+                      isActive
+                        ? 'bg-muted text-foreground'
+                        : 'text-muted-foreground hover:bg-muted'
+                    }`}
+                    style={spacingStyle}
+                    title={compact ? label : undefined}
+                    data-menu-item-id={item.id}
+                    onClick={() => setMobileOpen(false)}
+                  >
+                    {isActive && (
+                      <span aria-hidden className={`absolute ${compact ? 'left-[-20px]' : 'left-[-12px]'} top-2 w-1 h-5 rounded-r bg-foreground`} />
+                    )}
+                    <span className="flex items-center justify-center shrink-0">
+                      {renderIcon(
+                        item.icon,
+                        item.iconName,
+                        item.iconMarkup,
+                        item.href.includes('/backend/entities/user/') && item.href.endsWith('/records') ? DataTableIcon : DefaultIcon,
+                      )}
+                    </span>
+                    {!compact && <span className="truncate">{label}</span>}
+                  </Link>
+                  {showChildren ? childItems.map((child) => renderSectionItem(child, depth + 1)) : null}
+                </React.Fragment>
+              )
+            }
+
+            return (
+              <div key={section.id}>
+                {!compact && (
+                  <Button
+                    variant="muted"
+                    onClick={() => toggleGroup(sectionKey)}
+                    className="w-full px-1 justify-between flex text-xs font-medium uppercase tracking-wider text-muted-foreground/70 py-1"
+                    aria-expanded={open}
+                  >
+                    <span>{sectionLabel}</span>
+                    <Chevron open={open} />
+                  </Button>
+                )}
+                {(open || compact) && (
+                  <div className={`flex flex-col ${compact ? 'items-center' : ''} gap-1`}>
+                    {sortedItems.map((item) => renderSectionItem(item))}
+                  </div>
+                )}
+                {sectionIndex !== lastVisibleIndex && <div className={`my-2 border-t ${compact ? '-ml-2 -mr-3' : '-ml-3 -mr-4'}`} />}
+              </div>
+            )
+          })}
+        </nav>
+        </div>
+      </div>
+    )
+  }
+
+  function renderSidebar(compact: boolean, hideHeader?: boolean, forceMainOnly?: boolean) {
+    if (!isChromeReady && isChromeLoading) {
+      return (
+        <div className="flex flex-col min-h-full gap-3" data-testid="backend-chrome-loading">
+          {!hideHeader ? (
+            <div className="mb-2">
+              <Link
+                href="/backend"
+                className={`flex items-center gap-3 rounded-xl transition-colors hover:bg-muted ${compact ? 'p-2 justify-center' : 'p-3'}`}
+                aria-label={t('appShell.goToDashboard')}
+              >
+                <ShellBrandLogo logo={resolvedLogo} brandName={resolvedBrandName} compact={compact} unoptimized={resolvedLogoBypassesOptimization} />
+                {!compact && <span className="truncate text-sm font-medium text-foreground">{resolvedBrandName}</span>}
+              </Link>
+            </div>
+          ) : null}
+          <div className="flex flex-1 flex-col gap-3 pr-1">
+            <div className="space-y-3">
+              <div className="h-8 rounded bg-muted/50" />
+              <div className="space-y-2 pl-1">
+                <div className="h-8 rounded bg-muted/50" />
+                <div className="h-8 rounded bg-muted/50" />
+                <div className="h-8 rounded bg-muted/50" />
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="h-8 rounded bg-muted/50" />
+              <div className="space-y-2 pl-1">
+                <div className="h-8 rounded bg-muted/50" />
+                <div className="h-8 rounded bg-muted/50" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    if (!forceMainOnly && sidebarMode === 'settings' && resolvedSettingsSections && resolvedSettingsSections.length > 0) {
+      const mergedSettingsSections = mergeSectionGroupsWithInjected(
+        resolvedSettingsSections,
+        settingsSidebarInjectedMenuItems,
+        t,
+      )
+      return renderSectionSidebar(
+        mergedSettingsSections,
+        settingsSectionTitle ?? t('backend.nav.settings', 'Settings'),
+        compact,
+        hideHeader
+      )
+    }
+
+    if (!forceMainOnly && sidebarMode === 'profile' && resolvedProfileSections && resolvedProfileSections.length > 0) {
+      const mergedProfileSections = mergeSectionGroupsWithInjected(
+        resolvedProfileSections,
+        profileSidebarInjectedMenuItems,
+        t,
+      )
+      return renderSectionSidebar(
+        mergedProfileSections,
+        profileSectionTitle ?? t('backend.nav.profile', 'Profile'),
+        compact,
+        hideHeader
+      )
+    }
+
+    const isMobileVariant = !!hideHeader
+    const shouldRenderSidebarInjectionSpots = !isMobileVariant
+
+    return (
+      <div className="flex h-full flex-col gap-3">
+        {!hideHeader && (
+          <div className="mb-2">
+            <Link
+              href="/backend"
+              className={`flex items-center gap-3 rounded-xl transition-colors hover:bg-muted ${compact ? 'p-2 justify-center' : 'p-3'}`}
+              aria-label={t('appShell.goToDashboard')}
+            >
+              <ShellBrandLogo logo={resolvedLogo} brandName={resolvedBrandName} compact={compact} unoptimized={resolvedLogoBypassesOptimization} />
+              {!compact && <span className="truncate text-sm font-medium text-foreground">{resolvedBrandName}</span>}
+            </Link>
+          </div>
+        )}
+        {shouldRenderSidebarInjectionSpots ? (
+          <InjectionSpot
+            spotId={BACKEND_SIDEBAR_TOP_INJECTION_SPOT_ID}
+            context={injectionContext}
+          />
+        ) : null}
+        {!compact && (
+          <SearchInput
+            value={navQuery}
+            onChange={setNavQuery}
+            placeholder={t('appShell.searchNavPlaceholder', 'Search...')}
+            aria-label={t('appShell.searchNavAria', 'Search navigation')}
+            clearLabel={t('appShell.searchNavClear', 'Clear search')}
+            className="mb-2"
+          />
+        )}
+        <div data-sidebar-scroll="true" className={`flex flex-1 flex-col gap-3 overflow-y-auto scrollbar-hide pr-1 ${compact ? '-ml-2 pl-2' : '-ml-3 pl-3'}`}>
+          {(() => {
+              const isSettingsPath = (href: string) => {
+                if (href === '/backend/settings') return true
+                return resolvedSettingsPathPrefixes.some((prefix) => href.startsWith(prefix))
+              }
+
+              const isMainItem = (item: SidebarItem) => {
+                if (item.pageContext && item.pageContext !== 'main') return false
+                if (isSettingsPath(item.href)) return false
+                return true
+              }
+
+              const mainGroups = mainNavGroupsWithInjected.map((g) => ({
+                ...g,
+                items: g.items.filter((item) => isMainItem(item) && item.hidden !== true),
+              })).filter((g) => g.items.length > 0)
+
+              const mainLastVisibleGroupIndex = (() => {
+                for (let idx = mainGroups.length - 1; idx >= 0; idx -= 1) {
+                  if (mainGroups[idx].items.some((item) => item.hidden !== true)) return idx
+                }
+                return -1
+              })()
+
+              return (
+                <>
+                  <nav className="flex flex-col gap-2" data-testid="sidebar">
+                    {shouldRenderSidebarInjectionSpots ? (
+                      <InjectionSpot
+                        spotId={BACKEND_SIDEBAR_NAV_INJECTION_SPOT_ID}
+                        context={injectionContext}
+                      />
+                    ) : null}
+                    {mainGroups.map((g, gi) => {
+                      const groupId = resolveGroupKey(g)
+                      const open = navQueryActive ? true : openGroups[groupId] !== false
+                      const visibleItems = g.items.filter((item) => {
+                        if (item.hidden === true) return false
+                        if (!navQueryActive) return true
+                        if (matchesQuery(item.title)) return true
+                        const itemChildren = (item.children ?? []).filter((c) => c.hidden !== true)
+                        return itemChildren.some((c) => matchesQuery(c.title))
+                      })
+                      if (visibleItems.length === 0) return null
+                      return (
+                        <div key={groupId}>
+                          {!compact && (
+                            <Button
+                              variant="muted"
+                              onClick={() => toggleGroup(groupId)}
+                              className="w-full px-2 justify-between flex items-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground py-1.5"
+                              aria-expanded={open}
+                            >
+                              {/* The department carries the mark; the pages under it are a list. */}
+                              <span className="flex items-center gap-2 min-w-0">
+                                <NavGroupIcon groupId={groupId} />
+                                <span className="truncate">{g.name}</span>
+                              </span>
+                              <Chevron open={open} />
+                            </Button>
+                          )}
+                          {(open || compact) && (
+                            <div className={`flex flex-col ${compact ? 'items-center' : ''} gap-1`}>
+                              {visibleItems.map((i) => {
+                                const allChildItems = (i.children ?? []).filter((child) => child.hidden !== true)
+                                const matchingChildItems = navQueryActive
+                                  ? allChildItems.filter((c) => matchesQuery(c.title))
+                                  : allChildItems
+                                const childItems = navQueryActive ? matchingChildItems : allChildItems
+                                const showChildren = navQueryActive
+                                  ? matchingChildItems.length > 0
+                                  : (!!pathname && allChildItems.length > 0 && pathname.startsWith(i.href))
+                                const hasActiveChild = !!(pathname && allChildItems.some((c) => pathname.startsWith(c.href)))
+                                const isParentActive = (pathname === i.href) || (!navQueryActive && showChildren && !hasActiveChild)
+                                // Text only. Aligned under the group's LABEL rather than its
+                                // mark, so the eye follows one column of words instead of
+                                // stepping over a gutter of glyphs.
+                                const indent = hasGroupIcon(groupId) ? 'pl-8 pr-3' : 'pl-3 pr-3'
+                                const base = compact ? 'w-10 h-10 justify-center' : `w-full ${indent} py-1.5`
+                                return (
+                                  <React.Fragment key={i.href}>
+                                    <Link
+                                      href={i.href}
+                                      className={`relative text-sm font-medium rounded-lg inline-flex items-center ${base} ${
+                                        isParentActive ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'
+                                      } ${i.enabled === false ? 'pointer-events-none opacity-50' : ''}`}
+                                      aria-disabled={i.enabled === false}
+                                      title={compact ? i.title : undefined}
+                                      data-menu-item-id={i.id ?? i.href}
+                                      onClick={() => setMobileOpen(false)}
+                                    >
+                                      {isParentActive ? (
+                                        <span aria-hidden className={`absolute ${compact ? 'left-[-20px]' : 'left-[-12px]'} top-2 w-1 h-5 rounded-r bg-foreground`} />
+                                      ) : null}
+                                      {compact ? (
+                                        // Collapsed, the label is gone, so the item's own icon
+                                        // is the only thing left to aim at.
+                                        <span className="flex items-center justify-center shrink-0">
+                                          {renderIcon(i.icon, i.iconName, i.iconMarkup, DefaultIcon)}
+                                        </span>
+                                      ) : (
+                                        <span className="truncate">{i.title}</span>
+                                      )}
+                                    </Link>
+                                    {showChildren ? (
+                                      <div className={`relative flex flex-col ${compact ? 'items-center' : ''} gap-1`}>
+                                        {!compact && (
+                                          <span aria-hidden className={`pointer-events-none absolute ${hasGroupIcon(groupId) ? 'left-[38px]' : 'left-[14px]'} top-1 bottom-1 w-px bg-border`} />
+                                        )}
+                                        {childItems.map((c) => {
+                                          const childActive = pathname?.startsWith(c.href)
+                                          // Children sit one step further in than their parent,
+                                          // which is what says they belong to it now that there
+                                          // is no icon column doing that job.
+                                          const childIndent = hasGroupIcon(groupId) ? 'pl-12 pr-3' : 'pl-7 pr-3'
+                                          const childBase = compact ? 'w-10 h-8 justify-center' : `w-full ${childIndent} py-1.5`
+                                          return (
+                                            <Link
+                                              key={c.href}
+                                              href={c.href}
+                                              className={`relative text-sm font-medium rounded-lg inline-flex items-center ${childBase} ${
+                                                childActive ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'
+                                              } ${c.enabled === false ? 'pointer-events-none opacity-50' : ''}`}
+                                              aria-disabled={c.enabled === false}
+                                              title={compact ? c.title : undefined}
+                                              data-menu-item-id={c.id ?? c.href}
+                                              onClick={() => setMobileOpen(false)}
+                                            >
+                                              {childActive ? (
+                                                <span aria-hidden className={`absolute ${compact ? 'left-[-20px]' : 'left-[-12px]'} top-2 w-1 h-5 rounded-r bg-foreground`} />
+                                              ) : null}
+                                              {compact ? (
+                                                <span className="flex items-center justify-center shrink-0">
+                                                  {renderIcon(
+                                                    c.icon,
+                                                    c.iconName,
+                                                    c.iconMarkup,
+                                                    c.href.includes('/backend/entities/user/') && c.href.endsWith('/records') ? DataTableIcon : DefaultIcon,
+                                                  )}
+                                                </span>
+                                              ) : (
+                                                <span className="truncate">{c.title}</span>
+                                              )}
+                                            </Link>
+                                          )
+                                        })}
+                                      </div>
+                                    ) : null}
+                                  </React.Fragment>
+                                )
+                              })}
+                            </div>
+                          )}
+                          {gi !== mainLastVisibleGroupIndex && <div className={`my-2 border-t ${compact ? '-ml-2 -mr-3' : '-ml-3 -mr-4'}`} />}
+                        </div>
+                      )
+                    })}
+                  </nav>
+                </>
+              )
+            })()}
+        </div>
+        <div className="sticky bottom-0 bg-background pb-1">
+          {shouldRenderSidebarInjectionSpots ? (
+            <InjectionSpot
+              spotId={BACKEND_SIDEBAR_NAV_FOOTER_INJECTION_SPOT_ID}
+              context={injectionContext}
+            />
+          ) : null}
+          {shouldRenderSidebarInjectionSpots ? (
+            <StatusBadgeInjectionSpot
+              spotId={GLOBAL_SIDEBAR_STATUS_BADGES_INJECTION_SPOT_ID}
+              context={injectionContext}
+            />
+          ) : null}
+          {shouldRenderSidebarInjectionSpots ? (
+            <InjectionSpot
+              spotId={BACKEND_SIDEBAR_FOOTER_INJECTION_SPOT_ID}
+              context={injectionContext}
+            />
+          ) : null}
+        </div>
+      </div>
+    )
+  }
+
+  function renderSectionAside() {
+    let sections: SectionNavGroup[] | null = null
+    let title = ''
+    if (sidebarMode === 'settings' && resolvedSettingsSections && resolvedSettingsSections.length > 0) {
+      sections = mergeSectionGroupsWithInjected(
+        resolvedSettingsSections,
+        settingsSidebarInjectedMenuItems,
+        t,
+      )
+      title = settingsSectionTitle ?? t('backend.nav.settings', 'Settings')
+    } else if (sidebarMode === 'profile' && resolvedProfileSections && resolvedProfileSections.length > 0) {
+      sections = mergeSectionGroupsWithInjected(
+        resolvedProfileSections,
+        profileSidebarInjectedMenuItems,
+        t,
+      )
+      title = profileSectionTitle ?? t('backend.nav.profile', 'Profile')
+    }
+    if (!sections) return null
+    return (
+      <div className="flex h-full flex-col gap-2">
+        <Link
+          href="/backend"
+          className="inline-flex items-center gap-2 rounded-lg px-2 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+          data-testid="appshell-section-back-to-main"
+          aria-label={t('backend.nav.backToMain', 'Back to Main')}
+        >
+          <ChevronLeft className="size-4 shrink-0" aria-hidden />
+          <span className="truncate">{title}</span>
+        </Link>
+        <div className="min-h-0 flex-1">
+          {renderSectionSidebar(sections, title, false, true, true)}
+        </div>
+      </div>
+    )
+  }
+
+  const isSectionView =
+    (sidebarMode === 'settings' && !!resolvedSettingsSections && resolvedSettingsSections.length > 0) ||
+    (sidebarMode === 'profile' && !!resolvedProfileSections && resolvedProfileSections.length > 0)
+  const gridColsClass = isSectionView
+    ? (effectiveCollapsed ? 'lg:grid-cols-[80px_240px_1fr]' : 'lg:grid-cols-[240px_240px_1fr]')
+    : (effectiveCollapsed ? 'lg:grid-cols-[80px_1fr]' : 'lg:grid-cols-[240px_1fr]')
+  const headerCtxValue = React.useMemo(() => ({
+    setBreadcrumb: setHeaderBreadcrumb,
+    setTitle: setHeaderTitle,
+  }), [])
+  const renderedTopbarInjectedActions = React.useMemo(
+    () =>
+      topbarInjectedMenuItems.map((item) => {
+        const label = resolveInjectedMenuLabel(item, t)
+        if (item.href) {
+          return (
+            <Link
+              key={item.id}
+              href={item.href}
+              className="inline-flex items-center rounded border px-2 py-1 text-xs hover:bg-accent hover:text-accent-foreground"
+              data-menu-item-id={item.id}
+            >
+              {label}
+            </Link>
+          )
+        }
+        return (
+          <Button
+            key={item.id}
+            type="button"
+            variant="outline"
+            size="sm"
+            data-menu-item-id={item.id}
+            onClick={() => item.onClick?.()}
+          >
+            {label}
+          </Button>
+        )
+      }),
+    [t, topbarInjectedMenuItems],
+  )
+
+  return (
+    <HeaderContext.Provider value={headerCtxValue}>
+    <div
+      className={`relative min-h-svh lg:grid transition-[grid-template-columns] duration-200 ease-out ${gridColsClass}`}
+      style={{ '--topbar-height': '61px' } as React.CSSProperties}
+    >
+      {/* Desktop sidebar collapse/expand toggle — sits on the divider line between
+          sidebar and content, like Notion/Vercel. Hidden on mobile (hamburger in
+          topbar handles the drawer). */}
+      <button
+        type="button"
+        onClick={() => setCollapsed((c) => !c)}
+        aria-label={t('appShell.toggleSidebar')}
+        className="hidden lg:flex fixed top-4 z-dropdown size-7 items-center justify-center rounded-md border bg-background text-muted-foreground shadow-sm transition-all hover:text-foreground hover:bg-muted focus:outline-none focus-visible:shadow-focus"
+        style={{ left: `calc(${asideWidth} - 14px)` }}
+      >
+        {effectiveCollapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+      </button>
+      {/* Desktop main sidebar */}
+      <aside ref={sidebarAsideRef} className={`${asideClassesBase} ${effectiveCollapsed ? 'px-2' : 'px-3'} hidden lg:block lg:sticky lg:top-0 lg:h-svh lg:self-start lg:overflow-hidden lg:relative transition-[width,padding] duration-200 ease-out`} style={{ width: asideWidth }}>
+        {renderSidebar(effectiveCollapsed, false, isSectionView)}
+        {/* Scroll affordance — gradient fade + clickable chevron that flips up when
+            the user reaches the bottom and disappears when nothing is scrollable
+            (#1803). Clicking the chevron scrolls the inner sidebar container to
+            top/bottom (`prefers-reduced-motion: reduce` collapses to instant
+            scrolling). The wrapper is `pointer-events-none` so the gradient fade
+            doesn't block hover/click on the rendered nav items behind it; the
+            IconButton restores `pointer-events-auto` so it stays interactive. */}
+        {sidebarScrollState !== 'none' ? (
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 flex h-10 items-end justify-center bg-gradient-to-t from-background via-background/80 to-transparent pb-1.5"
+          >
+            {/* The IconButton owns hover/focus affordance; the inner span owns the
+                rotate transition so it doesn't fight with the animate-bounce
+                keyframes (both target `transform`). */}
+            <IconButton
+              type="button"
+              variant="ghost"
+              size="sm"
+              data-testid="sidebar-scroll-chevron"
+              data-sidebar-scroll-chevron={sidebarScrollState}
+              aria-label={
+                sidebarScrollState === 'up'
+                  ? t('ui.sidebar.chevron.scrollTop', 'Scroll to top')
+                  : t('ui.sidebar.chevron.scrollBottom', 'Scroll to bottom')
+              }
+              className="pointer-events-auto text-muted-foreground/70 hover:text-foreground"
+              onClick={() => handleSidebarChevronScroll(sidebarScrollState === 'up' ? 'top' : 'bottom')}
+            >
+              <span
+                className={`inline-flex transition-transform duration-300 ${sidebarScrollState === 'up' ? 'rotate-180' : ''}`}
+              >
+                <ChevronDown className="size-4 animate-bounce" />
+              </span>
+            </IconButton>
+          </div>
+        ) : null}
+      </aside>
+
+      {/* Desktop section sidebar (Option B two-level) — sits beside the main sidebar
+          when the user is on settings/profile routes. Mobile drawer keeps the
+          original swap behavior to fit the narrow width. */}
+      {isSectionView ? (
+        <aside
+          className={`${asideClassesBase} px-3 hidden lg:block lg:sticky lg:top-0 lg:h-svh lg:self-start lg:overflow-hidden lg:relative`}
+          style={{ width: '240px' }}
+          data-testid="appshell-section-sidebar"
+        >
+          {renderSectionAside()}
+          {/* Static bottom fade — covers the native iOS scroll indicator and signals
+              that the section list is scrollable. Same look as the main sidebar's
+              affordance but without the chevron / scroll-state machinery. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-background via-background/80 to-transparent"
+          />
+        </aside>
+      ) : null}
+
+      <div className="flex min-h-svh flex-col min-w-0">
+        <header className="sticky top-0 z-sticky border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-3 sm:px-4 lg:px-6 py-3 flex items-center justify-between gap-2 sm:gap-3">
+          <div
+            data-testid="backend-chrome-ready"
+            data-ready={isChromeReady ? 'true' : 'false'}
+            className="hidden"
+          />
+          <div className="flex items-center gap-2 min-w-0">
+            {/* Mobile menu button */}
+            <IconButton variant="ghost" size="sm" className="lg:hidden" aria-label={t('appShell.openMenu')} onClick={() => setMobileOpen(true)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+            </IconButton>
+            {/* Header breadcrumb: always starts with Dashboard */}
+            {(() => {
+              const dashboardLabel = t('dashboard.title')
+              const root: Breadcrumb = [{ label: dashboardLabel, href: '/backend' }]
+              let rest: Breadcrumb = []
+              if (headerBreadcrumb && headerBreadcrumb.length) {
+                const first = headerBreadcrumb[0]
+                const dup = first && (first.href === '/backend' || first.label === dashboardLabel || first.label?.toLowerCase() === 'dashboard')
+                rest = dup ? headerBreadcrumb.slice(1) : headerBreadcrumb
+              } else if (headerTitle) {
+                rest = [{ label: headerTitle }]
+              }
+              const items = [...root, ...rest]
+              if (items.length === 0) return null
+              const home = items[0]
+              const current = items.length > 1 ? items[items.length - 1] : null
+              const mid = items.slice(1, -1)
+              const hasMid = mid.length > 0
+              return (
+                <BreadcrumbNav divider="arrow" className="ml-2 lg:ml-3 text-sm">
+                  <BreadcrumbList className="[&_[data-slot=breadcrumb-separator]_svg]:size-4">
+                    <BreadcrumbItem>
+                      {home.href && current ? (
+                        <BreadcrumbLink asChild aria-label={home.label}>
+                          <Link href={home.href}>
+                            <Home className="size-4" aria-hidden="true" />
+                          </Link>
+                        </BreadcrumbLink>
+                      ) : (
+                        <BreadcrumbPage aria-label={home.label}>
+                          <Home className="size-4" aria-hidden="true" />
+                        </BreadcrumbPage>
+                      )}
+                    </BreadcrumbItem>
+                    {current ? (
+                      <>
+                        {hasMid ? (
+                          <>
+                            <BreadcrumbSeparator className="md:hidden" />
+                            <BreadcrumbItem className="md:hidden">
+                              <BreadcrumbEllipsis aria-label={t('appShell.breadcrumb.collapsed', { count: mid.length })} />
+                            </BreadcrumbItem>
+                            {mid.map((b, i) => (
+                              <React.Fragment key={`mid-${i}`}>
+                                <BreadcrumbSeparator className="hidden md:inline-flex" />
+                                <BreadcrumbItem className="hidden md:inline-flex">
+                                  {b.href ? (
+                                    <BreadcrumbLink asChild title={b.label}>
+                                      <Link href={b.href}>{b.label}</Link>
+                                    </BreadcrumbLink>
+                                  ) : (
+                                    <BreadcrumbLink title={b.label} aria-disabled="true" tabIndex={-1}>
+                                      {b.label}
+                                    </BreadcrumbLink>
+                                  )}
+                                </BreadcrumbItem>
+                              </React.Fragment>
+                            ))}
+                          </>
+                        ) : null}
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
+                          <BreadcrumbPage title={current.label}>{current.label}</BreadcrumbPage>
+                        </BreadcrumbItem>
+                      </>
+                    ) : null}
+                  </BreadcrumbList>
+                </BreadcrumbNav>
+              )
+            })()}
+          </div>
+          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 text-sm shrink-0">
+            <StatusBadgeInjectionSpot
+              spotId={GLOBAL_HEADER_STATUS_INDICATORS_INJECTION_SPOT_ID}
+              context={injectionContext}
+            />
+            <InjectionSpot
+              spotId={BACKEND_TOPBAR_ACTIONS_INJECTION_SPOT_ID}
+              context={injectionContext}
+            />
+            {renderedTopbarInjectedActions}
+            <AiAssistantLauncher variant="topbar" />
+            {rightHeaderSlot ? (
+              rightHeaderSlot
+            ) : (
+              <span className="opacity-80">{email || t('appShell.userFallback')}</span>
+            )}
+          </div>
+        </header>
+        <ProgressTopBar t={t} className="sticky top-0 z-sticky" completedAutoHideMs={progressCompletedAutoHideMs} />
+        <main className="flex-1 p-4 lg:p-6 mx-auto w-full max-w-screen-2xl">
+          <InjectionSpot spotId={BACKEND_LAYOUT_TOP_INJECTION_SPOT_ID} context={injectionContext} />
+          <FlashMessages />
+          <PartialIndexBanner />
+          {canManageUpgradeActions ? <UpgradeActionBanner /> : null}
+          <LastOperationBanner />
+          <RecordConflictBanner />
+          <InjectionSpot spotId={BACKEND_RECORD_CURRENT_INJECTION_SPOT_ID} context={recordInjectionContext} />
+          <InjectionSpot
+            spotId={LEGACY_GLOBAL_MUTATION_INJECTION_SPOT_ID}
+            context={injectionContext}
+          />
+          <div id="om-top-banners" className="mb-3 space-y-2" />
+          <OrganizationScopeBoundary active={isOnSettingsPath}>
+            <BackendRecordInjectionContextProvider setCurrentRecordInjectionContext={setCurrentRecordInjectionContext}>
+              {children}
+            </BackendRecordInjectionContextProvider>
+          </OrganizationScopeBoundary>
+          <InjectionSpot spotId={BACKEND_LAYOUT_FOOTER_INJECTION_SPOT_ID} context={injectionContext} />
+        </main>
+        {hideFooter ? null : (
+          <footer className="border-t bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 py-3 flex flex-wrap items-center justify-end gap-4">
+            {version ? (
+              <span className="text-xs text-muted-foreground">
+                {t('appShell.version', { version })}
+              </span>
+            ) : null}
+            <nav className="flex items-center gap-3 text-xs text-muted-foreground">
+              <Link href="/terms" className="transition hover:text-foreground">
+                {t('common.terms')}
+              </Link>
+              <Link href="/privacy" className="transition hover:text-foreground">
+                {t('common.privacy')}
+              </Link>
+            </nav>
+          </footer>
+        )}
+      </div>
+
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-modal">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setMobileOpen(false)} aria-hidden="true" />
+          <aside className="absolute left-0 top-0 flex h-full w-[280px] max-w-[85vw] flex-col bg-background border-r shadow-lg overflow-hidden">
+            <div className="shrink-0 flex items-center justify-between gap-2 border-b px-4 py-3">
+              <Link href="/backend" className="flex items-center gap-2 min-w-0 text-sm font-semibold" onClick={() => setMobileOpen(false)} aria-label={t('appShell.goToDashboard')}>
+                <ShellBrandLogo logo={resolvedLogo} brandName={resolvedBrandName} mobile unoptimized={resolvedLogoBypassesOptimization} />
+                <span className="truncate">{resolvedBrandName}</span>
+              </Link>
+              <IconButton variant="ghost" size="sm" onClick={() => setMobileOpen(false)} aria-label={t('appShell.closeMenu')}>
+                <X className="size-4" />
+              </IconButton>
+            </div>
+            {mobileSidebarSlot && (
+              <div className="shrink-0 border-b px-3 py-2">
+                {mobileSidebarSlot}
+              </div>
+            )}
+            {sidebarMode !== 'main' ? (
+              <div className="shrink-0 flex items-center gap-5 border-b px-4 pt-3 pb-0" role="tablist">
+                {([
+                  { id: 'main' as const, label: t('backend.nav.main', 'Main') },
+                  {
+                    id: 'section' as const,
+                    label:
+                      sidebarMode === 'settings'
+                        ? settingsSectionTitle ?? t('backend.nav.settings', 'Settings')
+                        : profileSectionTitle ?? t('backend.nav.profile', 'Profile'),
+                  },
+                ]).map((tab) => {
+                  const isActive =
+                    tab.id === 'main' ? mobileDrawerView === 'main' : mobileDrawerView === 'auto'
+                  const tabId = `mobile-drawer-tab-${tab.id}`
+                  return (
+                    <button
+                      key={tab.id}
+                      id={tabId}
+                      type="button"
+                      role="tab"
+                      aria-selected={isActive}
+                      aria-controls="mobile-drawer-tabpanel"
+                      onClick={() => setMobileDrawerView(tab.id === 'main' ? 'main' : 'auto')}
+                      className="relative inline-flex items-center pb-2 text-sm font-medium leading-5 tracking-tight transition-colors outline-none focus-visible:shadow-focus data-[active=true]:text-foreground data-[active=false]:text-muted-foreground hover:text-foreground"
+                      data-active={isActive}
+                    >
+                      <span>{tab.label}</span>
+                      {isActive ? (
+                        <span
+                          className="absolute -bottom-px left-0 right-0 h-0.5 bg-accent-indigo"
+                          aria-hidden="true"
+                        />
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
+            ) : null}
+            <div
+              id="mobile-drawer-tabpanel"
+              role={sidebarMode !== 'main' ? 'tabpanel' : undefined}
+              aria-labelledby={
+                sidebarMode !== 'main'
+                  ? `mobile-drawer-tab-${mobileDrawerView === 'main' ? 'main' : 'section'}`
+                  : undefined
+              }
+              className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-3"
+            >
+              {/* Force expanded sidebar in mobile drawer, hide its header and collapse toggle */}
+              {renderSidebar(false, true, mobileDrawerView === 'main')}
+            </div>
+          </aside>
+        </div>
+      )}
+    </div>
+    <UmesDevToolsPanel />
+    </HeaderContext.Provider>
+  )
+}

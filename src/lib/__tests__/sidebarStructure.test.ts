@@ -24,6 +24,15 @@ import { join } from 'node:path'
  * It is deliberately not a snapshot of the current arrangement — moving a page
  * between groups is ordinary work and should not need a test updated. Only
  * these three properties are fixed.
+ *
+ * **What it cannot see.** It reads the two files above, and a group can also
+ * arrive from neither: an installed module whose pages declare no group at all
+ * gets one named after the module. That is how "Media" (the attachment
+ * library) and "Business rules" (its log) were still heading groups of one
+ * each after this test passed — both only turned up on screen, counted in the
+ * rendered sidebar. Fixed by folding them into Settings, but the blind spot is
+ * real: this file checks the configuration, not the menu. Count the headings
+ * in a browser before believing the sidebar is what you meant.
  */
 
 const ROOT = join(__dirname, '..', '..', '..')
