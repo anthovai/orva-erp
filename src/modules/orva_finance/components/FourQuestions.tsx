@@ -62,6 +62,8 @@ export type HomeOverview = {
       daysLate: number
     }>
     acceptedAwaitingInstallment: Array<{ id: string; ref: string; customer: string | null; total: string }>
+    periodsToClose?: Array<{ id: string; code: string; endsOn: string; daysOverdue: number }>
+    billingBehindWork?: Array<{ quoteId: string; ref: string; customer: string | null; workPct: number; billedPct: number; gap: number; remainingToBill: string }>
   }
 }
 
@@ -155,7 +157,9 @@ export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOver
   const t = useT()
   const overdue = data.cashIn.overdueCount > 0
   const accepted = data.waiting.acceptedAwaitingInstallment ?? []
-  const waitingCount = data.waiting.quotes.length + data.waiting.unpostedInvoices + data.waiting.draftJournals + data.waiting.unmatchedBankLines + (data.waiting.lastMonthPackSent ? 0 : 1) + (data.waiting.expiringLots ?? 0) + (data.waiting.expiredLots ?? 0) + (data.waiting.renewingSubscriptions ?? 0) + (data.waiting.lapsedSubscriptions ?? 0) + (data.waiting.untouchedLeads ?? 0) + (data.waiting.latePurchaseLines?.length ?? 0) + accepted.length + (data.waiting.lowStock?.length ?? 0)
+  const behind = data.waiting.billingBehindWork ?? []
+  const toClose = data.waiting.periodsToClose ?? []
+  const waitingCount = data.waiting.quotes.length + data.waiting.unpostedInvoices + data.waiting.draftJournals + data.waiting.unmatchedBankLines + (data.waiting.lastMonthPackSent ? 0 : 1) + (data.waiting.expiringLots ?? 0) + (data.waiting.expiredLots ?? 0) + (data.waiting.renewingSubscriptions ?? 0) + (data.waiting.lapsedSubscriptions ?? 0) + (data.waiting.untouchedLeads ?? 0) + (data.waiting.latePurchaseLines?.length ?? 0) + accepted.length + (data.waiting.lowStock?.length ?? 0) + behind.length + toClose.length
   const taxTone: Tone = data.tax.some((d) => d.state === 'overdue' && !d.packSentAt) ? 'bad' : data.tax.some((d) => d.state === 'due_soon' && !d.packSentAt) ? 'warn' : undefined
 
   return (
@@ -237,8 +241,39 @@ export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOver
       {/* 4 — waiting on someone */}
       <Card title={t('orva_finance.home.waiting.title', 'เอกสารที่รอ')} value={String(waitingCount)} tone={waitingCount > 0 ? 'warn' : 'good'} href="/backend/sales/quotes">
         <div className="flex flex-col gap-1.5">
-          {/* Accepted but unbilled comes first: it is the one row that is money
-              waiting on us rather than on somebody else. */}
+          {/* Work already done and not yet billed leads the card: it is money
+              the business has earned and simply not asked for, which outranks
+              every other kind of waiting. The gap and the verdict come from
+              the same rule the โปรเจกต์ screen uses, so the two never
+              disagree about which projects are behind. */}
+          {behind.slice(0, 3).map((row) => (
+            <Row
+              key={row.quoteId}
+              left={<Link href={`/backend/sales/quotes/${row.quoteId}`} className="hover:underline">{row.ref}</Link>}
+              sub={[
+                row.customer,
+                t('orva_finance.home.waiting.billBehindSub', 'ทำงานไป {work}% วางบิล {billed}% — ออกงวดถัดไปได้')
+                  .replace('{work}', String(row.workPct)).replace('{billed}', String(row.billedPct)),
+              ].filter(Boolean).join(' · ')}
+              right={money(row.remainingToBill)}
+              tone="warn"
+            />
+          ))}
+          {/* A period nobody closed. Nothing breaks while it stays open, which
+              is exactly why it stays open — and the month pack and the closing
+              journal both wait on it. */}
+          {toClose.slice(0, 2).map((period) => (
+            <Row
+              key={period.id}
+              left={<Link href="/backend/gl/periods" className="hover:underline">{thaiMonth(period.code)}</Link>}
+              sub={t('orva_finance.home.waiting.periodOpenSub', 'งวดจบไปแล้ว {days} วัน ยังไม่ได้ปิดบัญชี')
+                .replace('{days}', String(period.daysOverdue))}
+              right={t('orva_finance.home.waiting.periodOpenAction', 'ปิดงวด')}
+              tone="warn"
+            />
+          ))}
+          {/* Accepted but unbilled comes next: money waiting on us rather than
+              on somebody else. */}
           {accepted.slice(0, 4).map((q) => (
             <Row
               key={q.id}

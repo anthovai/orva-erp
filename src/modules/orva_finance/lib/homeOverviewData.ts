@@ -6,6 +6,7 @@ import { daysBetween, monthBounds, monthOf, upcomingDeadlines, type TaxDeadline 
 import { reminderState } from './reminders'
 import { lowStockVariants } from '@/modules/orva_stock/lib/lowStock'
 import { quoteFollowUp, type FollowUpState } from '@/modules/orva_documents/lib/quoteFollowUp'
+import { donePct, workVsBilling } from '@/modules/orva_tasking/lib/progress'
 import { toPgTextArray } from '@/lib/pgArray'
 import {
   bookkeepingStatus, cashBalances, monthPackHistory, openInvoices, pendingQuotes, receiptsInMonth,
@@ -84,7 +85,102 @@ export type HomeOverviewData = {
     acceptedAwaitingInstallment: Array<{ id: string; ref: string; customer: string | null; total: string }>
     /** คลัง: variants at or below their product's reorder point. */
     lowStock: Array<{ variantId: string; name: string; sku: string | null; onHand: number; reorderPoint: number }>
+    /**
+     * บัญชี: accounting periods whose last day has passed and which are still
+     * open. Nothing breaks while one stays open — which is exactly why they
+     * stay open. The books are not finished until it is closed.
+     */
+    periodsToClose: Array<{ id: string; code: string; endsOn: string; daysOverdue: number }>
+    /**
+     * โปรเจกต์: work is further along than the billing, by enough to be worth
+     * issuing the next งวด. Money the business has already earned and not yet
+     * asked for — the sharpest thing a home screen can say to a shop whose
+     * income is irregular.
+     */
+    billingBehindWork: Array<{ quoteId: string; ref: string; customer: string | null; workPct: number; billedPct: number; gap: number; remainingToBill: string }>
   }
+}
+
+/**
+ * Periods that should have been closed by now.
+ *
+ * A period is "overdue" the day after it ends: there is no grace built in,
+ * because the grace is what the operator takes anyway. The month pack and the
+ * closing journal both wait on this, so it is the one bookkeeping fact that
+ * blocks the others.
+ */
+async function periodsToClose(
+  tem: EntityManager,
+  scope: Scope,
+  today: string,
+): Promise<Array<{ id: string; code: string; endsOn: string; daysOverdue: number }>> {
+  const rows = (await tem.execute(
+    `select id::text as id, code, to_char(ends_on, 'YYYY-MM-DD') as ends_on
+     from orva_fiscal_periods
+     where tenant_id = ?::uuid and (?::uuid is null or organization_id = ?::uuid)
+       and deleted_at is null and status = 'open' and ends_on < ?::date
+     order by ends_on`,
+    [scope.tenantId, scope.organizationId, scope.organizationId, today],
+  )) as Array<{ id: string; code: string; ends_on: string }>
+  return rows.map((row) => ({
+    id: row.id, code: row.code, endsOn: row.ends_on,
+    daysOverdue: Math.max(0, daysBetween(row.ends_on, today)),
+  }))
+}
+
+/**
+ * Projects whose work has run ahead of what has been invoiced.
+ *
+ * The verdict comes from `workVsBilling`, the same rule the โปรเจกต์ screen
+ * shows, so the home screen can never disagree with the screen it sends the
+ * operator to. Only `bill_behind` is surfaced: "money ahead of work" is worth
+ * knowing on the project page but is not something to do today.
+ */
+async function billingBehindWork(
+  tem: EntityManager,
+  scope: Scope,
+): Promise<Array<{ quoteId: string; ref: string; customerEntityId: string | null; workPct: number; billedPct: number; gap: number; remainingToBill: string }>> {
+  const rows = (await tem.execute(
+    `select q.id::text as quote_id, q.quote_number, q.customer_entity_id::text as customer_entity_id,
+            q.grand_total_gross_amount::float8 as quote_total,
+            coalesce(t.total, 0)::int as tasks_total,
+            coalesce(t.done, 0)::int as tasks_done,
+            coalesce(i.billed, 0)::float8 as billed
+     from sales_quotes q
+     join orva_tasking_projects p
+       on p.quote_id = q.id and p.tenant_id = q.tenant_id and p.deleted_at is null and not p.is_archived
+     left join lateral (
+       select count(*)::int as total, count(*) filter (where done)::int as done
+       from orva_tasking_tasks x where x.project_id = p.id and x.deleted_at is null
+     ) t on true
+     left join lateral (
+       select sum(v.grand_total_gross_amount)::numeric as billed
+       from sales_invoices v
+       where v.tenant_id = q.tenant_id and v.deleted_at is null
+         and v.metadata->>'quoteId' = q.id::text
+     ) i on true
+     where q.tenant_id = ?::uuid and (?::uuid is null or q.organization_id = ?::uuid)
+       and q.deleted_at is null and q.grand_total_gross_amount > 0`,
+    [scope.tenantId, scope.organizationId, scope.organizationId],
+  )) as Array<{ quote_id: string; quote_number: string; customer_entity_id: string | null; quote_total: number; tasks_total: number; tasks_done: number; billed: number }>
+
+  const out: Array<{ quoteId: string; ref: string; customerEntityId: string | null; workPct: number; billedPct: number; gap: number; remainingToBill: string }> = []
+  for (const row of rows) {
+    const billedPct = row.quote_total > 0 ? Math.round((row.billed / row.quote_total) * 1000) / 10 : 0
+    const counts = { total: Number(row.tasks_total), done: Number(row.tasks_done) }
+    const verdict = workVsBilling(counts, billedPct)
+    if (verdict.verdict !== 'bill_behind') continue
+    out.push({
+      quoteId: row.quote_id,
+      ref: row.quote_number,
+      customerEntityId: row.customer_entity_id,
+      workPct: donePct(counts),
+      billedPct,
+      gap: verdict.gap,
+      remainingToBill: Math.max(0, row.quote_total - row.billed).toFixed(2),
+    })
+  }
+  return out.sort((a, b) => b.gap - a.gap)
 }
 
 /**
@@ -279,7 +375,7 @@ export async function buildHomeOverview(
 ): Promise<HomeOverviewData> {
   const month = monthOf(today)
   const bounds = monthBounds(month)
-  const [invoices, receipts, bank, quotes, books, stock, subs, leads, purchasing, accepted, lowStock] = await Promise.all([
+  const [invoices, receipts, bank, quotes, books, stock, subs, leads, purchasing, accepted, lowStock, toClose, behind] = await Promise.all([
     openInvoices(tem, scope),
     receiptsInMonth(tem, scope, bounds.from, bounds.to),
     cashBalances(tem, scope),
@@ -295,6 +391,8 @@ export async function buildHomeOverview(
     // Reorder points live on the product (orva/ce.ts); the on-hand comes from
     // the same WMS balances the expiry alert reads. Same seam, same owner.
     scope.organizationId ? lowStockVariants(tem, { tenantId: scope.tenantId, organizationId: scope.organizationId }) : Promise.resolve([]),
+    periodsToClose(tem, scope, today),
+    billingBehindWork(tem, scope),
   ])
   const deadlines = upcomingDeadlines(today)
   const [reminders, quoteSends] = await Promise.all([
@@ -397,6 +495,12 @@ export async function buildHomeOverview(
         total: row.total,
       })),
       lowStock: lowStock.map((row) => ({ variantId: row.variantId, name: row.name, sku: row.sku, onHand: row.onHand, reorderPoint: row.reorderPoint })),
+      periodsToClose: toClose,
+      billingBehindWork: behind.map((row) => ({
+        quoteId: row.quoteId, ref: row.ref,
+        customer: row.customerEntityId ? customerNames.get(row.customerEntityId) ?? null : null,
+        workPct: row.workPct, billedPct: row.billedPct, gap: row.gap, remainingToBill: row.remainingToBill,
+      })),
     },
   }
 }
