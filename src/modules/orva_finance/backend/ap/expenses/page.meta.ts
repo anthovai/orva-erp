@@ -3,9 +3,9 @@ export const metadata = {
   requireFeatures: ['orva_finance.ap.view'],
   pageTitle: 'Expenses paid in cash',
   pageTitleKey: 'orva_finance.expense.page.title',
-  pageGroup: 'Accounting',
-  pageGroupKey: 'orva.nav.accounting',
-  pageOrder: 125,
+  pageGroup: 'Purchasing',
+  pageGroupKey: 'orva.nav.purchasing',
+  pageOrder: 50,
   icon: 'receipt-text',
   breadcrumb: [{ label: 'Expenses', labelKey: 'orva_finance.expense.page.title' }],
 }

@@ -5,7 +5,7 @@ export const metadata = {
   pageTitleKey: 'orva_stock.valuation.page.title',
   pageGroup: 'Stock',
   pageGroupKey: 'orva.nav.stock',
-  pageOrder: 30,
+  pageOrder: 40,
   icon: 'boxes',
   breadcrumb: [{ label: 'Stock and costs', labelKey: 'orva_stock.valuation.page.title' }],
 }

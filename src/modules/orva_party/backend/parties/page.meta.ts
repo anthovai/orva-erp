@@ -3,9 +3,9 @@ export const metadata = {
   requireFeatures: ['orva_party.parties.view'],
   pageTitle: 'Vendors',
   pageTitleKey: 'orva_party.page.title',
-  pageGroup: 'Accounting',
-  pageGroupKey: 'orva.nav.accounting',
-  pageOrder: 110,
+  pageGroup: 'Purchasing',
+  pageGroupKey: 'orva.nav.purchasing',
+  pageOrder: 10,
   icon: 'users',
   breadcrumb: [{ label: 'Parties', labelKey: 'orva_party.page.title' }],
 }

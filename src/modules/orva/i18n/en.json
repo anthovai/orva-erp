@@ -38,7 +38,7 @@
   "orva.lead.title": "Contact us",
   "orva.nav.accounting": "Accounting",
   "orva.nav.hr": "HR",
-  "orva.nav.marketing": "Marketing",
+  "orva.nav.marketing": "Customers & marketing",
   "orva.nav.project": "Projects",
   "orva.nav.sales": "Sales",
   "orva.nav.stock": "Stock",
@@ -63,5 +63,8 @@
   "orva.readiness.schedules": "Scheduled jobs",
   "orva.readiness.seller": "Seller identity on documents",
   "orva.readiness.tax": "Default tax rate",
-  "orva.readiness.title": "Operational readiness"
+  "orva.readiness.title": "Operational readiness",
+  "orva.nav.purchasing": "Purchasing & vendors",
+  "orva.nav.reports": "Reports & tax",
+  "orva.nav.settings": "Settings"
 }

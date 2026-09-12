@@ -3,9 +3,9 @@ export const metadata = {
   requireFeatures: ['orva_finance.ap.view'],
   pageTitle: 'Vendor Payments',
   pageTitleKey: 'orva_finance.payments.page.title',
-  pageGroup: 'Accounting',
-  pageGroupKey: 'orva.nav.accounting',
-  pageOrder: 130,
+  pageGroup: 'Purchasing',
+  pageGroupKey: 'orva.nav.purchasing',
+  pageOrder: 40,
   icon: 'banknote',
   breadcrumb: [{ label: 'Vendor Payments', labelKey: 'orva_finance.payments.page.title' }],
 }

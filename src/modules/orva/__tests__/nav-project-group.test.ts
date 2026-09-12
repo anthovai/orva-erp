@@ -70,24 +70,24 @@ describe('the โปรเจกต์และงาน group', () => {
   const own = declared()
 
   it.each([
-    ['/backend/tasking', 1],            // งาน
-    ['/backend/work-upcoming', 2],      // กำลังจะถึง
-    ['/backend/work-projects', 3],      // โปรเจกต์
-    ['/backend/work-labels', 4],        // ป้ายกำกับ
-    ['/backend/projects', 20],          // การเรียกเก็บตามโปรเจกต์
+    ['/backend/tasking', 10],            // งาน
+    ['/backend/work-upcoming', 20],      // กำลังจะถึง
+    ['/backend/work-projects', 30],      // โปรเจกต์
+    ['/backend/work-labels', 40],        // ป้ายกำกับ
+    ['/backend/projects', 50],          // การเรียกเก็บตามโปรเจกต์
   ])('keeps %s, which declares the group itself, at %i', (route, order) => {
     expect(own.get(route)).toBe(order)
   })
 
   it.each([
-    ['/backend/calendar', 30],                   // ปฏิทิน
-    ['/backend/customer-tasks', 40],             // งานที่เกี่ยวข้องกับลูกค้า
-    ['/backend/tasks', 50],                      // งานผู้ใช้
-    ['/backend/staff/timesheets', 60],           // บันทึกเวลาของฉัน
-    ['/backend/staff/timesheets/projects', 70],  // โครงการ
+    ['/backend/calendar', 60],                   // ปฏิทิน
+    ['/backend/customer-tasks', 70],             // งานที่เกี่ยวข้องกับลูกค้า
+    ['/backend/tasks', 80],                      // งานผู้ใช้
+    ['/backend/staff/timesheets', 90],           // บันทึกเวลาของฉัน
+    ['/backend/staff/timesheets/projects', 100],  // โครงการ
     // navHidden upstream, so it never shows in the sidebar; grouped only so
     // its breadcrumb sits under the same heading as the page it creates for.
-    ['/backend/staff/timesheets/projects/create', 71],
+    ['/backend/staff/timesheets/projects/create', 101],
   ])('keeps %s, which is moved here by an override, at %i', (route, order) => {
     const page = moved.get(route)
     expect(page).toBeDefined()

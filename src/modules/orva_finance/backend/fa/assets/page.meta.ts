@@ -5,7 +5,7 @@ export const metadata = {
   pageTitleKey: 'orva_finance.fa.page.title',
   pageGroup: 'Accounting',
   pageGroupKey: 'orva.nav.accounting',
-  pageOrder: 45,
+  pageOrder: 70,
   icon: 'file-text',
   breadcrumb: [{ label: 'Fixed assets', labelKey: 'orva_finance.fa.page.title' }],
 }

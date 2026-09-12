@@ -17,7 +17,7 @@ export const metadata = {
   pageTitleKey: 'orva_tasking.labels.title',
   pageGroup: 'Projects',
   pageGroupKey: 'orva.nav.project',
-  pageOrder: 4,
+  pageOrder: 40,
   icon: 'tag',
   breadcrumb: [
     { label: 'Tasks', labelKey: 'orva_tasking.page.title', href: '/backend/tasking' },

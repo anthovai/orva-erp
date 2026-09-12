@@ -8941,7 +8941,7 @@
   "orva.lead.title": "ติดต่อเรา",
   "orva.nav.accounting": "บัญชี",
   "orva.nav.hr": "บุคคล (HR)",
-  "orva.nav.marketing": "การตลาดและลูกค้า",
+  "orva.nav.marketing": "ลูกค้าและการตลาด",
   "orva.nav.project": "โปรเจกต์และงาน",
   "orva.nav.sales": "งานขาย",
   "orva.nav.stock": "คลังสินค้า",
@@ -17746,5 +17746,8 @@
   "workflows.visualEditor.tapToAdd": "แตะประเภทขั้นตอนเพื่อเพิ่มลงในผืนผ้าใบ",
   "workflows.visualEditor.tapToAddBelow": "แตะประเภทขั้นตอนด้านล่างเพื่อเพิ่มลงในผืนผ้าใบ",
   "workflows.visualEditor.validate": "ตรวจสอบความถูกต้อง",
-  "workflows.visualEditor.workflowMetadata": "เมตาดาต้าเวิร์กโฟลว์"
+  "workflows.visualEditor.workflowMetadata": "เมตาดาต้าเวิร์กโฟลว์",
+  "orva.nav.purchasing": "จัดซื้อและคู่ค้า",
+  "orva.nav.reports": "รายงานและภาษี",
+  "orva.nav.settings": "ตั้งค่า"
 }

@@ -18,7 +18,7 @@ export const metadata = {
   pageGroupKey: 'orva.nav.project',
   // 20: after orva_tasking's four Vikunja-shaped pages (1–4), before the
   // calendar and the time screens.
-  pageOrder: 20,
+  pageOrder: 50,
   icon: 'briefcase',
   breadcrumb: [{ label: 'Project billing', labelKey: 'orva_documents.projects.page.title' }],
 } as const

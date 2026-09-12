@@ -3,9 +3,9 @@ export const metadata = {
   requireFeatures: ['orva_documents.manage'],
   pageTitle: 'Document settings',
   pageTitleKey: 'orva_documents.settings.page.title',
-  pageGroup: 'Sales',
-  pageGroupKey: 'orva.nav.sales',
-  pageOrder: 205,
+  pageGroup: 'Settings',
+  pageGroupKey: 'orva.nav.settings',
+  pageOrder: 10,
   icon: 'settings',
   breadcrumb: [{ label: 'Document settings', labelKey: 'orva_documents.settings.page.title' }],
 }

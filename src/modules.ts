@@ -75,15 +75,29 @@ export const moduleOverrideExamples: ModuleOverrides = {
  * keys in their page.meta.ts. Labels live in src/modules/orva/i18n.
  */
 const NAV = {
+  // Ordered as the work flows: what we sell, what we deliver, what we buy,
+  // what we hold, what it does to the books, what we read back, then people,
+  // customers and configuration. `NAV_GROUP_ORDER` below is derived from this
+  // order, so the sidebar follows the same sequence.
   sales: { pageGroup: 'Sales', pageGroupKey: 'orva.nav.sales' },
-  marketing: { pageGroup: 'Marketing', pageGroupKey: 'orva.nav.marketing' },
   project: { pageGroup: 'Projects', pageGroupKey: 'orva.nav.project' },
+  // The vendor registry and everything owed to it. Vendors used to sit under
+  // Accounting and purchase orders under Stock — one workflow split across two
+  // groups, neither of which owned it.
+  purchasing: { pageGroup: 'Purchasing', pageGroupKey: 'orva.nav.purchasing' },
   stock: { pageGroup: 'Stock', pageGroupKey: 'orva.nav.stock' },
   accounting: { pageGroup: 'Accounting', pageGroupKey: 'orva.nav.accounting' },
+  // Everything you READ rather than post. Splitting these out is what takes
+  // Accounting from nineteen items down to seven.
+  reports: { pageGroup: 'Reports & Tax', pageGroupKey: 'orva.nav.reports' },
   hr: { pageGroup: 'HR', pageGroupKey: 'orva.nav.hr' },
-  // Support = customer support for the software we shipped (tickets, bugs),
-  // NOT internal IT admin — those pages live under the settings panel.
-  support: { pageGroup: 'Support', pageGroupKey: 'orva.nav.support' },
+  // Everything aimed at a customer who has already bought: support, articles,
+  // subscriptions and outbound news. Support and Marketing were two groups of
+  // three items and one.
+  marketing: { pageGroup: 'Customers', pageGroupKey: 'orva.nav.marketing' },
+  // Configuration, which used to be scattered into Sales (document settings,
+  // brands) and a two-item "Authentication" group.
+  settings: { pageGroup: 'Settings', pageGroupKey: 'orva.nav.settings' },
 } as const
 const NAV_GROUP_ORDER = Object.values(NAV).map((g) => g.pageGroupKey)
 const regroup = (group: keyof typeof NAV, pageOrder: number) => ({ metadata: { ...NAV[group], pageOrder } })
@@ -129,21 +143,21 @@ export const enabledModules: ModuleEntry[] = [
           '/backend/customers/deals/pipeline': regroup('sales', 11),
           '/backend/customers/deals/map': regroup('sales', 12),
           '/backend/customers/deals/create': regroup('sales', 13),
-          '/backend/customers/companies': regroup('sales', 20),
+          '/backend/customers/companies': regroup('sales', 14),
           '/backend/customers/companies/create': { ...regroup('sales', 21), load: () => import('@/modules/orva/components/CompanyCreatePage').then((mod) => mod.default) },
-          '/backend/customers/people': regroup('sales', 30),
-          '/backend/customers/people/create': regroup('sales', 31),
+          '/backend/customers/people': regroup('sales', 16),
+          '/backend/customers/people/create': regroup('sales', 17),
           // Restored on request (2026-09-07) after being closed in a434d67,
           // and correcting the reason I closed it with: there is no
           // `customer_tasks` table, but the screen never needed one — it
           // renders CustomerTodosTable over `customer_todo_links`, and with
           // no rows it shows its empty state, not an error. Verified in the
           // browser. Day-to-day work still lives in orva_tasking.
-          '/backend/customer-tasks': place('project', 40),
+          '/backend/customer-tasks': place('project', 70),
           // A calendar of deals and their dates. It reads as a work calendar
           // and it is not one — but it is the only calendar on the install,
           // and the owner looks for it beside the work, so it lives here.
-          '/backend/calendar': place('project', 30),
+          '/backend/calendar': place('project', 60),
         },
       },
     },
@@ -195,9 +209,9 @@ export const enabledModules: ModuleEntry[] = [
           '/backend/sales/channels': null,
           '/backend/sales/channels/create': null,
           '/backend/sales/channels/offers': null,
-          '/backend/sales/quotes': regroup('sales', 40),
-          '/backend/sales/documents/create': regroup('sales', 50),
-          '/backend/sales/invoices': regroup('sales', 60),
+          '/backend/sales/quotes': regroup('sales', 20),
+          '/backend/sales/documents/create': regroup('sales', 21),
+          '/backend/sales/invoices': regroup('sales', 30),
         },
       },
     },
@@ -217,9 +231,9 @@ export const enabledModules: ModuleEntry[] = [
           '/backend/wms/zones': null,
           '/backend/wms/reservations': null,
           '/backend/config/wms': null,
-          '/backend/wms/inventory': regroup('stock', 40),
-          '/backend/wms/lots': regroup('stock', 50),
-          '/backend/wms/movements': regroup('stock', 60),
+          '/backend/wms/inventory': regroup('stock', 50),
+          '/backend/wms/lots': regroup('stock', 60),
+          '/backend/wms/movements': regroup('stock', 70),
           '/backend/wms/warehouses': regroup('stock', 80),
           '/backend/wms/locations': regroup('stock', 90),
         },
@@ -275,7 +289,7 @@ export const enabledModules: ModuleEntry[] = [
           // request (2026-09-07): it sits last in the group, under its own
           // name งานผู้ใช้, so it reads as a workflow inbox rather than a
           // third thing called "tasks".
-          '/backend/tasks': place('project', 50),
+          '/backend/tasks': place('project', 80),
         },
       },
     },
@@ -301,7 +315,7 @@ export const enabledModules: ModuleEntry[] = [
           // Own time entries: hours worked are an HR question, but they are
           // logged against the work, and that is where the owner goes looking
           // for them. Restored to โปรเจกต์และงาน on request (2026-09-07).
-          '/backend/staff/timesheets': place('project', 60),
+          '/backend/staff/timesheets': place('project', 90),
           // โครงการ — the timesheet cost centre, restored 2026-09-07.
           //
           // It renders NESTED under บันทึกเวลาของฉัน, not beside it, and that
@@ -336,13 +350,13 @@ export const enabledModules: ModuleEntry[] = [
           //
           // The create page is navHidden upstream; it is grouped only so its
           // breadcrumb sits under the same heading.
-          '/backend/staff/timesheets/projects': place('project', 70),
-          '/backend/staff/timesheets/projects/create': place('project', 71),
-          '/backend/staff/leave-requests': regroup('hr', 30),
-          '/backend/staff/leave-requests/create': regroup('hr', 31),
-          '/backend/staff/my-leave-requests': regroup('hr', 40),
-          '/backend/staff/my-leave-requests/create': regroup('hr', 41),
-          '/backend/staff/my-availability': regroup('hr', 50),
+          '/backend/staff/timesheets/projects': place('project', 100),
+          '/backend/staff/timesheets/projects/create': place('project', 101),
+          '/backend/staff/leave-requests': regroup('hr', 40),
+          '/backend/staff/leave-requests/create': regroup('hr', 41),
+          '/backend/staff/my-leave-requests': regroup('hr', 50),
+          '/backend/staff/my-leave-requests/create': regroup('hr', 51),
+          '/backend/staff/my-availability': regroup('hr', 60),
         },
       },
     },
@@ -353,14 +367,14 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'integrations', from: '@open-mercato/core' },
   { id: 'data_sync', from: '@open-mercato/core' },
   { id: 'sync_excel', from: '@open-mercato/core' },
-  { id: 'messages', from: '@open-mercato/core', overrides: { routes: { pages: { '/backend/messages': regroup('marketing', 10), '/backend/messages/compose': regroup('marketing', 20) } } } },
+  { id: 'messages', from: '@open-mercato/core', overrides: { routes: { pages: { '/backend/messages': regroup('marketing', 60), '/backend/messages/compose': regroup('marketing', 61) } } } },
   // Communication channels hub (SPEC-045d) — bridges external chat/email channels
   // (Slack, WhatsApp, Email) to the unified Messages inbox. Provider packages
   // (channel-slack, channel-whatsapp, future email providers) register adapters here.
   {
     id: 'communication_channels',
     from: '@open-mercato/core',
-    overrides: { routes: { pages: { '/backend/communication_channels/channels': regroup('marketing', 30) } } },
+    overrides: { routes: { pages: { '/backend/communication_channels/channels': regroup('marketing', 70) } } },
   },
   // Push notification rails — `push` delivery strategy + delivery log + send-push worker.
   // Fans out to `devices` tokens and sends through the `communication_channels` hub.
@@ -368,7 +382,7 @@ export const enabledModules: ModuleEntry[] = [
   { id: 'ai_assistant', from: '@open-mercato/ai-assistant' },
   { id: 'translations', from: '@open-mercato/core' },
   { id: 'scheduler', from: '@open-mercato/scheduler' },
-  { id: 'inbox_ops', from: '@open-mercato/core', overrides: { routes: { pages: { '/backend/inbox-ops': regroup('marketing', 40) } } } },
+  { id: 'inbox_ops', from: '@open-mercato/core', overrides: { routes: { pages: { '/backend/inbox-ops': regroup('marketing', 20) } } } },
   // Per-user email channels for the Communications Hub (SPEC-045d / email
   // integration spec). Each provider package registers its `ChannelAdapter`
   // at import time via `setup.ts`; the hub picks them up by `providerKey`.

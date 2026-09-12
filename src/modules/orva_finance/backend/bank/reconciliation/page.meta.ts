@@ -5,7 +5,7 @@ export const metadata = {
   pageTitleKey: 'orva_finance.bank.page.title',
   pageGroup: 'Accounting',
   pageGroupKey: 'orva.nav.accounting',
-  pageOrder: 42,
+  pageOrder: 60,
   icon: 'banknote',
   breadcrumb: [{ label: 'Bank reconciliation', labelKey: 'orva_finance.bank.page.title' }],
 }

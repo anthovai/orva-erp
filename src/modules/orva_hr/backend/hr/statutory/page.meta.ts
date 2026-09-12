@@ -5,7 +5,7 @@ export const metadata = {
   pageTitleKey: 'orva_hr.statutory.page.title',
   pageGroup: 'HR',
   pageGroupKey: 'orva.nav.hr',
-  pageOrder: 190,
+  pageOrder: 30,
   icon: 'file-text',
   breadcrumb: [{ label: 'Payroll filings', labelKey: 'orva_hr.statutory.page.title' }],
 }
