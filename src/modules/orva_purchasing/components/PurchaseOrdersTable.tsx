@@ -3,8 +3,9 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy'
-import { Page, PageBody, PageHeader } from '@open-mercato/ui/backend/Page'
+import { Page, PageBody } from '@open-mercato/ui/backend/Page'
 import { DataTable } from '@open-mercato/ui/backend/DataTable'
+import { OrvaPageHeader } from '@/components/orva/PageHeader'
 import { RowActions } from '@open-mercato/ui/backend/RowActions'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { Input } from '@open-mercato/ui/primitives/input'
@@ -149,7 +150,10 @@ export default function PurchaseOrdersTable() {
 
   return (
     <Page>
-      <PageHeader
+      {/* This screen is laid out as a Page rather than a bare table, so the
+          header stands on its own instead of going in a title slot. */}
+      <OrvaPageHeader
+        kicker={t('orva.nav.purchasing', 'จัดซื้อและคู่ค้า')}
         title={t('orva_purchasing.page.title', 'ใบสั่งซื้อ')}
         description={t(
           'orva_purchasing.page.description',

@@ -17,6 +17,7 @@ import { useConfirmDialog } from '@open-mercato/ui/backend/confirm-dialog'
 import { useOrganizationScopeVersion } from '@open-mercato/shared/lib/frontend/useOrganizationScope'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { OrvaEmptyState } from '@/components/orva/NodeMark'
+import { OrvaPageHeader } from '@/components/orva/PageHeader'
 
 type PartyRow = {
   id: string
@@ -82,20 +83,35 @@ export default function PartiesTable() {
     return <div className="text-sm text-destructive">{t('orva_party.table.error.generic', 'Failed to load parties')}</div>
   }
 
+  // The registry's own summary, from the page it already loaded — a header is
+  // the wrong place to start a second query.
+  const total = data?.total ?? 0
+
   return (
     <>
       <DataTable
-        title={t('orva_party.page.title', 'Vendors')}
-        emptyState={(
-          <OrvaEmptyState
-            title={t('orva_party.parties.empty.title', 'No vendors yet')}
-            description={t('orva_party.parties.empty.description', 'Record vendors here, then bill and pay them from the Finance menu. Customers live in the Customers menu.')}
+        // The header goes in the table's own title slot rather than above it:
+        // with no title DataTable still reserves the row (a bare
+        // `min-h-[2.25rem]` spacer), which left a 133px empty band under our
+        // header. One block, no gap, no second border.
+        title={(
+          <OrvaPageHeader
+            embedded
+            kicker={t('orva.nav.purchasing', 'จัดซื้อและคู่ค้า')}
+            title={t('orva_party.page.title', 'Vendors')}
+            fact={total > 0 ? t('orva_party.page.fact', '{total} ราย', { total }) : undefined}
           />
         )}
         actions={(
           <Button asChild>
             <Link href="/backend/parties/create">{t('orva_party.table.actions.create', 'Add vendor')}</Link>
           </Button>
+        )}
+        emptyState={(
+          <OrvaEmptyState
+            title={t('orva_party.parties.empty.title', 'No vendors yet')}
+            description={t('orva_party.parties.empty.description', 'Record vendors here, then bill and pay them from the Finance menu. Customers live in the Customers menu.')}
+          />
         )}
         columns={columns}
         data={data?.items ?? []}

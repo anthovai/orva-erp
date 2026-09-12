@@ -68,5 +68,6 @@
   "orva.nav.reports": "Reports",
   "orva.nav.settings": "Settings",
   "ui.dataTable.pagination.resultsWithDuration": "Showing {start}–{end} of {total}",
-  "ui.dataTable.pagination.results": "Showing {start}–{end} of {total}"
+  "ui.dataTable.pagination.results": "Showing {start}–{end} of {total}",
+  "orva.list.fact": "{total} records"
 }

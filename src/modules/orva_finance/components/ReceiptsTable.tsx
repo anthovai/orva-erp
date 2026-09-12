@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy'
 import { DataTable } from '@open-mercato/ui/backend/DataTable'
+import { OrvaPageHeader } from '@/components/orva/PageHeader'
 import { RowActions } from '@open-mercato/ui/backend/RowActions'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { fetchCrudList } from '@open-mercato/ui/backend/utils/crud'
@@ -67,7 +68,19 @@ export default function ReceiptsTable() {
   return (
     <>
       <DataTable
-        title={t('orva_finance.receipts.page.title', 'Customer Receipts')}
+        title={(
+          // The screen's own head: which department, what this is, and how
+          // many — before the first row is read. Sits in the table's title
+          // slot because DataTable reserves that row either way.
+          <OrvaPageHeader
+            embedded
+            kicker={t('orva.nav.accounting', 'บัญชี')}
+            title={t('orva_finance.receipts.page.title', 'Customer Receipts')}
+            fact={(data?.total ?? 0) > 0
+              ? t('orva.list.fact', '{total} รายการ', { total: data?.total ?? 0 })
+              : undefined}
+          />
+        )}
         emptyState={(
           <OrvaEmptyState
             title={t('orva_finance.receipts.empty.title', "No receipts yet")}

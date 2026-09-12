@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Page, PageBody } from '@open-mercato/ui/backend/Page'
 import { DataTable } from '@open-mercato/ui/backend/DataTable'
+import { OrvaPageHeader } from '@/components/orva/PageHeader'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { fetchCrudList } from '@open-mercato/ui/backend/utils/crud'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
@@ -50,7 +51,13 @@ export default function SsoConnectionsPage() {
     <Page>
       <PageBody>
         <DataTable<ConnectionRow>
-          title={t('orva_sso.page.title', 'SSO connections')}
+          title={(
+          <OrvaPageHeader
+            embedded
+            kicker={t('orva.nav.settings', 'ตั้งค่า')}
+            title={t('orva_sso.page.title', 'SSO connections')}
+          />
+        )}
           actions={(
             <Button asChild>
               <Link href="/backend/settings/sso/create">{t('orva_sso.actions.create', 'Add connection')}</Link>

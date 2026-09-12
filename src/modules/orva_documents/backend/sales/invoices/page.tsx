@@ -3,6 +3,7 @@ import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { Page, PageBody } from '@open-mercato/ui/backend/Page'
 import { DataTable } from '@open-mercato/ui/backend/DataTable'
+import { OrvaPageHeader } from '@/components/orva/PageHeader'
 import { RowActions } from '@open-mercato/ui/backend/RowActions'
 import { fetchCrudList } from '@open-mercato/ui/backend/utils/crud'
 import { useQuery } from '@tanstack/react-query'
@@ -90,7 +91,19 @@ export default function OrvaInvoicesPage() {
     <Page>
       <PageBody>
         <DataTable<InvoiceRow>
-          title={t('orva_documents.invoices.page.title', 'ใบแจ้งหนี้')}
+          title={(
+          // The screen's own head: which department, what this is, and how
+          // many — before the first row is read. Sits in the table's title
+          // slot because DataTable reserves that row either way.
+          <OrvaPageHeader
+            embedded
+            kicker={t('orva.nav.sales', 'งานขาย')}
+            title={t('orva_documents.invoices.page.title', 'ใบแจ้งหนี้')}
+            fact={(data?.total ?? 0) > 0
+              ? t('orva.list.fact', '{total} รายการ', { total: data?.total ?? 0 })
+              : undefined}
+          />
+        )}
           columns={columns}
           data={data?.items ?? []}
           isLoading={isLoading}

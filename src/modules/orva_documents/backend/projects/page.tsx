@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Page, PageBody } from '@open-mercato/ui/backend/Page'
 import { DataTable } from '@open-mercato/ui/backend/DataTable'
+import { OrvaPageHeader } from '@/components/orva/PageHeader'
 import { RowActions } from '@open-mercato/ui/backend/RowActions'
 import { readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'
 import { useQuery } from '@tanstack/react-query'
@@ -333,7 +334,13 @@ export default function OrvaProjectsPage() {
     <Page>
       <PageBody>
         <DataTable<ProjectRow>
-          title={t('orva_documents.projects.page.title', 'โปรเจกต์')}
+          title={(
+          <OrvaPageHeader
+            embedded
+            kicker={t('orva.nav.project', 'โปรเจกต์และงาน')}
+            title={t('orva_documents.projects.page.title', 'โปรเจกต์')}
+          />
+        )}
           columns={columns}
           data={data?.items ?? []}
           isLoading={isLoading}

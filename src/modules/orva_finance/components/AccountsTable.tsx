@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy'
 import type { SortingState } from '@tanstack/react-table'
 import { DataTable } from '@open-mercato/ui/backend/DataTable'
+import { OrvaPageHeader } from '@/components/orva/PageHeader'
 import { RowActions } from '@open-mercato/ui/backend/RowActions'
 import { BooleanIcon } from '@open-mercato/ui/backend/ValueIcons'
 import { Button } from '@open-mercato/ui/primitives/button'
@@ -68,7 +69,19 @@ export default function AccountsTable() {
   return (
     <>
       <DataTable
-        title={t('orva_finance.accounts.page.title', 'Chart of Accounts')}
+        title={(
+          // The screen's own head: which department, what this is, and how
+          // many — before the first row is read. Sits in the table's title
+          // slot because DataTable reserves that row either way.
+          <OrvaPageHeader
+            embedded
+            kicker={t('orva.nav.accounting', 'บัญชี')}
+            title={t('orva_finance.accounts.page.title', 'Chart of Accounts')}
+            fact={(data?.total ?? 0) > 0
+              ? t('orva.list.fact', '{total} รายการ', { total: data?.total ?? 0 })
+              : undefined}
+          />
+        )}
         emptyState={(
           <OrvaEmptyState
             title={t('orva_finance.accounts.empty.title', "No accounts yet")}

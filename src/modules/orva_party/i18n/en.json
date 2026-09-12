@@ -39,5 +39,6 @@
   "orva_party.table.column.kind": "Type",
   "orva_party.table.column.phone": "Phone",
   "orva_party.table.confirmDelete.title": "Delete party?",
-  "orva_party.table.error.generic": "Failed to load parties"
+  "orva_party.table.error.generic": "Failed to load parties",
+  "orva_party.page.fact": "{total} in the register"
 }

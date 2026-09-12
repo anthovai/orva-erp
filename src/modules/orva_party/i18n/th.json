@@ -39,5 +39,6 @@
   "orva_party.table.column.kind": "ประเภท",
   "orva_party.table.column.phone": "โทรศัพท์",
   "orva_party.table.confirmDelete.title": "ลบรายชื่อนี้หรือไม่",
-  "orva_party.table.error.generic": "โหลดรายชื่อคู่ค้าไม่สำเร็จ"
+  "orva_party.table.error.generic": "โหลดรายชื่อคู่ค้าไม่สำเร็จ",
+  "orva_party.page.fact": "{total} ราย"
 }
