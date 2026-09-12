@@ -17752,5 +17752,20 @@
   "orva.nav.settings": "ตั้งค่า",
   "ui.dataTable.pagination.resultsWithDuration": "แสดง {start}–{end} จาก {total} รายการ",
   "ui.dataTable.pagination.results": "แสดง {start}–{end} จาก {total} รายการ",
-  "orva.list.fact": "{total} รายการ"
+  "orva.list.fact": "{total} รายการ",
+  "orva.home.stat.due": "เงินรอเข้า",
+  "orva.home.stat.dueOverdue": "เกินกำหนด {count} ใบ · {amount}",
+  "orva.home.stat.dueNone": "ไม่มีใบที่เกินกำหนด",
+  "orva.home.stat.received": "รับมาเดือนนี้",
+  "orva.home.stat.receivedCount": "{count} ใบเสร็จ · {month}",
+  "orva.home.stat.waiting": "ค้างที่คน",
+  "orva.home.stat.waitingNote": "รายการที่รอใครสักคนขยับ",
+  "orva.home.stat.waitingNone": "ไม่มีอะไรค้าง",
+  "orva.home.stat.tax": "ภาษีงวดถัดไป",
+  "orva.home.stat.taxDue": "{period} · อีก {days} วัน",
+  "orva.home.stat.taxNone": "ไม่มีงวดที่ต้องยื่น",
+  "orva.header.searchPlaceholder": "ค้นหาทุกอย่าง",
+  "orva.header.today": "วันนี้",
+  "orva.home.stat.receivedWht": "{count} ใบเสร็จ · ลูกค้าหักไว้ {wht}",
+  "orva.home.stat.taxOverdue": "{period} · เลยกำหนดมา {days} วัน"
 }

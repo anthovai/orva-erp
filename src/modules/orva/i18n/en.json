@@ -69,5 +69,20 @@
   "orva.nav.settings": "Settings",
   "ui.dataTable.pagination.resultsWithDuration": "Showing {start}–{end} of {total}",
   "ui.dataTable.pagination.results": "Showing {start}–{end} of {total}",
-  "orva.list.fact": "{total} records"
+  "orva.list.fact": "{total} records",
+  "orva.home.stat.due": "Money due in",
+  "orva.home.stat.dueOverdue": "{count} overdue · {amount}",
+  "orva.home.stat.dueNone": "Nothing overdue",
+  "orva.home.stat.received": "Received this month",
+  "orva.home.stat.receivedCount": "{count} receipts · {month}",
+  "orva.home.stat.waiting": "Waiting on someone",
+  "orva.home.stat.waitingNote": "Things waiting for somebody to move",
+  "orva.home.stat.waitingNone": "Nothing waiting",
+  "orva.home.stat.tax": "Next tax filing",
+  "orva.home.stat.taxDue": "{period} · in {days} days",
+  "orva.home.stat.taxNone": "Nothing to file",
+  "orva.header.searchPlaceholder": "Search anything",
+  "orva.header.today": "Today",
+  "orva.home.stat.receivedWht": "{count} receipts · {wht} withheld by customers",
+  "orva.home.stat.taxOverdue": "{period} · {days} days past the deadline"
 }

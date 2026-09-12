@@ -153,7 +153,19 @@ function chaseText(
   return null
 }
 
-export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOverview; showInvoiceList?: boolean }) {
+export function FourQuestions({
+  data,
+  showInvoiceList = true,
+  /**
+   * Drop each card's headline figure, for callers that already state those
+   * four numbers above — the home screen's stat strip does. One number, one
+   * place: showing it twice on one screen invites the two to disagree, which
+   * is exactly what happened the first time (the strip said 25,680 while this
+   * card said 24,960, because one read `received.total` and the other
+   * `received.cash`).
+   */
+  hideCardValues = false,
+}: { data: HomeOverview; showInvoiceList?: boolean; hideCardValues?: boolean }) {
   const t = useT()
   const overdue = data.cashIn.overdueCount > 0
   const accepted = data.waiting.acceptedAwaitingInstallment ?? []
@@ -165,7 +177,7 @@ export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOver
   return (
     <div className="grid gap-3 md:grid-cols-2">
       {/* 1 — money due in */}
-      <Card title={t('orva_finance.home.cashIn.title', 'เงินที่จะเข้า')} value={money(data.cashIn.openTotal)} tone={overdue ? 'bad' : undefined} href="/backend/sales/invoices">
+      <Card title={t('orva_finance.home.cashIn.title', 'เงินที่จะเข้า')} value={hideCardValues ? undefined : money(data.cashIn.openTotal)} tone={overdue ? 'bad' : undefined} href="/backend/sales/invoices">
         {overdue ? (
           <p className="text-xs text-status-error-text">
             {t('orva_finance.home.cashIn.overdue', 'เกินกำหนด {count} ใบ รวม {amount}')
@@ -195,7 +207,7 @@ export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOver
       {/* 2 — money received this month */}
       <Card
         title={t('orva_finance.home.received.title', 'เงินเข้าเดือน {month}').replace('{month}', thaiMonth(data.month))}
-        value={money(data.received.cash)}
+        value={hideCardValues ? undefined : money(data.received.cash)}
         tone={Number(data.received.cash) > 0 ? 'good' : undefined}
         href="/backend/ar/receipts"
       >
@@ -239,7 +251,7 @@ export function FourQuestions({ data, showInvoiceList = true }: { data: HomeOver
       </Card>
 
       {/* 4 — waiting on someone */}
-      <Card title={t('orva_finance.home.waiting.title', 'เอกสารที่รอ')} value={String(waitingCount)} tone={waitingCount > 0 ? 'warn' : 'good'} href="/backend/sales/quotes">
+      <Card title={t('orva_finance.home.waiting.title', 'เอกสารที่รอ')} value={hideCardValues ? undefined : String(waitingCount)} tone={waitingCount > 0 ? 'warn' : 'good'} href="/backend/sales/quotes">
         <div className="flex flex-col gap-1.5">
           {/* Work already done and not yet billed leads the card: it is money
               the business has earned and simply not asked for, which outranks
