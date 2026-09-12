@@ -36,11 +36,11 @@ async function readJson(response: { status: () => number; text: () => Promise<st
   }
 }
 
-async function readiness(request: APIRequestContext): Promise<{ checks: Check[]; summary: Json }> {
+async function readiness(request: APIRequestContext): Promise<{ checks: Check[]; summary: Json; unread: string[] }> {
   const res = await request.get('/api/orva/readiness')
   expect(res.status(), await res.text()).toBe(200)
   const body = await readJson(res)
-  return { checks: body.checks as Check[], summary: body.summary as Json }
+  return { checks: body.checks as Check[], summary: body.summary as Json, unread: (body.unread ?? []) as string[] }
 }
 const pick = (checks: Check[], id: string): Check => {
   const found = checks.find((c) => c.id === id)
@@ -56,7 +56,7 @@ test.describe('the readiness panel reads the real tenant', () => {
 
   test('answers every check, and each one points at a screen or says why not', async () => {
     test.setTimeout(120_000)
-    const { checks, summary } = await readiness(request)
+    const { checks, summary, unread } = await readiness(request)
 
     // Every check the rules can emit must come back; a query that threw would
     // otherwise just drop its row and the panel would look clean.
@@ -66,6 +66,12 @@ test.describe('the readiness panel reads the real tenant', () => {
     // The harness may connect as a superuser; what matters is that the panel
     // reports what is true rather than assuming. On the real tenant this is
     // `ok`, and a `blocker` here would be a correct report of the harness.
+    // Every query behind the panel must actually have run. A wrong table name
+    // used to be swallowed and reported as a fact — `orva_gl_periods` never
+    // existed, and the panel said "no open accounting period" for a tenant
+    // that had two.
+    expect(unread, `queries that could not run: ${JSON.stringify(unread)}`).toEqual([])
+
     const rls = checks.find((c) => c.id === 'rls')!
     expect(['ok', 'blocker']).toContain(rls.severity)
     expect(rls.detail.length).toBeGreaterThan(0)

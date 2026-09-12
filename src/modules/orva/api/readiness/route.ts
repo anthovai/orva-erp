@@ -70,11 +70,23 @@ export async function GET(req: Request) {
   const em = container.resolve<EntityManager>('em')
 
   const facts = await withTenantRls(em, tenantId, async (tem) => {
-    const one = async <T>(sql: string, params: unknown[], fallback: T): Promise<T> => {
-      try { return ((await tem.execute(sql, params)) as T[])[0] ?? fallback } catch { return fallback }
+    // A table that is not there (a module this tenant does not run) answers
+    // with the neutral value — but it says so. Swallowing the error silently
+    // is how `orva_gl_periods`, a table that never existed under that name,
+    // reported "no open accounting period" and put a blocker on the panel
+    // that no amount of fixing the data could clear.
+    const missing: string[] = []
+    const one = async <T>(label: string, sql: string, params: unknown[], fallback: T): Promise<T> => {
+      try {
+        return ((await tem.execute(sql, params)) as T[])[0] ?? fallback
+      } catch (error) {
+        missing.push(`${label}: ${error instanceof Error ? error.message.split('\n')[0] : String(error)}`)
+        return fallback
+      }
     }
 
     const settings = await one<{ legal: string | null; tax: string | null; addr: string | null; pay: string | null; rate: string | null }>(
+      'settings',
       `select seller_legal_name as legal, seller_tax_id as tax, seller_address as addr,
               payment_details as pay, default_hourly_rate as rate
        from orva_documents_settings
@@ -83,30 +95,36 @@ export async function GET(req: Request) {
       [tenantId, organizationId], { legal: null, tax: null, addr: null, pay: null, rate: null })
 
     const taxRate = await one<{ rate: string | null }>(
+      'taxRate',
       `select rate from sales_tax_rates
        where tenant_id = ?::uuid and organization_id = ?::uuid and is_default = true
        limit 1`,
       [tenantId, organizationId], { rate: null })
 
     const periods = await one<{ n: number }>(
-      `select count(*)::int as n from orva_gl_periods
-       where tenant_id = ?::uuid and organization_id = ?::uuid and status = 'open'`,
+      'periods',
+      `select count(*)::int as n from orva_fiscal_periods
+       where tenant_id = ?::uuid and organization_id = ?::uuid and status = 'open'
+         and deleted_at is null`,
       [tenantId, organizationId], { n: 0 })
 
     const portal = await one<{ total: number; linked: number }>(
+      'portal',
       `select count(*)::int as total,
               count(*) filter (where customer_entity_id is not null)::int as linked
-       from customer_accounts_users
+       from customer_users
        where tenant_id = ?::uuid and deleted_at is null`,
       [tenantId], { total: 0, linked: 0 })
 
     const schedules = await one<{ total: number; active: number }>(
+      'schedules',
       `select count(*)::int as total, count(*) filter (where is_enabled)::int as active
        from scheduled_jobs
        where tenant_id = ?::uuid or tenant_id is null`,
       [tenantId], { total: 0, active: 0 })
 
     const unposted = await one<{ n: number }>(
+      'unposted',
       `select count(*)::int as n from sales_invoices i
        where i.tenant_id = ?::uuid and i.organization_id = ?::uuid and i.deleted_at is null
          and not exists (select 1 from orva_gl_journals j
@@ -118,11 +136,12 @@ export async function GET(req: Request) {
     // tenant's rows no matter what the policies say. Asked here rather than
     // assumed from DATABASE_URL, because the string and the truth can differ.
     const role = await one<{ enforced: boolean }>(
+      'role',
       `select not coalesce(bool_or(rolsuper or rolbypassrls), true) as enforced
        from pg_roles where rolname = current_user`,
       [], { enforced: false })
 
-    return { settings, taxRate, periods, portal, schedules, unposted, role }
+    return { settings, taxRate, periods, portal, schedules, unposted, role, missing }
   })
 
   // Environment facts are the host's, not the tenant's, and are read here so
@@ -153,7 +172,9 @@ export async function GET(req: Request) {
   }
 
   const checks = assessReadiness(readiness)
-  return Response.json({ checks, summary: readinessSummary(checks) })
+  // A query that could not run is reported next to the checks: without it
+  // the panel states a fact it never actually read.
+  return Response.json({ checks, summary: readinessSummary(checks), unread: facts.missing })
 }
 
 export const openApi: OpenApiRouteDoc = {
@@ -169,6 +190,7 @@ export const openApi: OpenApiRouteDoc = {
         schema: z.object({
           checks: z.array(checkSchema),
           summary: z.object({ blockers: z.number(), warnings: z.number(), ready: z.boolean() }),
+          unread: z.array(z.string()),
         }),
       }],
     },
