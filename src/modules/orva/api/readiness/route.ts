@@ -76,10 +76,21 @@ export async function GET(req: Request) {
     // reported "no open accounting period" and put a blocker on the panel
     // that no amount of fixing the data could clear.
     const missing: string[] = []
+    // Each question gets its own SAVEPOINT. Postgres aborts the whole
+    // transaction on the first failed statement, so without this one broken
+    // query silences every question after it — which is how a missing column
+    // on the invoice check made the RLS check report a blocker it had never
+    // actually asked about.
+    let savepoint = 0
     const one = async <T>(label: string, sql: string, params: unknown[], fallback: T): Promise<T> => {
+      const name = `readiness_${savepoint++}`
+      await tem.execute(`savepoint ${name}`)
       try {
-        return ((await tem.execute(sql, params)) as T[])[0] ?? fallback
+        const rows = (await tem.execute(sql, params)) as T[]
+        await tem.execute(`release savepoint ${name}`)
+        return rows[0] ?? fallback
       } catch (error) {
+        await tem.execute(`rollback to savepoint ${name}`).catch(() => {})
         missing.push(`${label}: ${error instanceof Error ? error.message.split('\n')[0] : String(error)}`)
         return fallback
       }
@@ -125,10 +136,13 @@ export async function GET(req: Request) {
 
     const unposted = await one<{ n: number }>(
       'unposted',
+      // The link is the posting row, not a text reference on the journal —
+      // `orva_finance/lib/reportQueries.ts` is the definition of "unposted"
+      // and this must not invent a second one that can disagree with it.
       `select count(*)::int as n from sales_invoices i
        where i.tenant_id = ?::uuid and i.organization_id = ?::uuid and i.deleted_at is null
-         and not exists (select 1 from orva_gl_journals j
-                         where j.tenant_id = i.tenant_id and j.source_ref = i.id::text)`,
+         and i.grand_total_gross_amount > 0
+         and not exists (select 1 from orva_ar_invoice_postings ip where ip.invoice_id = i.id)`,
       [tenantId, organizationId], { n: 0 })
 
     // Is this connection actually subject to RLS? `current_user` is the role
