@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { makeCrudRoute } from '@open-mercato/shared/lib/crud/factory'
 import { PartyLink } from '../../data/entities'
+import { assertPartyInScope } from '../../lib/ownership'
 import { partyLinkCreateSchema, partyLinkListSchema, deleteByIdSchema } from '../../data/validators'
 import { createOrvaPartyCrudOpenApi, createPagedListResponseSchema, createdSchema, okSchema } from '../openapi'
 
@@ -46,6 +47,15 @@ export const { metadata, GET, POST, DELETE } = makeCrudRoute({
       if (query.targetEntity) filters.target_entity = query.targetEntity
       if (query.targetId) filters.target_id = query.targetId
       return filters
+    },
+  },
+  hooks: {
+    beforeCreate: async (input, ctx) => {
+      await assertPartyInScope(
+        ctx.container,
+        { tenantId: ctx.auth?.tenantId, organizationId: ctx.selectedOrganizationId },
+        input.partyId,
+      )
     },
   },
   create: {

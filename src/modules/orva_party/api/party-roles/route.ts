@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { makeCrudRoute } from '@open-mercato/shared/lib/crud/factory'
 import { PartyRole } from '../../data/entities'
+import { assertPartyInScope, assertRoleNotAlreadyHeld } from '../../lib/ownership'
 import {
   partyRoleCreateSchema,
   partyRoleListSchema,
@@ -50,6 +51,13 @@ export const { metadata, GET, POST, PUT, DELETE } = makeCrudRoute({
       if (query.partyId) filters.party_id = query.partyId
       if (query.role) filters.role = query.role
       return filters
+    },
+  },
+  hooks: {
+    beforeCreate: async (input, ctx) => {
+      const scope = { tenantId: ctx.auth?.tenantId, organizationId: ctx.selectedOrganizationId }
+      await assertPartyInScope(ctx.container, scope, input.partyId)
+      await assertRoleNotAlreadyHeld(ctx.container, scope, input.partyId, input.role)
     },
   },
   create: {

@@ -17,10 +17,17 @@ export function fail(status: number, message: string, code?: string): Error {
  * drafting and sending should stop the send.
  */
 export async function assertVendorRole(tem: EntityManager, scope: Scope, partyId: string): Promise<void> {
+  // The PARTY is scoped here too, not just the role row. The role carries its
+  // own tenant and organization, so scoping only the role would accept a role
+  // row minted in this organization that points at another one's party — the
+  // party-roles route now refuses to create such a row, and this is the second
+  // lock on the same door, on the path where the money is actually committed.
   const rows = (await tem.execute(
     `select 1 as ok
        from orva_party_roles r
-       join orva_parties p on p.id = r.party_id and p.deleted_at is null
+       join orva_parties p
+         on p.id = r.party_id and p.deleted_at is null
+        and p.tenant_id = r.tenant_id and p.organization_id = r.organization_id
       where r.party_id = ?::uuid and r.role = 'vendor' and r.deleted_at is null
         and r.tenant_id = ?::uuid and r.organization_id = ?::uuid
       limit 1`,
