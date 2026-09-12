@@ -127,6 +127,13 @@ export type AppShellProps = {
   }[]
   children: React.ReactNode
   rightHeaderSlot?: React.ReactNode
+  /**
+   * Global search, carried in its own region rather than among the
+   * right-hand icons — design.md §5 makes search a first-class feature,
+   * and a 260px box at the far right reads as a filter for whatever is
+   * on screen.
+   */
+  headerSearchSlot?: React.ReactNode
   sidebarCollapsedDefault?: boolean
   currentTitle?: string
   breadcrumb?: Array<{ label: string; href?: string }>
@@ -512,7 +519,7 @@ export function AppShell(props: AppShellProps) {
   )
 }
 
-function AppShellBody({ productName, logo, email, canManageUpgradeActions = false, groups, rightHeaderSlot, children, sidebarCollapsedDefault = false, currentTitle, breadcrumb, version, settingsSectionTitle, settingsPathPrefixes = [], settingsSections, profileSections, profileSectionTitle, profilePathPrefixes = [], mobileSidebarSlot, hideFooter = false, progressCompletedAutoHideMs }: AppShellProps) {
+function AppShellBody({ productName, logo, email, canManageUpgradeActions = false, groups, rightHeaderSlot, headerSearchSlot, children, sidebarCollapsedDefault = false, currentTitle, breadcrumb, version, settingsSectionTitle, settingsPathPrefixes = [], settingsSections, profileSections, profileSectionTitle, profilePathPrefixes = [], mobileSidebarSlot, hideFooter = false, progressCompletedAutoHideMs }: AppShellProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const t = useT()
@@ -1373,7 +1380,7 @@ function AppShellBody({ productName, logo, email, canManageUpgradeActions = fals
             data-ready={isChromeReady ? 'true' : 'false'}
             className="hidden"
           />
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex shrink-0 items-center gap-2 min-w-0">
             {/* Mobile menu button */}
             <IconButton variant="ghost" size="sm" className="lg:hidden" aria-label={t('appShell.openMenu')} onClick={() => setMobileOpen(true)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
@@ -1449,6 +1456,9 @@ function AppShellBody({ productName, logo, email, canManageUpgradeActions = fals
               )
             })()}
           </div>
+          {headerSearchSlot ? (
+            <div className="flex min-w-0 flex-1 items-center px-2 lg:px-6">{headerSearchSlot}</div>
+          ) : null}
           <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 text-sm shrink-0">
             <StatusBadgeInjectionSpot
               spotId={GLOBAL_HEADER_STATUS_INDICATORS_INJECTION_SPOT_ID}

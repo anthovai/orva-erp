@@ -14,11 +14,8 @@ import { SettingsButton } from '@open-mercato/ui/backend/SettingsButton'
 import { useBackendChrome } from '@open-mercato/ui/backend/BackendChromeProvider'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { AiFloatingLauncher } from '@/components/orva/AiFloatingLauncher'
+import { OrvaHeaderClock } from '@/components/orva/HeaderSearch'
 
-const LazyTopbarSearchInline = dynamic(
-  () => import('@open-mercato/search/modules/search/frontend').then((module) => module.TopbarSearchInline),
-  { ssr: false, loading: () => null },
-)
 const LazyOrganizationSwitcher = dynamic(() => import('@/components/OrganizationSwitcher'), {
   ssr: false,
   loading: () => null,
@@ -35,8 +32,6 @@ const LazyMessagesIcon = dynamic(
 type BackendHeaderChromeProps = {
   email?: string
   userId: string | null
-  embeddingConfigured: boolean
-  missingConfigMessage: string
   tenantId: string | null
   organizationId: string | null
 }
@@ -101,8 +96,6 @@ function MobileMoreMenu({ items }: { items: MobileMoreItem[] }) {
 export function BackendHeaderChrome({
   email,
   userId,
-  embeddingConfigured,
-  missingConfigMessage,
 }: BackendHeaderChromeProps) {
   const t = useT()
   const { payload, isReady } = useBackendChrome()
@@ -110,10 +103,6 @@ export function BackendHeaderChrome({
   const showIntegrationsButton = React.useMemo(
     () => hasVisibleRoute(payload?.groups, '/backend/integrations'),
     [payload?.groups],
-  )
-  const showSearch = React.useMemo(
-    () => hasFeature(grantedFeatures, 'search.global'),
-    [grantedFeatures],
   )
   const showMessages = React.useMemo(
     () => hasVisibleRoute(payload?.groups, '/backend/messages'),
@@ -159,13 +148,10 @@ export function BackendHeaderChrome({
           own pill is hidden in globals.css, and the icon shows itself only
           when that launcher decided the assistant is available. */}
       {isReady ? <AiFloatingLauncher /> : null}
-      {isReady && showSearch ? (
-        <LazyTopbarSearchInline
-          embeddingConfigured={embeddingConfigured}
-          missingConfigMessage={missingConfigMessage}
-        />
-      ) : null}
+      {/* Global search now sits in its own header region, to the left — see
+          src/components/orva/HeaderSearch.tsx. */}
       {isReady ? <LazyOrganizationSwitcher /> : null}
+      <OrvaHeaderClock />
 
       {/* Secondary actions — inline on md+, grouped under a More button on <md */}
       {showIntegrationsButton ? (
