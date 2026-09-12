@@ -1,7 +1,7 @@
 "use client"
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
-import { Page, PageBody, PageHeader } from '@open-mercato/ui/backend/Page'
+import { Page, PageBody, PageHeader } from '@/components/orva/Page'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { Input } from '@open-mercato/ui/primitives/input'
 import { apiCall, readApiResultOrThrow } from '@open-mercato/ui/backend/utils/apiCall'

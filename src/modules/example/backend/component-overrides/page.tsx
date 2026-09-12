@@ -6,7 +6,7 @@
  * call site instead of being declarations nothing renders. The page is `navHidden`: it
  * is a reference surface, not a product screen.
  */
-import { Page, PageHeader, PageBody } from '@open-mercato/ui/backend/Page'
+import { Page, PageHeader, PageBody } from '@/components/orva/Page'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { ComponentOverrideShowcase } from '../../components/ComponentOverrideShowcase'
 

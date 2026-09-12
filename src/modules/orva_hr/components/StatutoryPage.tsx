@@ -2,7 +2,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
-import { Page, PageBody, PageHeader } from '@open-mercato/ui/backend/Page'
+import { Page, PageBody, PageHeader } from '@/components/orva/Page'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { Input } from '@open-mercato/ui/primitives/input'
 import { Badge } from '@open-mercato/ui/primitives/badge'

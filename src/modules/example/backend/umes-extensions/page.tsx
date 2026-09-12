@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { z } from 'zod'
-import { Page, PageBody } from '@open-mercato/ui/backend/Page'
+import { Page, PageBody } from '@/components/orva/Page'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { DataTable } from '@open-mercato/ui/backend/DataTable'
 import { CrudForm, type CrudField } from '@open-mercato/ui/backend/CrudForm'

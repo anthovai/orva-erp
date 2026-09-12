@@ -2,7 +2,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Page, PageBody, PageHeader } from '@open-mercato/ui/backend/Page'
+import { Page, PageBody, PageHeader } from '@/components/orva/Page'
 import { SectionHeader } from '@open-mercato/ui/backend/SectionHeader'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { FormField } from '@open-mercato/ui/primitives/form-field'

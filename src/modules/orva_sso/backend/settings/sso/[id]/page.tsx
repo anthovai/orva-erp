@@ -1,5 +1,5 @@
 "use client"
-import { Page, PageBody } from '@open-mercato/ui/backend/Page'
+import { Page, PageBody } from '@/components/orva/Page'
 import { ConnectionEditForm } from '../../../../components/ConnectionForm'
 
 export default function SsoConnectionEditPage({ params }: { params: { id: string } }) {

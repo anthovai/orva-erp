@@ -1,4 +1,4 @@
-import { Page, PageBody } from '@open-mercato/ui/backend/Page'
+import { Page, PageBody } from '@/components/orva/Page'
 import { TodoEditForm } from '../../../../components/TodoForm'
 
 export default function EditTodoPage({ params }: { params?: { id?: string } }) {

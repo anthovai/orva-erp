@@ -25,26 +25,44 @@ type PartyItem = {
 function usePartyFields(t: Translate): CrudField[] {
   return React.useMemo<CrudField[]>(() => {
     const fields: CrudField[] = [
+      // `layout` sizes a field to its content. Every field here used to be
+      // full width, so a 13-digit tax id and a two-letter type sat in the same
+      // 340px box as a company name — the form asked the same question width
+      // of every answer.
       {
         id: 'kind',
         label: t('orva_party.form.fields.kind.label', 'Type'),
         type: 'select',
         required: true,
+        layout: 'half',
         options: [
           { value: 'person', label: t('orva_party.kind.person', 'Person') },
           { value: 'company', label: t('orva_party.kind.company', 'Company') },
         ],
       },
       {
+        id: 'taxId',
+        label: t('orva_party.form.fields.taxId.label', 'Tax ID'),
+        type: 'text',
+        layout: 'half',
+        placeholder: '0105500000000',
+        description: t('orva_party.form.fields.taxId.help', 'เลข 13 หลักตามหนังสือรับรอง — ใช้พิมพ์บนใบกำกับภาษีและใบหัก ณ ที่จ่าย'),
+      },
+      {
         id: 'displayName',
         label: t('orva_party.form.fields.displayName.label', 'Display name'),
         type: 'text',
         required: true,
+        description: t('orva_party.form.fields.displayName.help', 'ชื่อที่ใช้เรียกในระบบและในรายการเลือกผู้ขาย'),
       },
-      { id: 'legalName', label: t('orva_party.form.fields.legalName.label', 'Legal name'), type: 'text' },
-      { id: 'taxId', label: t('orva_party.form.fields.taxId.label', 'Tax ID'), type: 'text' },
+      {
+        id: 'legalName',
+        label: t('orva_party.form.fields.legalName.label', 'Legal name'),
+        type: 'text',
+        description: t('orva_party.form.fields.legalName.help', 'ชื่อตามหนังสือรับรอง ถ้าต่างจากชื่อเรียก — ชื่อนี้คือชื่อที่ขึ้นบนเอกสาร'),
+      },
       { id: 'email', label: t('orva_party.form.fields.email.label', 'Email'), type: 'text' },
-      { id: 'phone', label: t('orva_party.form.fields.phone.label', 'Phone'), type: 'text' },
+      { id: 'phone', label: t('orva_party.form.fields.phone.label', 'Phone'), type: 'text', layout: 'half' },
       { id: 'notes', label: t('orva_party.form.fields.notes.label', 'Notes'), type: 'textarea' },
     ]
     return fields
@@ -53,22 +71,30 @@ function usePartyFields(t: Translate): CrudField[] {
 
 function usePartyGroups(t: Translate): CrudFormGroup[] {
   return React.useMemo<CrudFormGroup[]>(() => [
+    // Two columns that both carry weight. The old split put four fields on
+    // the left and two on the right, so the right column ran out half way
+    // down and the page ended in a column of nothing — then "Notes" was sent
+    // back to the left, under a heading whose only field was also called
+    // Notes. The groups are named for what the operator is filling in.
     {
       id: 'identity',
-      title: t('orva_party.form.groups.identity', 'Identity'),
+      title: t('orva_party.form.groups.identity', 'ผู้ขายรายนี้คือใคร'),
+      description: t('orva_party.form.groups.identityHelp', 'ชื่อและเลขประจำตัวผู้เสียภาษีที่จะขึ้นบนใบสั่งซื้อและบิล'),
       column: 1,
-      fields: ['kind', 'displayName', 'legalName', 'taxId'],
+      fields: ['kind', 'taxId', 'displayName', 'legalName'],
     },
     {
       id: 'contact',
-      title: t('orva_party.form.groups.contact', 'Contact'),
+      title: t('orva_party.form.groups.contact', 'ติดต่อที่ไหน'),
+      description: t('orva_party.form.groups.contactHelp', 'ใช้ส่งใบสั่งซื้อ และเป็นที่ติดต่อเวลาของยังไม่มา'),
       column: 2,
       fields: ['email', 'phone'],
     },
     {
       id: 'notes',
-      title: t('orva_party.form.groups.notes', 'Notes'),
-      column: 1,
+      title: t('orva_party.form.groups.notes', 'บันทึกภายใน'),
+      description: t('orva_party.form.groups.notesHelp', 'เห็นเฉพาะในระบบ ไม่ขึ้นบนเอกสารที่ส่งออกไป'),
+      column: 2,
       fields: ['notes'],
     },
   ], [t])

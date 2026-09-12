@@ -16,6 +16,7 @@ import { PageInjectionBoundary } from '@open-mercato/ui/backend/injection/PageIn
 import { DemoFeedbackWidget } from '@/components/DemoFeedbackWidget'
 import { BackendHeaderChrome } from '@/components/BackendHeaderChrome'
 import { OrvaHeaderSearch } from '@/components/orva/HeaderSearch'
+import { OrvaPageMetaProvider } from '@/components/orva/Page'
 
 function collectStaticSettingsPathPrefixes(): string[] {
   const prefixes = new Set<string>()
@@ -75,6 +76,17 @@ export default async function BackendLayout({
   const currentTitle = match?.route.titleKey
     ? translate(match.route.titleKey, match.route.title)
     : (match?.route.title ?? '')
+  // Which department this screen belongs to, resolved here so no screen has to
+  // pass it and none can forget to. Every page header reads it from context.
+  // `resolvePageRouteMetadata` renames the page-meta keys on its way into the
+  // manifest: pageGroupKey becomes `groupKey` and pageGroup becomes `group`.
+  // Reading the page-meta spelling here silently returned undefined, so every
+  // screen rendered without its department and the ones that did show it were
+  // only the handful passing a kicker by hand.
+  const groupKey = (match?.route as { groupKey?: string } | undefined)?.groupKey
+  const groupFallback = (match?.route as { group?: string } | undefined)?.group
+  const groupLabel = groupKey ? translate(groupKey, groupFallback ?? groupKey) : groupFallback
+
   const rawBreadcrumb = match?.route.breadcrumb
   const breadcrumb = rawBreadcrumb?.map((item) => ({
     ...item,
@@ -139,9 +151,11 @@ export default async function BackendLayout({
         profileSectionTitle={translate('profile.page.title', 'Profile')}
         profilePathPrefixes={profilePathPrefixes}
       >
-        <PageInjectionBoundary path={path} context={injectionContext}>
-          {children}
-        </PageInjectionBoundary>
+        <OrvaPageMetaProvider value={{ groupLabel, title: currentTitle }}>
+          <PageInjectionBoundary path={path} context={injectionContext}>
+            {children}
+          </PageInjectionBoundary>
+        </OrvaPageMetaProvider>
         {demoModeEnabled ? <DemoFeedbackWidget demoModeEnabled={demoModeEnabled} /> : null}
       </AppShell>
     </I18nProvider>

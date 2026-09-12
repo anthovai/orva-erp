@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Page, PageBody } from '@open-mercato/ui/backend/Page'
+import { Page, PageBody } from '@/components/orva/Page'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 import { registerResponseEnrichers, getEnrichersForEntity } from '@open-mercato/shared/lib/crud/enricher-registry'

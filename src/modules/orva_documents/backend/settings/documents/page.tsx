@@ -1,6 +1,6 @@
 "use client"
 import * as React from 'react'
-import { Page, PageBody } from '@open-mercato/ui/backend/Page'
+import { Page, PageBody, PageHeader } from '@/components/orva/Page'
 import {
   CrudForm,
   type CrudField,
@@ -148,6 +148,7 @@ export default function DocumentSettingsPage() {
 
   return (
     <Page>
+      <PageHeader />
       <PageBody>
         <CrudForm
           title={t('orva_documents.settings.page.title', 'ตั้งค่าเอกสาร')}

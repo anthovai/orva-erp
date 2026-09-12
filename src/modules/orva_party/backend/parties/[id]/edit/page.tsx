@@ -1,4 +1,4 @@
-import { Page, PageBody } from '@open-mercato/ui/backend/Page'
+import { Page, PageBody } from '@/components/orva/Page'
 import { PartyEditForm } from '../../../../components/PartyForm'
 
 export default async function EditPartyPage({ params }: { params: Promise<{ id: string }> }) {

@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useState, useEffect } from 'react'
-import { Page, PageHeader, PageBody } from '@open-mercato/ui/backend/Page'
+import { Page, PageHeader, PageBody } from '@/components/orva/Page'
 import { Card, CardHeader, CardTitle, CardContent } from '@open-mercato/ui/primitives/card'
 import { Badge } from '@open-mercato/ui/primitives/badge'
 import { Button } from '@open-mercato/ui/primitives/button'

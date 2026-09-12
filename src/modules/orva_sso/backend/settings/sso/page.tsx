@@ -2,7 +2,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Page, PageBody } from '@open-mercato/ui/backend/Page'
+import { Page, PageBody } from '@/components/orva/Page'
 import { DataTable } from '@open-mercato/ui/backend/DataTable'
 import { OrvaPageHeader } from '@/components/orva/PageHeader'
 import { Button } from '@open-mercato/ui/primitives/button'

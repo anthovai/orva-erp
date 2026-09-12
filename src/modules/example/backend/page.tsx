@@ -1,5 +1,5 @@
 "use client"
-import { Page, PageHeader, PageBody } from '@open-mercato/ui/backend/Page'
+import { Page, PageHeader, PageBody } from '@/components/orva/Page'
 import Link from 'next/link'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 

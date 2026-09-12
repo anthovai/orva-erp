@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Page, PageBody } from '@open-mercato/ui/backend/Page'
+import { Page, PageBody } from '@/components/orva/Page'
 import { CrudForm } from '@open-mercato/ui/backend/CrudForm'
 import { createCrud } from '@open-mercato/ui/backend/utils/crud'
 import { createCrudFormError } from '@open-mercato/ui/backend/utils/serverErrors'

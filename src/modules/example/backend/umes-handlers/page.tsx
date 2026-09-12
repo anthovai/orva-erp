@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { z } from 'zod'
 import Link from 'next/link'
-import { Page, PageBody } from '@open-mercato/ui/backend/Page'
+import { Page, PageBody } from '@/components/orva/Page'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { useAppEvent } from '@open-mercato/ui/backend/injection/useAppEvent'
 import { useInjectionDataWidgets } from '@open-mercato/ui/backend/injection/useInjectionDataWidgets'

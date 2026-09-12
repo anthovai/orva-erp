@@ -1,6 +1,6 @@
 "use client"
 import * as React from 'react'
-import { Page, PageHeader, PageBody } from '@open-mercato/ui/backend/Page'
+import { Page, PageHeader, PageBody } from '@/components/orva/Page'
 import { DataTable } from '@open-mercato/ui/backend/DataTable'
 import { Button } from '@open-mercato/ui/primitives/button'
 import type { LegacyColumnDef as ColumnDef } from '@tanstack/react-table/legacy'

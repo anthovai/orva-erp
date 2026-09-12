@@ -1,6 +1,6 @@
 "use client"
 import * as React from 'react'
-import { Page, PageBody } from '@open-mercato/ui/backend/Page'
+import { Page, PageBody, PageHeader } from '@/components/orva/Page'
 import { Button } from '@open-mercato/ui/primitives/button'
 import { useT } from '@open-mercato/shared/lib/i18n/context'
 
@@ -66,6 +66,7 @@ export default function MfaSettingsPage() {
 
   return (
     <Page>
+      <PageHeader />
       <PageBody>
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
           <div>
