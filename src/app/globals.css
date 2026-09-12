@@ -917,15 +917,20 @@ header [data-ai-launcher-trigger-mobile] {
   --text-disabled: #9AA9A4;
   --border-disabled: #E6EDEA;
 
-  /* Sidebar — the quietest surface, brand-tinted selection */
-  --sidebar: #FFFFFF;
-  --sidebar-foreground: #26332F;
+  /* Sidebar — a standing band of brand, not a paler shade of the page.
+     BRAND.md assigns Orva Forest to "navbar, hero, dark mode, footer,
+     พื้นแบรนด์เข้ม", so the navigation is Forest in both themes: the product
+     keeps one dark edge the eye returns to, and the workspace beside it stays
+     light and quiet. The selected row is Orva Green at full strength — on
+     Forest it reads as a lit key rather than a tinted highlight. */
+  --sidebar: #0A4A3E;
+  --sidebar-foreground: #D5EFE6;
   --sidebar-primary: #11836E;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #E9F2EF;
-  --sidebar-accent-foreground: #0A4A3E;
-  --sidebar-border: #DDE7E3;
-  --sidebar-ring: #11836E;
+  --sidebar-accent: #0E5A4B;
+  --sidebar-accent-foreground: #FFFFFF;
+  --sidebar-border: #126153;
+  --sidebar-ring: #7EE0C4;
 
   /* Charts: series 1 anchors on the brand, the rest stay hue-distinct so
      categorical series remain tellable apart (and colour-blind safe-ish). */

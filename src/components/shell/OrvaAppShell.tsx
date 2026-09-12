@@ -43,7 +43,6 @@ import {
 } from '@open-mercato/ui/backend/injection/recordContext'
 import type { InjectionMenuItem } from '@open-mercato/shared/modules/widgets/injection'
 import { LEGACY_GLOBAL_MUTATION_INJECTION_SPOT_ID } from '@open-mercato/ui/backend/injection/mutationEvents'
-import { NavGroupIcon, hasGroupIcon } from './navGroupIcons'
 import { mergeMenuItems } from '@open-mercato/ui/backend/injection/mergeMenuItems'
 import { useInjectedMenuItems } from '@open-mercato/ui/backend/injection/useInjectedMenuItems'
 import { resolveInjectedIcon } from '@open-mercato/ui/backend/injection/resolveInjectedIcon'
@@ -727,7 +726,11 @@ function AppShellBody({ productName, logo, email, canManageUpgradeActions = fals
 
   const asideWidth = effectiveCollapsed ? '80px' : expandedSidebarWidth
   // Use min-h-svh so the border extends with tall content; no overflow so sticky bottom works
-  const asideClassesBase = `border-r bg-background py-4`;
+  // Paint the navigation from the sidebar tokens, not the page's. It is a
+  // standing band of brand down the left edge (BRAND.md: Forest is the
+  // navbar ground), which is what gives the workspace beside it somewhere
+  // to be quiet.
+  const asideClassesBase = `border-r border-sidebar-border bg-sidebar text-sidebar-foreground py-4`;
 
   // Persist collapse state to localStorage and cookie. Both writes can throw in
   // private/incognito mode (storage blocked) or when cookies are disabled —
@@ -1088,14 +1091,10 @@ function AppShellBody({ productName, logo, email, canManageUpgradeActions = fals
                             <Button
                               variant="muted"
                               onClick={() => toggleGroup(groupId)}
-                              className="w-full px-2 justify-between flex items-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground py-1.5"
+                              className="w-full px-3 justify-between flex items-center text-[11px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/45 hover:text-sidebar-foreground/70 py-1.5"
                               aria-expanded={open}
                             >
-                              {/* The department carries the mark; the pages under it are a list. */}
-                              <span className="flex items-center gap-2 min-w-0">
-                                <NavGroupIcon groupId={groupId} />
-                                <span className="truncate">{g.name}</span>
-                              </span>
+                              <span className="truncate">{g.name}</span>
                               <Chevron open={open} />
                             </Button>
                           )}
@@ -1112,63 +1111,48 @@ function AppShellBody({ productName, logo, email, canManageUpgradeActions = fals
                                   : (!!pathname && allChildItems.length > 0 && pathname.startsWith(i.href))
                                 const hasActiveChild = !!(pathname && allChildItems.some((c) => pathname.startsWith(c.href)))
                                 const isParentActive = (pathname === i.href) || (!navQueryActive && showChildren && !hasActiveChild)
-                                // Text only. Aligned under the group's LABEL rather than its
-                                // mark, so the eye follows one column of words instead of
-                                // stepping over a gutter of glyphs.
-                                const indent = hasGroupIcon(groupId) ? 'pl-8 pr-3' : 'pl-3 pr-3'
-                                const base = compact ? 'w-10 h-10 justify-center' : `w-full ${indent} py-1.5`
+                                const base = compact ? 'w-10 h-10 justify-center' : 'w-full px-3 py-2 gap-3'
                                 return (
                                   <React.Fragment key={i.href}>
                                     <Link
                                       href={i.href}
-                                      className={`relative text-sm font-medium rounded-lg inline-flex items-center ${base} ${
-                                        isParentActive ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'
+                                      className={`relative text-sm rounded-lg inline-flex items-center transition-colors ${base} ${
+                                        isParentActive
+                                          ? 'bg-sidebar-primary text-sidebar-primary-foreground font-semibold shadow-sm'
+                                          : 'text-sidebar-foreground/75 font-medium hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                                       } ${i.enabled === false ? 'pointer-events-none opacity-50' : ''}`}
                                       aria-disabled={i.enabled === false}
                                       title={compact ? i.title : undefined}
                                       data-menu-item-id={i.id ?? i.href}
                                       onClick={() => setMobileOpen(false)}
                                     >
-                                      {isParentActive ? (
-                                        <span aria-hidden className={`absolute ${compact ? 'left-[-20px]' : 'left-[-12px]'} top-2 w-1 h-5 rounded-r bg-foreground`} />
-                                      ) : null}
-                                      {compact ? (
-                                        // Collapsed, the label is gone, so the item's own icon
-                                        // is the only thing left to aim at.
-                                        <span className="flex items-center justify-center shrink-0">
-                                          {renderIcon(i.icon, i.iconName, i.iconMarkup, DefaultIcon)}
-                                        </span>
-                                      ) : (
-                                        <span className="truncate">{i.title}</span>
-                                      )}
+                                      <span className="flex size-5 items-center justify-center shrink-0 [&_svg]:size-4">
+                                        {renderIcon(i.icon, i.iconName, i.iconMarkup, DefaultIcon)}
+                                      </span>
+                                      {!compact && <span className="truncate">{i.title}</span>}
                                     </Link>
                                     {showChildren ? (
                                       <div className={`relative flex flex-col ${compact ? 'items-center' : ''} gap-1`}>
                                         {!compact && (
-                                          <span aria-hidden className={`pointer-events-none absolute ${hasGroupIcon(groupId) ? 'left-[38px]' : 'left-[14px]'} top-1 bottom-1 w-px bg-border`} />
+                                          <span aria-hidden className="pointer-events-none absolute left-[26px] top-1 bottom-1 w-px bg-sidebar-border" />
                                         )}
                                         {childItems.map((c) => {
                                           const childActive = pathname?.startsWith(c.href)
-                                          // Children sit one step further in than their parent,
-                                          // which is what says they belong to it now that there
-                                          // is no icon column doing that job.
-                                          const childIndent = hasGroupIcon(groupId) ? 'pl-12 pr-3' : 'pl-7 pr-3'
-                                          const childBase = compact ? 'w-10 h-8 justify-center' : `w-full ${childIndent} py-1.5`
+                                          const childBase = compact ? 'w-10 h-8 justify-center' : 'w-full pl-11 pr-3 py-1.5 gap-3'
                                           return (
                                             <Link
                                               key={c.href}
                                               href={c.href}
-                                              className={`relative text-sm font-medium rounded-lg inline-flex items-center ${childBase} ${
-                                                childActive ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted'
+                                              className={`relative text-sm rounded-lg inline-flex items-center transition-colors ${childBase} ${
+                                                childActive
+                                                  ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+                                                  : 'text-sidebar-foreground/60 font-medium hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
                                               } ${c.enabled === false ? 'pointer-events-none opacity-50' : ''}`}
                                               aria-disabled={c.enabled === false}
                                               title={compact ? c.title : undefined}
                                               data-menu-item-id={c.id ?? c.href}
                                               onClick={() => setMobileOpen(false)}
                                             >
-                                              {childActive ? (
-                                                <span aria-hidden className={`absolute ${compact ? 'left-[-20px]' : 'left-[-12px]'} top-2 w-1 h-5 rounded-r bg-foreground`} />
-                                              ) : null}
                                               {compact ? (
                                                 <span className="flex items-center justify-center shrink-0">
                                                   {renderIcon(
