@@ -62,7 +62,7 @@ export default function PartiesTable() {
   })
 
   const columns: ColumnDef<PartyRow>[] = React.useMemo(() => [
-    { accessorKey: 'display_name', header: t('orva_party.table.column.displayName', 'Name'), meta: { priority: 1 } },
+    { accessorKey: 'display_name', header: t('orva_party.table.column.displayName', 'Name'), meta: { priority: 1, maxWidth: '320px' } },
     {
       accessorKey: 'kind',
       header: t('orva_party.table.column.kind', 'Type'),

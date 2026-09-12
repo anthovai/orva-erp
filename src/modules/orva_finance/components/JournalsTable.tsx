@@ -76,7 +76,7 @@ export default function JournalsTable() {
       meta: { priority: 2 },
       cell: ({ getValue }) => <span className="tabular-nums">{Number(getValue() ?? 0).toFixed(2)}</span>,
     },
-    { accessorKey: 'memo', header: t('orva_finance.journals.column.memo', 'Memo'), enableSorting: false, meta: { priority: 3 } },
+    { accessorKey: 'memo', header: t('orva_finance.journals.column.memo', 'Memo'), enableSorting: false, meta: { priority: 3, maxWidth: '360px' } },
   ], [t])
 
   return (

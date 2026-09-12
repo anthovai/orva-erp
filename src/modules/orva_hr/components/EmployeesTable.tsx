@@ -55,7 +55,7 @@ export default function EmployeesTable() {
       accessorKey: 'display_name',
       header: t('orva_hr.employees.column.name', 'Name'),
       enableSorting: false,
-      meta: { priority: 1 },
+      meta: { priority: 1, maxWidth: '260px' },
       cell: ({ getValue }) => String(getValue() ?? '') || '—',
     },
     { accessorKey: 'position', header: t('orva_hr.employees.column.position', 'Position'), meta: { priority: 3 } },

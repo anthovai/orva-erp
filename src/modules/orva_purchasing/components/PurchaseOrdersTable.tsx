@@ -110,7 +110,7 @@ export default function PurchaseOrdersTable() {
           </Link>
         ),
       },
-      { accessorKey: 'vendorName', header: t('orva_purchasing.column.vendor', 'ผู้ขาย'), meta: { priority: 1 } },
+      { accessorKey: 'vendorName', header: t('orva_purchasing.column.vendor', 'ผู้ขาย'), meta: { priority: 1, maxWidth: '260px' } },
       { accessorKey: 'orderDate', header: t('orva_purchasing.column.orderDate', 'วันที่สั่ง'), meta: { priority: 2 } },
       {
         accessorKey: 'expectedOn',

@@ -17749,5 +17749,7 @@
   "workflows.visualEditor.workflowMetadata": "เมตาดาต้าเวิร์กโฟลว์",
   "orva.nav.purchasing": "จัดซื้อและคู่ค้า",
   "orva.nav.reports": "รายงานและภาษี",
-  "orva.nav.settings": "ตั้งค่า"
+  "orva.nav.settings": "ตั้งค่า",
+  "ui.dataTable.pagination.resultsWithDuration": "แสดง {start}–{end} จาก {total} รายการ",
+  "ui.dataTable.pagination.results": "แสดง {start}–{end} จาก {total} รายการ"
 }

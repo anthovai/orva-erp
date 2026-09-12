@@ -155,10 +155,10 @@ export default function BillsTable() {
       accessorKey: 'vendor_party_id',
       header: t('orva_finance.ap.column.vendor', 'Vendor'),
       enableSorting: false,
-      meta: { priority: 1 },
+      meta: { priority: 1, maxWidth: '260px' },
       cell: ({ getValue }) => vendorMap[String(getValue())] ?? '…',
     },
-    { accessorKey: 'vendor_bill_ref', header: t('orva_finance.ap.column.ref', 'Vendor ref'), enableSorting: false, meta: { priority: 3 } },
+    { accessorKey: 'vendor_bill_ref', header: t('orva_finance.ap.column.ref', 'Vendor ref'), enableSorting: false, meta: { priority: 3, maxWidth: '200px' } },
     { accessorKey: 'bill_date', header: t('orva_finance.ap.column.date', 'Date'), meta: { priority: 2 } },
     { accessorKey: 'due_date', header: t('orva_finance.ap.column.due', 'Due'), meta: { priority: 3 } },
     {

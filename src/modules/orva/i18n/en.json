@@ -66,5 +66,7 @@
   "orva.readiness.title": "Operational readiness",
   "orva.nav.purchasing": "Purchasing",
   "orva.nav.reports": "Reports",
-  "orva.nav.settings": "Settings"
+  "orva.nav.settings": "Settings",
+  "ui.dataTable.pagination.resultsWithDuration": "Showing {start}–{end} of {total}",
+  "ui.dataTable.pagination.results": "Showing {start}–{end} of {total}"
 }

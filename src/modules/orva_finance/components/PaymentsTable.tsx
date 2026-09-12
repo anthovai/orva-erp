@@ -65,7 +65,7 @@ export default function PaymentsTable() {
       accessorKey: 'vendor_party_id',
       header: t('orva_finance.ap.column.vendor', 'Vendor'),
       enableSorting: false,
-      meta: { priority: 1 },
+      meta: { priority: 1, maxWidth: '260px' },
       cell: ({ getValue }) => vendorMap[String(getValue())] ?? '…',
     },
     { accessorKey: 'payment_date', header: t('orva_finance.ap.column.date', 'Date'), meta: { priority: 2 } },
