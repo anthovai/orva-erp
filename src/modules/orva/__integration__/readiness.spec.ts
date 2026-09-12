@@ -61,8 +61,15 @@ test.describe('the readiness panel reads the real tenant', () => {
     // Every check the rules can emit must come back; a query that threw would
     // otherwise just drop its row and the panel would look clean.
     expect(checks.map((c) => c.id).sort()).toEqual(
-      ['email', 'pdf', 'period', 'portal', 'posting', 'rate', 'schedules', 'seller', 'tax'],
+      ['backup', 'email', 'pdf', 'period', 'portal', 'posting', 'rate', 'rls', 'schedules', 'seller', 'tax'],
     )
+    // The harness may connect as a superuser; what matters is that the panel
+    // reports what is true rather than assuming. On the real tenant this is
+    // `ok`, and a `blocker` here would be a correct report of the harness.
+    const rls = checks.find((c) => c.id === 'rls')!
+    expect(['ok', 'blocker']).toContain(rls.severity)
+    expect(rls.detail.length).toBeGreaterThan(0)
+
     for (const check of checks) {
       expect(['blocker', 'warning', 'ok']).toContain(check.severity)
       expect(check.labelKey.startsWith('orva.readiness.'), `${check.id} needs a label key`).toBe(true)

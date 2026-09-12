@@ -5,6 +5,9 @@ import { createRequestContainer } from '@open-mercato/shared/lib/di/container'
 import type { OpenApiRouteDoc } from '@open-mercato/shared/lib/openapi'
 import { z } from 'zod'
 import { withTenantRls } from '@/lib/rls'
+import { readdir, stat } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import path from 'node:path'
 import { resolveBrowserExecutable } from '@/modules/orva_documents/lib/pdf'
 import { assessReadiness, readinessSummary, type ReadinessFacts } from '../../lib/readiness'
 
@@ -22,6 +25,26 @@ const num = (value: unknown): number | null => {
   if (value === null || value === undefined || value === '') return null
   const n = Number(value)
   return Number.isFinite(n) ? n : null
+}
+
+/**
+ * How many whole days old the newest dump is, or null when there is none.
+ *
+ * The backup lives on the host's filesystem, not in the database, so this is
+ * the one fact the panel reads off disk. A directory that is not there is the
+ * same answer as one that is empty: nobody has ever taken a backup.
+ */
+async function newestBackupAgeDays(): Promise<number | null> {
+  const dir = process.env.ORVA_BACKUP_DIR || path.join(homedir(), 'orva-backups')
+  try {
+    const dumps = (await readdir(dir)).filter((file) => file.endsWith('.dump'))
+    if (!dumps.length) return null
+    const times = await Promise.all(dumps.map(async (file) => (await stat(path.join(dir, file))).mtimeMs))
+    const newest = Math.max(...times)
+    return Math.max(0, Math.floor((Date.now() - newest) / 86_400_000))
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -90,7 +113,16 @@ export async function GET(req: Request) {
                          where j.tenant_id = i.tenant_id and j.source_ref = i.id::text)`,
       [tenantId, organizationId], { n: 0 })
 
-    return { settings, taxRate, periods, portal, schedules, unposted }
+    // Is this connection actually subject to RLS? `current_user` is the role
+    // the app authenticated as; a superuser or a BYPASSRLS role sees every
+    // tenant's rows no matter what the policies say. Asked here rather than
+    // assumed from DATABASE_URL, because the string and the truth can differ.
+    const role = await one<{ enforced: boolean }>(
+      `select not coalesce(bool_or(rolsuper or rolbypassrls), true) as enforced
+       from pg_roles where rolname = current_user`,
+      [], { enforced: false })
+
+    return { settings, taxRate, periods, portal, schedules, unposted, role }
   })
 
   // Environment facts are the host's, not the tenant's, and are read here so
@@ -99,6 +131,7 @@ export async function GET(req: Request) {
   const emailConfigured = Boolean((process.env.RESEND_API_KEY ?? '').trim() && (process.env.RESEND_FROM_EMAIL ?? '').trim())
   let pdfConfigured = true
   try { resolveBrowserExecutable() } catch { pdfConfigured = false }
+  const backupAgeDays = await newestBackupAgeDays()
 
   const readiness: ReadinessFacts = {
     emailConfigured,
@@ -115,6 +148,8 @@ export async function GET(req: Request) {
     portalUsers: { total: Number(facts.portal.total ?? 0), linked: Number(facts.portal.linked ?? 0) },
     schedules: { total: Number(facts.schedules.total ?? 0), active: Number(facts.schedules.active ?? 0) },
     unpostedInvoices: Number(facts.unposted.n ?? 0),
+    backupAgeDays,
+    rlsEnforced: Boolean(facts.role.enforced),
   }
 
   const checks = assessReadiness(readiness)

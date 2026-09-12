@@ -49,10 +49,25 @@ export type ReadinessFacts = {
   schedules: { total: number; active: number }
   /** Issued invoices with no journal behind them. */
   unpostedInvoices: number
+  /** Age in days of the newest verified backup; null when there has never been one. */
+  backupAgeDays: number | null
+  /**
+   * Whether the connection the app actually uses is subject to row-level
+   * security. False means it connects as a superuser or a BYPASSRLS role, and
+   * every tenant policy in the database is decoration.
+   */
+  rlsEnforced: boolean
 }
 
 /** Thailand's VAT rate: the one a Thai tenant's lines must default to. */
 export const THAI_VAT_RATE = 7
+
+/**
+ * How old the newest backup may be before the panel says so. A week is what
+ * this tenant drifted to on its own while nobody was counting, which is
+ * exactly the interval worth naming.
+ */
+export const BACKUP_STALE_DAYS = 7
 
 const ok = (id: string, labelKey: string, detail: string, href: string | null = null): ReadinessCheck =>
   ({ id, labelKey, severity: 'ok', detail, href })
@@ -122,6 +137,31 @@ export function assessReadiness(facts: ReadinessFacts): ReadinessCheck[] {
   checks.push(facts.unpostedInvoices === 0
     ? ok('posting', 'orva.readiness.posting', 'ลงบัญชีครบ', '/backend/ar/posting')
     : { id: 'posting', labelKey: 'orva.readiness.posting', severity: 'warning', detail: `${facts.unpostedInvoices} ใบยังไม่ลงบัญชี`, href: '/backend/ar/posting' })
+
+  // Tenant isolation is the one property the whole design rests on: every
+  // Orva table carries a FORCE RLS policy, and a superuser connection makes
+  // all of them inert. It is a blocker rather than a warning because the
+  // business cannot safely do a day's work with it wrong — and because this
+  // tenant is the first of a SaaS, where "wrong" means another company's
+  // books.
+  checks.push(facts.rlsEnforced
+    ? ok('rls', 'orva.readiness.rls', 'บังคับใช้อยู่')
+    : {
+        id: 'rls', labelKey: 'orva.readiness.rls', severity: 'blocker',
+        detail: 'แอปต่อฐานข้อมูลด้วยสิทธิ์ที่ข้าม RLS — การแยกข้อมูลระหว่างผู้เช่าไม่ทำงาน',
+        href: null,
+      })
+
+  // A backup does not stop today's work, so it cannot be a blocker without
+  // making the panel cry wolf. It is still the difference between a bad week
+  // and the end of the business, so it says the age rather than just "ok".
+  checks.push(
+    facts.backupAgeDays === null
+      ? { id: 'backup', labelKey: 'orva.readiness.backup', severity: 'warning', detail: 'ยังไม่เคยสำรองข้อมูล — รัน yarn db:backup', href: null }
+      : facts.backupAgeDays > BACKUP_STALE_DAYS
+        ? { id: 'backup', labelKey: 'orva.readiness.backup', severity: 'warning', detail: `ล่าสุด ${facts.backupAgeDays} วันก่อน — เก่าเกิน ${BACKUP_STALE_DAYS} วัน`, href: null }
+        : ok('backup', 'orva.readiness.backup', facts.backupAgeDays === 0 ? 'วันนี้' : `${facts.backupAgeDays} วันก่อน`),
+  )
 
   const rank: Record<ReadinessSeverity, number> = { blocker: 0, warning: 1, ok: 2 }
   return checks.sort((a, b) => rank[a.severity] - rank[b.severity])

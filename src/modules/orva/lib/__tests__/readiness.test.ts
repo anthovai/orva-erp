@@ -1,5 +1,5 @@
 import { describe, expect, it } from '@jest/globals'
-import { assessReadiness, readinessSummary, THAI_VAT_RATE, type ReadinessFacts } from '../readiness'
+import { assessReadiness, readinessSummary, BACKUP_STALE_DAYS, THAI_VAT_RATE, type ReadinessFacts } from '../readiness'
 
 /**
  * Each case here is something that was actually true of the live tenant and
@@ -18,6 +18,8 @@ const ready: ReadinessFacts = {
   portalUsers: { total: 3, linked: 3 },
   schedules: { total: 5, active: 5 },
   unpostedInvoices: 0,
+  backupAgeDays: 0,
+  rlsEnforced: true,
 }
 const find = (facts: ReadinessFacts, id: string) => assessReadiness(facts).find((c) => c.id === id)!
 
@@ -113,6 +115,47 @@ describe('the list is read worst-first', () => {
     const severities = checks.map((c) => c.severity)
     expect(severities.indexOf('blocker')).toBe(0)
     expect(severities.indexOf('warning')).toBeLessThan(severities.indexOf('ok'))
+    expect(readinessSummary(checks)).toEqual({ blockers: 1, warnings: 1, ready: false })
+  })
+})
+
+describe('the two that decide whether the business survives a bad day', () => {
+  it('blocks when the app connects with a role that bypasses RLS', () => {
+    // Every Orva table carries a FORCE RLS policy. A superuser connection
+    // makes all of them decoration, and on a SaaS that means one company
+    // reading another's books — so this outranks anything cosmetic.
+    const check = find({ ...ready, rlsEnforced: false }, 'rls')
+    expect(check.severity).toBe('blocker')
+    expect(check.detail).toContain('RLS')
+  })
+
+  it('warns, not blocks, when there has never been a backup — and says what to run', () => {
+    // A missing backup does not stop today's invoice. Making it a blocker
+    // would train the owner to ignore the panel, which costs more than it
+    // buys.
+    const check = find({ ...ready, backupAgeDays: null }, 'backup')
+    expect(check.severity).toBe('warning')
+    expect(check.detail).toContain('yarn db:backup')
+  })
+
+  it('warns once the newest backup is older than the stale mark, naming the age', () => {
+    const stale = find({ ...ready, backupAgeDays: BACKUP_STALE_DAYS + 1 }, 'backup')
+    expect(stale.severity).toBe('warning')
+    expect(stale.detail).toContain(String(BACKUP_STALE_DAYS + 1))
+
+    // Exactly at the mark is still fine: the boundary must not flicker.
+    expect(find({ ...ready, backupAgeDays: BACKUP_STALE_DAYS }, 'backup').severity).toBe('ok')
+  })
+
+  it("says 'วันนี้' for a backup taken today rather than '0 วันก่อน'", () => {
+    expect(find({ ...ready, backupAgeDays: 0 }, 'backup').detail).toBe('วันนี้')
+    expect(find({ ...ready, backupAgeDays: 2 }, 'backup').detail).toContain('2')
+  })
+
+  it('puts the RLS blocker above the backup warning, worst first', () => {
+    const checks = assessReadiness({ ...ready, rlsEnforced: false, backupAgeDays: null })
+    const ids = checks.map((c) => c.id)
+    expect(ids.indexOf('rls')).toBeLessThan(ids.indexOf('backup'))
     expect(readinessSummary(checks)).toEqual({ blockers: 1, warnings: 1, ready: false })
   })
 })

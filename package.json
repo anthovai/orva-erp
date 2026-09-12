@@ -34,6 +34,7 @@
     "harness:validate-knowledge-change": "node ./scripts/validate-knowledge-change.mjs",
     "db:generate": "mercato db generate",
     "db:migrate": "mercato db migrate",
+    "db:backup": "node ./scripts/backup-db.mjs",
     "db:greenfield": "mercato db greenfield",
     "initialize": "mercato init",
     "reinstall": "mercato init --reinstall",
