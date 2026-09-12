@@ -84,5 +84,14 @@
   "orva.header.searchPlaceholder": "Search anything",
   "orva.header.today": "Today",
   "orva.home.stat.receivedWht": "{count} receipts · {wht} withheld by customers",
-  "orva.home.stat.taxOverdue": "{period} · {days} days past the deadline"
+  "orva.home.stat.taxOverdue": "{period} · {days} days past the deadline",
+  "orva.home.projects.title": "Work in flight",
+  "orva.home.projects.overdue": "{count} overdue",
+  "orva.home.tasks.title": "My tasks",
+  "orva.home.tasks.late": "{days}d late",
+  "orva.home.status.title": "System status",
+  "orva.home.status.ready": "Ready",
+  "orva.home.status.blocked": "{count} blocking",
+  "orva.home.status.warned": "{count} to look at",
+  "orva.home.status.unread": "{count} couldn't be checked"
 }

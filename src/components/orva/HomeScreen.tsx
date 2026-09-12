@@ -23,6 +23,7 @@ import {
 } from '@/modules/orva_finance/components/FourQuestions'
 import { OrvaPageHeader } from '@/components/orva/PageHeader'
 import { StatCard, StatStrip } from '@/components/orva/StatStrip'
+import { MyTasksPanel, ProjectProgressPanel, SystemStatusPanel } from '@/components/orva/HomePanels'
 
 /**
  * The Orva home: the owner's first minute of the day, not a widget grid.
@@ -79,11 +80,23 @@ export function OrvaHomeScreen() {
           {t('orva_finance.home.unavailable', 'ยังดึงตัวเลขไม่ได้ในขณะนี้')}
         </p>
       ) : (
-        <>
-          <HomeStats data={data} />
-          <FourQuestions data={data} hideCardValues />
-        </>
+        <HomeStats data={data} />
       )}
+
+      {/* Money and the work it came from on the left, the state of the place
+          on the right — the reference's two-column dashboard, with a rail that
+          holds what is true about this system rather than a chat panel and a
+          permanently green status light. */}
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start">
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
+          {data ? <FourQuestions data={data} hideCardValues /> : null}
+          <ProjectProgressPanel />
+        </div>
+        <aside className="flex w-full shrink-0 flex-col gap-4 xl:w-80">
+          <SystemStatusPanel />
+          <MyTasksPanel />
+        </aside>
+      </div>
 
       <section className="rounded-xl border bg-card" aria-label={t('orva.home.create.title', 'เริ่มงานใหม่')}>
         <div className="border-b px-4 py-3">

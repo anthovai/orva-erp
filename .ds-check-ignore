@@ -2286,6 +2286,12 @@
       "rule": "inline-style",
       "match": "style=",
       "reason": "The brand template paints the TENANT'S configured colour (settings.brandColor), resolved at render time per tenant — runtime data no build-time design token can express, so inline style is the only vehicle."
+    },
+    {
+      "file": "src/components/orva/HomePanels.tsx",
+      "rule": "inline-style",
+      "match": "style=",
+      "reason": "The only inline style here is a progress bar's width, which is the datum itself — the percentage of a project's tasks that are done. There is no design token for 37%, and rendering it any other way would mean encoding data as a class name."
     }
   ]
 }

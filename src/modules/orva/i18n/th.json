@@ -17767,5 +17767,14 @@
   "orva.header.searchPlaceholder": "ค้นหาทุกอย่าง",
   "orva.header.today": "วันนี้",
   "orva.home.stat.receivedWht": "{count} ใบเสร็จ · ลูกค้าหักไว้ {wht}",
-  "orva.home.stat.taxOverdue": "{period} · เลยกำหนดมา {days} วัน"
+  "orva.home.stat.taxOverdue": "{period} · เลยกำหนดมา {days} วัน",
+  "orva.home.projects.title": "งานที่กำลังเดิน",
+  "orva.home.projects.overdue": "เลยกำหนด {count} งาน",
+  "orva.home.tasks.title": "งานของฉัน",
+  "orva.home.tasks.late": "เลย {days} วัน",
+  "orva.home.status.title": "สถานะระบบ",
+  "orva.home.status.ready": "พร้อมใช้งาน",
+  "orva.home.status.blocked": "ติด {count} เรื่อง",
+  "orva.home.status.warned": "ควรดู {count} เรื่อง",
+  "orva.home.status.unread": "ตรวจไม่ได้ {count} ข้อ"
 }
